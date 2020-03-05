@@ -18,6 +18,10 @@ MACHINE_EXTRA_RRECOMMENDS += "udev-aspeed-vuart udev-aspeed-mtd-partitions"
 MACHINEOVERRIDES =. "aspeed:"
 
 SERIAL_CONSOLES ?= "115200;ttyS4"
+SERIAL_CONSOLES += "115200;ttyS0"
+SERIAL_CONSOLES += "115200;ttyS1"
+SERIAL_CONSOLES += "115200;ttyS2"
+SERIAL_CONSOLES += "115200;ttyS3"
 
 DEFAULTTUNE_aspeed-g5 ?= "arm1176jzs"
 DEFAULTTUNE_aspeed-g6 ?= "armv7ahf-vfpv4d16"
