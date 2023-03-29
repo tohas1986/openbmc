@@ -1,4 +1,4 @@
-FILESEXTRAPATHS:prepend := "${THISDIR}/linux-obmc:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/linux-aspeed:"
 SRC_URI += "file://aspeed-bmc-intel-openyard.dts \
             "
 
