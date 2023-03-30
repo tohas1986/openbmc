@@ -4,6 +4,7 @@
 
 #include "aspeed-g6.dtsi"
 #include "aspeed-g6-pinctrl.dtsi"
+#include <dt-bindings/gpio/aspeed-gpio.h>
 
 / {
 	model = "S2600WF BMC";
@@ -31,10 +32,10 @@
 
 	iio-hwmon {
 		compatible = "iio-hwmon";
-		io-channels = <&adc 0>, <&adc 1>, <&adc 2>, <&adc 3>,
-			<&adc 4>, <&adc 5>, <&adc 6>, <&adc 7>,
-			<&adc 8>, <&adc 9>, <&adc 10>, <&adc 11>,
-			<&adc 12>, <&adc 13>, <&adc 14>, <&adc 15>;
+		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
+			<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+			<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
+			<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 	};
 
 };
