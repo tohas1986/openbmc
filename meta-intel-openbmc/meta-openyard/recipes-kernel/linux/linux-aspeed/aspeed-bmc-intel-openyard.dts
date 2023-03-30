@@ -2,11 +2,11 @@
 // Copyright (c) 2017 Intel Corporation
 /dts-v1/;
 
-#include "aspeed-g5.dtsi"
+#include "aspeed-g6.dtsi"
 
 / {
 	model = "S2600WF BMC";
-	compatible = "intel,s2600wf-bmc", "aspeed,ast2500";
+	compatible = "intel,s2600wf-bmc", "aspeed,ast2600";
 
 	chosen {
 		stdout-path = &uart5;
@@ -75,52 +75,52 @@
 	use-ncsi;
 };
 
-&mac1 {
-	status = "okay";
+//&mac1 {
+//	status = "okay";
+//
+//	pinctrl-names = "default";
+//	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+//};
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
-};
-
-&i2c1 {
-	status = "okay";
-};
-
-&i2c2 {
-	status = "okay";
-};
-
-&i2c3 {
-	status = "okay";
-};
-
-&i2c4 {
-	status = "okay";
-};
-
-&i2c5 {
-	status = "okay";
-};
-
-&i2c6 {
-	status = "okay";
-};
-
-&i2c7 {
-	status = "okay";
-};
-
-&i2c13 {
-	status = "okay";
-};
-
-&gfx {
-	status = "okay";
-};
-
-&pinctrl {
-	aspeed,external-nodes = <&gfx &lhc>;
-};
+//&i2c1 {
+//	status = "okay";
+//};
+//
+//&i2c2 {
+//	status = "okay";
+//};
+//
+//&i2c3 {
+//	status = "okay";
+//};
+//
+//&i2c4 {
+//	status = "okay";
+//};
+//
+//&i2c5 {
+//	status = "okay";
+//};
+//
+//&i2c6 {
+//	status = "okay";
+//};
+//
+//&i2c7 {
+//	status = "okay";
+//};
+//
+//&i2c13 {
+//	status = "okay";
+//};
+//
+//&gfx {
+//	status = "okay";
+//};
+//
+//&pinctrl {
+//	aspeed,external-nodes = <&gfx &lhc>;
+//};
 
 &pwm_tacho {
 	status = "okay";

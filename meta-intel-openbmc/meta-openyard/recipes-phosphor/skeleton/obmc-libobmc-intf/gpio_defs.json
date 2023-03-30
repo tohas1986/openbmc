@@ -20,27 +20,27 @@
         },
         {
             "name": "POWER_BUTTON",
-            "pin": "E2",
+            "pin": "AB22",
             "direction": "both"
         },
         {
             "name": "POWER_UP_PIN",
-            "pin": "E3",
+            "pin": "W24",
             "direction": "out"
         },
         {
             "name": "RESET_BUTTON",
-            "pin": "E0",
+            "pin": "AA23",
             "direction": "both"
         },
         {
             "name": "RESET_OUT",
-            "pin": "E1",
+            "pin": "AA24",
             "direction": "out"
         },
         {
             "name": "ID_BUTTON",
-            "pin": "S6",
+            "pin": "V25",
             "direction": "both"
         }
     ]
