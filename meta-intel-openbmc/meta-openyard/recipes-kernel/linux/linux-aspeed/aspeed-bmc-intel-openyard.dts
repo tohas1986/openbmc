@@ -3,6 +3,7 @@
 /dts-v1/;
 
 #include "aspeed-g6.dtsi"
+#include "aspeed-g6-pinctrl.dtsi"
 
 / {
 	model = "S2600WF BMC";
@@ -122,11 +123,11 @@
 //	aspeed,external-nodes = <&gfx &lhc>;
 //};
 
-&pwm_tacho {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_pwm1_default
-			 &pinctrl_pwm2_default &pinctrl_pwm3_default
-			 &pinctrl_pwm4_default &pinctrl_pwm5_default
-			 &pinctrl_pwm6_default &pinctrl_pwm7_default>;
-};
+//&pwm_tacho {
+//	status = "okay";
+//	pinctrl-names = "default";
+//	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_pwm1_default
+//			 &pinctrl_pwm2_default &pinctrl_pwm3_default
+//			 &pinctrl_pwm4_default &pinctrl_pwm5_default
+//			 &pinctrl_pwm6_default &pinctrl_pwm7_default>;
+//};
