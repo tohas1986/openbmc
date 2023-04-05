@@ -16,27 +16,28 @@
 	};
 
 	memory@80000000 {
-		reg = <0x80000000 0x20000000>;
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>;
 	};
 
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
-
-		vga_memory: framebuffer@9f000000 {
-			no-map;
-			reg = <0x9f000000 0x01000000>; /* 16M */
-		};
-	};
-
-	iio-hwmon {
-		compatible = "iio-hwmon";
-		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
-			<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
-			<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
-			<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
-	};
+//	reserved-memory {
+//		#address-cells = <1>;
+//		#size-cells = <1>;
+//		ranges;
+//
+//		vga_memory: framebuffer@9f000000 {
+//			no-map;
+//			reg = <0x9f000000 0x01000000>; /* 16M */
+//		};
+//	};
+//
+//	iio-hwmon {
+//		compatible = "iio-hwmon";
+//		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
+//			<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+//			<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
+//			<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
+//	};
 
 };
 
