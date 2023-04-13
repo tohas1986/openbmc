@@ -1,0 +1,1 @@
+FILESEXTRAPATHS:prepend:dev2600 := "${THISDIR}/${PN}:"
