@@ -23,7 +23,6 @@ RPROVIDES:${PN}-system += "virtual-obmc-system-mgmt"
 
 SUMMARY:${PN}-chassis = "Intel Chassis"
 RDEPENDS:${PN}-chassis = " \
-        x86-power-control \
         obmc-host-failure-reboots \
         "
 
@@ -40,7 +39,6 @@ SUMMARY:${PN}-system = "Intel System"
 RDEPENDS:${PN}-system = " \
         bmcweb \
         entity-manager \
-        intel-ipmi-oem \
         dbus-sensors \
         webui-vue \
         "
