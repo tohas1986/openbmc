@@ -11,6 +11,7 @@ PE = "1"
 
 # We use the revision in order to avoid having to fetch it from the
 # repo during parse
+
 SRCREV = "${AUTOREV}"
 # SRC_URI = "git://git@github.com/openbmc/u-boot.git;nobranch=1;protocol=https"
 SRC_URI = "git://git@github.com/tohas1986/uboot-oy.git;nobranch=1;protocol=https"
@@ -25,4 +26,5 @@ do_configure[cleandirs] = "${B}"
 # We don't have 'u-boot-initial-env' target in our u-boot version
 UBOOT_INITIAL_ENV=""
 
-PV = "v2019.04+git${SRCPV}"
+#PV = "v2019.04+git${SRCPV}"
+PV = "1.0+git${SRCPV}"
