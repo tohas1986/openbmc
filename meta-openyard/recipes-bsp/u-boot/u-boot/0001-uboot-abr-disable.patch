@@ -1,0 +1,83 @@
+diff --git a/arch/arm/dts/ast2600-intel.dts b/arch/arm/dts/ast2600-intel.dts
+index d2c8bc2cd4..a4906fa827 100644
+--- a/arch/arm/dts/ast2600-intel.dts
++++ b/arch/arm/dts/ast2600-intel.dts
+@@ -49,15 +49,15 @@
+ };
+ 
+ &wdt1 {
+-	status = "okay";
++	status = "disabled";
+ };
+ 
+ &wdt2 {
+-	status = "okay";
++	status = "disabled";
+ };
+ 
+ &wdt3 {
+-	status = "okay";
++	status = "disabled";
+ };
+ 
+ &mdio {
+diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
+index 6623d58957..728dd34a33 100644
+--- a/arch/arm/mach-aspeed/ast2600/platform.S
++++ b/arch/arm/mach-aspeed/ast2600/platform.S
+@@ -294,7 +294,8 @@ wait_lock:
+ 	ldr	r1, =AST_SCU_CLK_STOP_CTRL_CLR
+ 	str	r0, [r1]
+ 
+-#if 0
++#if 1
++	ldr	r0, =0x00000000
+ 	ldr	r1, =AST_FMC_WDT2_CTRL_MODE
+ 	str	r0, [r1]
+ #endif
+diff --git a/board/aspeed/ast2600_intel/intel.c b/board/aspeed/ast2600_intel/intel.c
+index be6dc49a3b..98f7e57460 100644
+--- a/board/aspeed/ast2600_intel/intel.c
++++ b/board/aspeed/ast2600_intel/intel.c
+@@ -14,6 +14,10 @@
+ #define   SCU_PINMUX5_SGPMO		BIT(26)
+ #define   SCU_PINMUX5_SGPMLD		BIT(25)
+ #define   SCU_PINMUX5_SGPMCK		BIT(24)
++//Openyard_18.04.2023
++#define SCU_HARDWARE_STRAP2_REG		(SCU_BASE + 0x510)
++#define   SCU_HARDWARE_STRAP2_REG_ABREN BIT(11)
++//end
+ #define SCU_GPIO_PD0	(SCU_BASE + 0x610)
+ #define SCU_GPIO_PD0_B6			BIT(14)
+ #define SCU_PINMUX27	(SCU_BASE + 0x69c)
+@@ -212,11 +216,17 @@ static void espi_init(void)
+ 	writel(reg, ESPI_CTRL);
+ }
+ 
++static void abr_disable(void)
++{
++	writel(0x00000003, SCU_HARDWARE_STRAP2_REG);
++}
++
+ int board_early_init_f(void)
+ {
+ 	snoop_init();
+ 	gpio_init();
+ 	sgpio_init();
+ 	espi_init();
++	abr_disable();
+ 	return 0;
+ }
+diff --git a/lib/smbios.c b/lib/smbios.c
+index e8ee55c4ae..554dd5570a 100644
+--- a/lib/smbios.c
++++ b/lib/smbios.c
+@@ -71,6 +71,8 @@ static int smbios_string_table_len(char *start)
+ 	return len + 1;
+ }
+ 
++#define U_BOOT_DMI_DATE 1
++
+ static int smbios_write_type0(ulong *current, int handle)
+ {
+ 	struct smbios_type0 *t;
