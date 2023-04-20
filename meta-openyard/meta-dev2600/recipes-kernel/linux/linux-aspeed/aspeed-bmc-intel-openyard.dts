@@ -78,15 +78,15 @@
 	clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>,
 		 <&syscon ASPEED_CLK_MAC1RCLK>;
 	clock-names = "MACCLK", "RCLK";
-	use-ncsi;
+//	use-ncsi;
 };
 
-//&mac1 {
-//	status = "okay";
-//
-//	pinctrl-names = "default";
-//	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
-//};
+&mac1 {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+};
 
 //&i2c1 {
 //	status = "okay";
