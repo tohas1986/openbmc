@@ -70,22 +70,23 @@
 	status = "okay";
 };
 
+
+&mdio0 {
+	status = "okay";
+	ethphy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};	
+};
+
 &mac0 {
 	status = "okay";
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rmii1_default>;
-	clocks = <&syscon ASPEED_CLK_GATE_MAC1CLK>,
-		 <&syscon ASPEED_CLK_MAC1RCLK>;
-	clock-names = "MACCLK", "RCLK";
-//	use-ncsi;
-};
-
-&mac1 {
-	status = "okay";
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy0>;
 
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+	pinctrl-0 = <&pinctrl_rgmii1_default>;
 };
 
 //&i2c1 {
