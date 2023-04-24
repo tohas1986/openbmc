@@ -1,5 +1,5 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/linux-aspeed:"
-SRC_URI += "file://aspeed-bmc-intel-openyard.dts \
+SRC_URI += "file://aspeed-bmc-openyard-dev2600.dts \
             "
 
 do_patch:append() {
