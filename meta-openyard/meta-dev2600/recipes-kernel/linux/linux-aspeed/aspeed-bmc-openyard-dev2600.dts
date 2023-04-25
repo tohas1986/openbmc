@@ -30,6 +30,16 @@
             gpios = <&gpio0 ASPEED_GPIO(G, 0) GPIO_ACTIVE_LOW>;
         };
 
+        //Green LED
+        sys_green {
+            gpios = <&gpio0 ASPEED_GPIO(C, 21) GPIO_ACTIVE_LOW>;
+        };
+
+        //Amber LED
+        sys_amber {
+            gpios = <&gpio0 ASPEED_GPIO(A, 22) GPIO_ACTIVE_LOW>;
+        };
+
         // Heart beat led
 //        heartbeat {
 //        	label = "HB_LED";
