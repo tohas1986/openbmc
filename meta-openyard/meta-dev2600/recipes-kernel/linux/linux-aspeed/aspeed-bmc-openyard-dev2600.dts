@@ -5,6 +5,7 @@
 #include "aspeed-g6.dtsi"
 #include "aspeed-g6-pinctrl.dtsi"
 #include <dt-bindings/gpio/aspeed-gpio.h>
+#include <dt-bindings/leds/leds-pca955x.h>
 
 / {
 	model = "OpenYard_BMC";

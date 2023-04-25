@@ -1,7 +1,6 @@
 SUMMARY = "Phosphor LED Group Management for Intel"
 PR = "r1"
 
-inherit obmc-phosphor-utils
 inherit native
 
 LICENSE = "Apache-2.0"
