@@ -1,14 +1,10 @@
+bmc_booted:
+    heartbeat:
+        Action : 'Blink'
+        DutyOn : 50
+        Period : 1000
+
 enclosure_identify:
     identify:
         Action: 'On'
-
-bmc_booted:
-    sys_green:
-        Action: 'On'
-
-enclosure_fault:
-    sys_amber:
-        Action: 'Blink'
-        DutyOn: 50
-        Period: 1000
 
