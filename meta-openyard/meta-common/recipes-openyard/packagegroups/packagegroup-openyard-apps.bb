@@ -39,6 +39,11 @@ SUMMARY:${PN}-system = "Intel System"
 RDEPENDS:${PN}-system = " \
         bmcweb \
         entity-manager \
-        dbus-sensors \
         webui-vue \
+        dbus-sensors \
+        phosphor-virtual-sensor \
         "
+
+RDEPENDS:${PN}-extras:remove = " phosphor-hwmon"
+VIRTUAL-RUNTIME_obmc-sensors-hwmon ?= "dbus-sensors"
+RDEPENDS:${PN}-extras:append = " phosphor-virtual-sensor"
