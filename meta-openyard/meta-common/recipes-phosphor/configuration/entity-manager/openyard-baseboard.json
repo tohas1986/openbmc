@@ -336,6 +336,49 @@
                 }
             ],
             "Type": "ADC"
+        },
+        {
+            "Address": "0x58",
+            "Bus": 5,
+            "Labels": [
+                "fan1_input",
+                "temp1_input"
+            ],
+            "Name": "PS1",
+            "Name1": "PS1_Sensors",
+            "fan1_input_Name" : "PS1_FAN_bpm",
+            "temp1_input_Name" : "PS1_temperature",
+            "Thresholds": [
+                {
+                    "Direction": "greater than",
+                    "Label": "fan1",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 10000
+                },
+                {
+                    "Direction": "greater than",
+                    "Label": "temp1",
+                    "Name": "upper critical",
+                    "Severity": 1,
+                    "Value": 90
+                },
+                {
+                    "Direction": "less than",
+                    "Label": "fan1",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 4.5
+                },
+                {
+                    "Direction": "less than",
+                    "Label": "tem1",
+                    "Name": "lower critical",
+                    "Severity": 1,
+                    "Value": 0
+                }
+            ],
+            "Type": "IBMCFFPSConnector"
         }
     ],
     "Name": "Openyard Server Baseboard",

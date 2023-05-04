@@ -139,38 +139,181 @@
 		&pinctrl_adc14_default &pinctrl_adc15_default>;
 };
 
+&vhub {
+	status = "okay";
+};
 
-//&i2c1 {
-//	status = "okay";
-//};
+&ehci1 {
+	status = "okay";
+};
+
+&peci0 {
+	status = "okay";
+};
+
+&kcs3 {
+	status = "okay";
+	aspeed,lpc-io-reg = <0xca2>;
+};
+
+&lpc_snoop {
+	status = "okay";
+	snoop-ports = <0x80>, <0x81>;
+};
+
+&lpc_ctrl {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+};
 //
-//&i2c2 {
-//	status = "okay";
-//};
+&i2c1 {
+	//Need TCA9548 descriptor
+	status = "okay";
+		i2c-mux@73 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x73>;
+		i2c-mux-idle-disconnect;
+
+		pcie_slo1: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1>;
+		};
+	
+		pcie_slo2: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2>;
+		};
+		
+		pcie_slo3: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3>;
+		};
+
+		ocp30: i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x4>;
+		};
+
+		ocp20: i2c@5 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x5>;
+		};
+
+		u20: i2c@6 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x6>;
+		};
+
+		u21: i2c@7 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x7>;
+		};
+
+		lan: i2c@8 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x8>;
+		};
+	};
+};
 //
-//&i2c3 {
-//	status = "okay";
-//};
+&i2c2 {
+	status = "okay";
+};
 //
-//&i2c4 {
-//	status = "okay";
-//};
+&i2c3 {
+	//SPD Debug
+	status = "disabled";
+};
 //
-//&i2c5 {
-//	status = "okay";
-//};
+&i2c4 {
+	status = "okay";
+};
 //
-//&i2c6 {
-//	status = "okay";
-//};
+&i2c5 {
+	//Need GPIOS5 as "0"
+	status = "okay";
+	/* PSU1 @ 0xB0 */
+	power-supply@58 {
+		compatible = "ibm,cffps";
+		reg = <0x50>;
+	};
+
+	/* PSU2 @ 0xB2 */
+	power-supply@51 {
+		compatible = "ibm,cffps";
+		reg = <0x51>;
+	};
+};
 //
-//&i2c7 {
-//	status = "okay";
-//};
+&i2c6 {
+	//Need ina219 [80,82,88]
+	status = "okay";
+	Current_Meter_GPU@40 {
+		compatible = "ti,ina219";
+		reg = <0x40>;
+		shunt-resistor = <1000>; /* = 1 mOhm */
+	};
+	Current_Meter_GPU@41 {
+		compatible = "ti,ina219";
+		reg = <0x42>;
+		shunt-resistor = <1000>; /* = 1 mOhm */
+	};
+	Current_Meter_GPU@44 {
+		compatible = "ti,ina219";
+		reg = <0x48>;
+		shunt-resistor = <1000>; /* = 1 mOhm */
+	};
+};
 //
-//&i2c13 {
-//	status = "okay";
-//};
+&i2c7 {
+	//FRU AT24C256 and PFR
+	status = "disabled";
+};
+//
+&i2c8 {
+	status = "okay";
+};
+//
+&i2c9 {
+	status = "disabled";
+};
+//
+&i2c10 {
+	status = "disabled";
+};
+//
+&i2c11 {
+	status = "okay";
+};
+//
+&i2c12 {
+	status = "okay";
+};
+//
+&i2c13 {
+	status = "disabled";
+};
+//
+&i2c14 {
+	status = "disabled";
+};
+//
+&i2c15 {
+	status = "disabled";
+};
 //
 //&gfx {
 //	status = "okay";
