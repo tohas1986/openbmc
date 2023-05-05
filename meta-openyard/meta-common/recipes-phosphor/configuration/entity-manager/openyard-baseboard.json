@@ -341,13 +341,13 @@
             "Address": "0x58",
             "Bus": 5,
             "Labels": [
-                "fan1_input",
-                "temp1_input"
+                "fan1",
+                "temp1"
             ],
             "Name": "PS1",
             "Name1": "PS1_Sensors",
-            "fan1_input_Name" : "PS1_FAN_bpm",
-            "temp1_input_Name" : "PS1_temperature",
+            "fan1_Name" : "PS1_FAN_bpm",
+            "temp1_Name" : "PS1_temperature",
             "Thresholds": [
                 {
                     "Direction": "greater than",
@@ -378,7 +378,20 @@
                     "Value": 0
                 }
             ],
-            "Type": "IBMCFFPSConnector"
+            "Type": "IPSPS1"
+        },
+        {
+            "Address": "0x40",
+            "Bus": 6,
+            "Labels": [
+                "in1",
+                "power1"
+            ],
+            "Name": "GPU",
+            "Name1": "GPU_Sensors",
+            "in1_Name" : "GPU_voltage",
+            "power1_Name" : "GPU_power",
+            "Type": "INA219"
         }
     ],
     "Name": "Openyard Server Baseboard",

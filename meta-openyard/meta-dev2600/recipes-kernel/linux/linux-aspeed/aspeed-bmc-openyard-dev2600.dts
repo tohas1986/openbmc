@@ -247,15 +247,15 @@
 	status = "okay";
 	/* PSU1 @ 0xB0 */
 	power-supply@58 {
-		compatible = "ibm,cffps";
-		reg = <0x50>;
+		compatible = "inspur,ipsps1";
+		reg = <0x58>;
 	};
 
 	/* PSU2 @ 0xB2 */
-	power-supply@51 {
-		compatible = "ibm,cffps";
+	/*power-supply@51 {
+		compatible = "inspur,ipsps1";
 		reg = <0x51>;
-	};
+	};*/
 };
 //
 &i2c6 {
