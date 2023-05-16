@@ -38,17 +38,26 @@
         };
     };
 
-//	reserved-memory {
-//		#address-cells = <1>;
-//		#size-cells = <1>;
-//		ranges;
-//
-//		vga_memory: framebuffer@9f000000 {
-//			no-map;
-//			reg = <0x9f000000 0x01000000>; /* 16M */
-//		};
-//	};
-//
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		video_engine_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+	};
+
 	iio-hwmon {
 		compatible = "iio-hwmon";
 		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
@@ -83,6 +92,19 @@
 	};
 };
 
+&uart1 {
+	/* Rear RS-232 connector */
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_txd1_default
+			&pinctrl_rxd1_default
+			&pinctrl_nrts1_default
+			&pinctrl_ndtr1_default
+			&pinctrl_ndsr1_default
+			&pinctrl_ncts1_default
+			&pinctrl_ndcd1_default
+			&pinctrl_nri1_default>;
+};
 
 &uart5 {
 	status = "okay";
@@ -331,3 +353,62 @@
 //			 &pinctrl_pwm4_default &pinctrl_pwm5_default
 //			 &pinctrl_pwm6_default &pinctrl_pwm7_default>;
 //};
+
+&sgpiom0 {
+	status = "okay";
+	ngpios = <128>;
+	bus-frequency = <48000>;
+	gpio-line-names =
+	/* SGPIO input lines */
+	/*IOA0-IOA7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOB0-IOB7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOC0-IOC7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOD0-IOD7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOE0-IOE7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOF0-IOF7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOG0-IOG7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOH0-IOH7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOI0-IOI7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOJ0-IOJ7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOK0-IOK7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOL0-IOL7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOM0-IOM7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*ION0-ION7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOO0-IOO7*/	"","", "","", "","", "","", "","", "","", "","", "","",
+	/*IOP0-IOP7*/	"","", "","", "","", "","", "","", "","", "","", "","";
+};
+
+
+&pwm_tacho {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_tach0_default
+			&pinctrl_pwm1_default &pinctrl_tach1_default>;
+
+	fan@0 {
+		reg = <0x00>;
+		aspeed,pwm-freq = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+		aspeed,pulse-pr = <2>;
+	};
+
+	fan@1 {
+		reg = <0x01>;
+		aspeed,pwm-freq = <25000>;
+		cooling-levels = /bits/ 8 <125 151 177 203 229 255>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
+		aspeed,pulse-pr = <2>;
+	};
+};
+
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+
+&gfx {
+	status = "okay";
+	memory-region = <&gfx_memory>;
+};
+
