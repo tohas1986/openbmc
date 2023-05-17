@@ -1,8 +1,6 @@
 {
     "gpio_configs": {
-
         "power_config": {
-            "power_good_in": "PGOOD",
             "power_up_outs": [
                 {"name": "POWER_UP_PIN", "polarity": true}
             ],
@@ -13,11 +11,6 @@
     },
 
     "gpio_definitions": [
-        {
-            "name": "PGOOD",
-            "pin": "AB3",
-            "direction": "in"
-        },
         {
             "name": "POWER_BUTTON",
             "pin": "AB22",

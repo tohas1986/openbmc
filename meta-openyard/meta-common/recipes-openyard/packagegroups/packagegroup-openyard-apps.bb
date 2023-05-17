@@ -23,6 +23,7 @@ RPROVIDES:${PN}-system += "virtual-obmc-system-mgmt"
 
 SUMMARY:${PN}-chassis = "Intel Chassis"
 RDEPENDS:${PN}-chassis = " \
+        x86-power-control \
         obmc-host-failure-reboots \
         "
 
@@ -33,6 +34,7 @@ RDEPENDS:${PN}-fans = " \
 
 SUMMARY:${PN}-flash = "Intel Flash"
 RDEPENDS:${PN}-flash = " \
+        phosphor-software-manager \
         "
 
 SUMMARY:${PN}-system = "Intel System"
@@ -42,9 +44,9 @@ RDEPENDS:${PN}-system = " \
         webui-vue \
         dbus-sensors \
         phosphor-virtual-sensor \
-        i2c-tools \
         "
 
 RDEPENDS:${PN}-extras:remove = " phosphor-hwmon"
+RDEPENDS:${PN}-extras:remove = " phosphor-state-manager"
 VIRTUAL-RUNTIME_obmc-sensors-hwmon ?= "dbus-sensors"
 RDEPENDS:${PN}-extras:append = " phosphor-virtual-sensor"
