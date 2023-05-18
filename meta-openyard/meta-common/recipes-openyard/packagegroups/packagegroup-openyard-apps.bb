@@ -44,6 +44,7 @@ RDEPENDS:${PN}-system = " \
         webui-vue \
         dbus-sensors \
         phosphor-virtual-sensor \
+        intel-ipmi-oem \
         "
 
 RDEPENDS:${PN}-extras:remove = " phosphor-hwmon"
