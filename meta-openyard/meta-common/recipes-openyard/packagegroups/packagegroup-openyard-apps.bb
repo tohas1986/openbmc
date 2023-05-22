@@ -34,7 +34,7 @@ RDEPENDS:${PN}-fans = " \
 
 SUMMARY:${PN}-flash = "Intel Flash"
 RDEPENDS:${PN}-flash = " \
-        phosphor-software-manager \
+        phosphor-software-manager \ 
         "
 
 SUMMARY:${PN}-system = "Intel System"
