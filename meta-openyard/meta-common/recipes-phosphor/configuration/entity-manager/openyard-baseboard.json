@@ -405,8 +405,8 @@
     "xyz.openbmc_project.Inventory.Decorator.Asset": {
         "Manufacturer": "Openyard",
         "Model": "Dev2600",
-        "PartNumber": "_____________",
-        "SerialNumber": "____"
+        "PartNumber": "MR92",
+        "SerialNumber": "123456789AB"
     },
     "xyz.openbmc_project.Inventory.Item.System": {}
 }
