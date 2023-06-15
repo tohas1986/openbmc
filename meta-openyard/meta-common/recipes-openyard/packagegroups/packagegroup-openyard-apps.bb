@@ -24,7 +24,6 @@ RPROVIDES:${PN}-system += "virtual-obmc-system-mgmt"
 SUMMARY:${PN}-chassis = "Intel Chassis"
 RDEPENDS:${PN}-chassis = " \
         x86-power-control \
-        obmc-host-failure-reboots \
         "
 
 SUMMARY:${PN}-fans = "Intel Fans"
@@ -46,9 +45,11 @@ RDEPENDS:${PN}-system = " \
         phosphor-virtual-sensor \
         intel-ipmi-oem \
         ipmitool \
+        oy-gpio \
         "
 
 RDEPENDS:${PN}-extras:remove = " phosphor-hwmon"
+RDEPENDS:${PN}-extras:remove = " phosphor-host-state-manager"
 RDEPENDS:${PN}-extras:remove = " phosphor-state-manager"
 VIRTUAL-RUNTIME_obmc-sensors-hwmon ?= "dbus-sensors"
 RDEPENDS:${PN}-extras:append = " phosphor-virtual-sensor"

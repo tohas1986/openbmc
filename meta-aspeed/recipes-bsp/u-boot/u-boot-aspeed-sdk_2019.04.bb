@@ -18,10 +18,10 @@ SOCSEC_SIGN_KEY ?= "${WORKDIR}/rsa_oem_dss_key.pem"
 SOCSEC_SIGN_ALGO ?= "RSA4096_SHA512"
 SOCSEC_SIGN_EXTRA_OPTS ?= "--stack_intersects_verification_region=false --rsa_key_order=big"
 
-OTPTOOL_USER_DIR ?= "${WORKDIR}/user"
+#OTPTOOL_USER_DIR ?= "${WORKDIR}/user"
 
 inherit socsec-sign
-inherit otptool
+#inherit otptool
 
 UBOOT_ENV_SIZE:df-phosphor-mmc = "0x10000"
 UBOOT_ENV:df-phosphor-mmc = "u-boot-env"

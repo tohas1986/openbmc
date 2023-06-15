@@ -1,0 +1,14 @@
+[Unit]
+Description=Setting several BMC gpio to initial state
+After=multi-user.target
+Wants=phosphor-ipmi-host.service
+After=phosphor-ipmi-host.service
+Wants=xyz.openbmc_project.FruDevice.service
+After=xyz.openbmc_project.FruDevice.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/oy-gpio.sh
+
+[Install]
+WantedBy=multi-user.target
