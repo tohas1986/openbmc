@@ -46,6 +46,7 @@ RDEPENDS:${PN}-system = " \
         intel-ipmi-oem \
         ipmitool \
         oy-gpio \
+        phosphor-ipmi-ipmb \
         "
 
 RDEPENDS:${PN}-extras:remove = " phosphor-hwmon"
