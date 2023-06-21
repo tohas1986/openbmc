@@ -5,12 +5,6 @@
       "slave-path": "/dev/ipmb-2",
       "bmc-addr": 32,
       "remote-addr": 44
-    },
-    {
-      "type": "ipmb",
-      "slave-path": "/dev/ipmb-0",
-      "bmc-addr": 32,
-      "remote-addr": 44
     }
   ]
 }
