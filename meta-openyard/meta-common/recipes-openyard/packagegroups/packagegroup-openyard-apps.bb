@@ -47,6 +47,8 @@ RDEPENDS:${PN}-system = " \
         ipmitool \
         oy-gpio \
         phosphor-ipmi-ipmb \
+        smbios-mdr \
+        iotools \
         "
 
 RDEPENDS:${PN}-extras:remove = " phosphor-hwmon"
