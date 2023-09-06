@@ -49,9 +49,9 @@ RDEPENDS:${PN}-system = " \
         phosphor-ipmi-ipmb \
         smbios-mdr \
         iotools \
+        phosphor-hwmon \
         "
 
-RDEPENDS:${PN}-extras:remove = " phosphor-hwmon"
 RDEPENDS:${PN}-extras:remove = " phosphor-host-state-manager"
 RDEPENDS:${PN}-extras:remove = " phosphor-state-manager"
 VIRTUAL-RUNTIME_obmc-sensors-hwmon ?= "dbus-sensors"

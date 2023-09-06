@@ -12,29 +12,29 @@
 
     "gpio_definitions": [
         {
-            "name": "POWER_BUTTON",
-            "pin": "AB22",
-            "direction": "both"
+            "name": "SYS_BMC_PWRBTN_R_N",
+            "pin": "P0",
+            "direction": "in"
         },
         {
-            "name": "POWER_UP_PIN",
-            "pin": "W24",
+            "name": "SYS_PWRBTN_N",
+            "pin": "P1",
             "direction": "out"
         },
         {
-            "name": "RESET_BUTTON",
-            "pin": "AA23",
-            "direction": "both"
+            "name": "FP_RST_BTN_N",
+            "pin": "P2",
+            "direction": "in"
         },
         {
-            "name": "RESET_OUT",
-            "pin": "AA24",
+            "name": "FM_BMC_RSTBTN_OUT_N",
+            "pin": "P3",
             "direction": "out"
         },
         {
-            "name": "ID_BUTTON",
-            "pin": "V25",
-            "direction": "both"
+            "name": "FP_ID_BTN_SCM_N",
+            "pin": "R0",
+            "direction": "in"
         }
     ]
 }
