@@ -6,10 +6,32 @@
 #include "aspeed-g6-pinctrl.dtsi"
 #include <dt-bindings/gpio/aspeed-gpio.h>
 #include <dt-bindings/leds/leds-pca955x.h>
+#include <dt-bindings/i2c/i2c.h>
 
 / {
 	model = "OpenYard_BMC";
 	compatible = "intel,s2600wf-bmc", "aspeed,ast2600";
+
+	aliases {
+
+		/*i2c16 = &pcie_slo1;
+		i2c17 = &pcie_slo2;
+		i2c18 = &pcie_slo3;
+		i2c19 = &ocp30;
+		i2c20 = &ocp20;
+		i2c23 = &lan;
+
+		i2c24 = &data1;
+		i2c25 = &data2;
+		i2c26 = &eeprom1;
+		i2c27 = &data3;
+		i2c28 = &data4;
+		i2c29 = &eeprom2;*/
+
+		//i2c100 = &eeprom1;
+		//i2c101 = &eeprom2;
+
+	};
 
 	chosen {
 		stdout-path = &uart5;
@@ -43,12 +65,19 @@
 		#size-cells = <1>;
 		ranges;
 
-		video_engine_memory: video {
-			size = <0x04000000>;
-			alignment = <0x01000000>;
+		/* VGA region is dictated by hardware strapping */
+		vga_memory: region@9f000000 {
+			no-map;
 			compatible = "shared-dma-pool";
-			reusable;
+			reg = <0x9f000000 0x01000000>;  /* 16M */
 		};
+
+        /*video_engine_memory: jpegbuffer {
+            size = <0x02000000>;
+            alignment = <0x01000000>;
+            compatible = "shared-dma-pool";
+            reusable;
+        };*/
 
 		gfx_memory: framebuffer {
 			size = <0x01000000>;
@@ -56,6 +85,25 @@
 			compatible = "shared-dma-pool";
 			reusable;
 		};
+
+		video_engine_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+		
+        ramoops@9eff0000{
+            compatible = "ramoops";
+            reg = <0x9eff0000 0x10000>;
+            record-size = <0x2000>;
+            console-size = <0x2000>;
+        };
+	};
+
+	vga-shared-memory {
+		compatible = "aspeed,ast2500-vga-sharedmem";
+		reg = <0x9ff00000 0x100000>;
 	};
 
 	iio-hwmon {
@@ -173,9 +221,18 @@
 	status = "okay";
 };
 
+&espi {
+	status = "okay";
+};
+
 &kcs3 {
 	status = "okay";
 	aspeed,lpc-io-reg = <0xca2>;
+};
+
+&kcs4 {
+	aspeed,lpc-io-reg = <0xCA4>;
+	status = "okay";
 };
 
 &lpc_snoop {
@@ -187,72 +244,235 @@
 	status = "okay";
 };
 
+&lpc_sio {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 };
 //
 &i2c1 {
-	//Need TCA9548 descriptor
+
 	status = "okay";
-		i2c-mux@73 {
+	i2c-mux@73 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x73>;
 		i2c-mux-idle-disconnect;
 
-		pcie_slo1: i2c@1 {
+		pcie_slo1: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0>;
+		};
+	
+		pcie_slo2: i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x1>;
 		};
-	
-		pcie_slo2: i2c@2 {
+		
+		pcie_slo3: i2c@2 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x2>;
 		};
-		
-		pcie_slo3: i2c@3 {
+
+		ocp30: i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x3>;
 		};
 
-		ocp30: i2c@4 {
+		ocp20: i2c@4 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x4>;
 		};
 
-		ocp20: i2c@5 {
+		u20: i2c@5 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x5>;
 		};
 
-		u20: i2c@6 {
+		u21: i2c@6 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x6>;
 		};
 
-		u21: i2c@7 {
+		lan: i2c@7 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x7>;
 		};
+	};
+};
 
-		lan: i2c@8 {
+&pcie_slo1 {
+	status = "okay";
+
+	i2c-mux@70 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x70>;
+		i2c-mux-idle-disconnect;
+
+		slot1_ch0: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0x8>;
+			reg = <0x0>;
+		};
+
+		slot1_ch1: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1>;
+		};
+
+		slot1_ch2: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2>;
+		};
+
+		slot1_ch3: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3>;
+		};
+
+		slot1_ch4: i2c@4 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x4>;
+		};
+
+		slot1_ch5: i2c@5 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x5>;
+		};
+
+		slot1_ch6: i2c@6 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x6>;
+		};
+
+		slot1_ch7: i2c@7 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x7>;
 		};
 	};
 };
+
+&u20 {
+	status = "okay";
+	
+	i2c-mux@72 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x72>;
+		i2c-mux-idle-disconnect;
+
+		data1: i2c@0{
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0>;
+		};
+
+		data2: i2c@1{
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1>;
+		};
+
+		/*eeprom1: temperature-sensor-eeprom@57 {
+			compatible = "jedec,jc-42.4-temp";
+			reg = <0x57>;
+		};*/
+		eeprom1: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2>;
+		};
+	};
+
+};
+
+&u21 {
+	status = "okay";
+
+	i2c-mux@72 {
+		compatible = "nxp,pca9548";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x72>;
+		i2c-mux-idle-disconnect;
+
+		data3: i2c@0{
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0>;
+		};
+
+		data4: i2c@1{
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x1>;
+		};
+
+		/*eeprom2: temperature-sensor-eeprom@57 {
+			compatible = "jedec,jc-42.4-temp";
+			reg = <0x57>;
+		};*/
+
+		eeprom2: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2>;
+		};
+	};
+
+};
+
+&eeprom1 {
+	status = "okay";
+	eeprom@57 {
+		compatible = "atmel,24c02";
+		reg = <0x57>;
+	};
+};
+
+&eeprom2 {
+	status = "okay";
+		eeprom@57 {
+		compatible = "atmel,24c02";
+		reg = <0x57>;
+	};
+};
+
+
 //
 &i2c2 {
+	//PCH SMLINK0
 	status = "okay";
+	aspeed,dma-buf-size = <4095>;
+    aspeed,hw-timeout-ms = <300>;
+	bus-frequency = <100000>;
+
+	ipmb@10 {
+		compatible = "ipmb-dev";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
+		i2c-protocol;
+	};
 };
 //
 &i2c3 {
@@ -290,19 +510,25 @@
 	};
 	Current_Meter_GPU@41 {
 		compatible = "ti,ina219";
-		reg = <0x42>;
+		reg = <0x41>;
 		shunt-resistor = <1000>; /* = 1 mOhm */
 	};
 	Current_Meter_GPU@44 {
 		compatible = "ti,ina219";
-		reg = <0x48>;
+		reg = <0x44>;
 		shunt-resistor = <1000>; /* = 1 mOhm */
 	};
 };
 //
 &i2c7 {
 	//FRU AT24C256 and PFR
-	status = "disabled";
+	status = "okay";
+
+	eeprom@51 {
+		compatible = "atmel,24c256";
+		reg = <0x51>;
+		label = "fru";
+	};
 };
 //
 &i2c8 {
@@ -322,6 +548,7 @@
 };
 //
 &i2c12 {
+	//PIROM
 	status = "okay";
 };
 //
@@ -413,8 +640,8 @@
 	/*N0 - N7*/	"", "", "", "", "", "", "", "",
 	/*O0 - O7*/	"", "", "", "", "", "", "", "",
 	/*P0 - P7*/	"SYS_BMC_PWRBTN_R_N", "SYS_PWRBTN_N", "FP_RST_BTN_N", "FM_BMC_RSTBTN_OUT_N", "", "IRQ_BMC_PCH_NMI_R", "", "",
-	/*Q0 - Q7*/	"", "", "", "", "", "", "", "FP_ID_BTN_SCM_N",
-	/*R0 - R7*/	"", "", "", "", "", "", "", "",
+	/*Q0 - Q7*/	"", "", "", "", "", "", "", "",
+	/*R0 - R7*/	"FP_ID_BTN_SCM_N", "", "", "", "", "", "", "",
 	/*S0 - S7*/	"", "", "", "", "", "", "", "",
 	/*T0 - T7*/	"", "", "", "", "", "", "", "",
 	/*U0 - U7*/	"", "", "", "", "", "", "", "",

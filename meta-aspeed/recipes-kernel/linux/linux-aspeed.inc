@@ -7,7 +7,7 @@ PROVIDES += "virtual/kernel"
 KCONFIG_MODE="--alldefconfig"
 
 #KSRC ?= "git://github.com/openbmc/linux;protocol=https;branch=${KBRANCH}"
-KSRC ?= "git://github.com/tohas1986/linux.git;protocol=https;branch=${KBRANCH}"
+KSRC ?= "git://github.com/Intel-BMC/linux.git;protocol=https;branch=${KBRANCH}"
 SRC_URI += "${KSRC}"
 SRC_URI += " \
              file://defconfig \
@@ -20,6 +20,8 @@ SRC_URI += " \
            "
 
 LINUX_VERSION_EXTENSION ?= "-${SRCREV}"
+
+KERNEL_VERSION_SANITY_SKIP="1"
 
 PV = "${LINUX_VERSION}+git${SRCPV}"
 
