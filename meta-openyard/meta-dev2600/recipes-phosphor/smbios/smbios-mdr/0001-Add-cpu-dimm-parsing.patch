@@ -1,0 +1,713 @@
+diff --git a/include/dimm.hpp b/include/dimm.hpp
+index 2a02fb6..d8e3dad 100644
+--- a/include/dimm.hpp
++++ b/include/dimm.hpp
+@@ -63,7 +63,7 @@ class Dimm :
+ 
+     Dimm(sdbusplus::bus_t& bus, const std::string& objPath,
+          const uint8_t& dimmId, uint8_t* smbiosTableStorage,
+-         const std::string& motherboard) :
++         const std::string& motherboard, const std::string& dId, const std::string& Mnf, const std::string& pNum, const std::string& sNum) :
+ 
+         sdbusplus::server::object_t<
+             sdbusplus::xyz::openbmc_project::Inventory::Item::server::Dimm>(
+@@ -87,7 +87,7 @@ class Dimm :
+                                         Decorator::server::OperationalStatus>(
+             bus, objPath.c_str()),
+         dimmNum(dimmId), storage(smbiosTableStorage),
+-        motherboardPath(motherboard)
++        motherboardPath(motherboard), dIdThis(dId), MnfThis(Mnf), pNumThis(pNum), sNumThis(sNum)
+     {
+         memoryInfoUpdate();
+     }
+@@ -117,6 +117,11 @@ class Dimm :
+ 
+     std::string motherboardPath;
+ 
++    std::string dIdThis;
++    std::string MnfThis;
++    std::string pNumThis;
++    std::string sNumThis;
++
+     void dimmSize(const uint16_t size);
+     void dimmSizeExt(const uint32_t size);
+     void dimmDeviceLocator(const uint8_t bankLocatorPositionNum,
+@@ -171,7 +176,7 @@ struct MemoryInfo
+     uint64_t volatileSize;
+     uint64_t cacheSize;
+     uint64_t logicalSize;
+-} __attribute__((packed));
++} /*__attribute__((packed))*/;
+ 
+ /**
+  * @brief Struct to represent SMBIOS 3.2 type-16 (Physical Memory Array) data.
+diff --git a/src/cpuinfo_main.cpp b/src/cpuinfo_main.cpp
+index 8d8cce5..32710f0 100644
+--- a/src/cpuinfo_main.cpp
++++ b/src/cpuinfo_main.cpp
+@@ -17,6 +17,8 @@
+ #include "cpuinfo.hpp"
+ #include "cpuinfo_utils.hpp"
+ #include "speed_select.hpp"
++//#include "Structures.hpp"
++#include "mdrv2.hpp"
+ 
+ #include <errno.h>
+ #include <fcntl.h>
+@@ -32,6 +34,7 @@
+ #include <optional>
+ #include <sstream>
+ #include <string>
++#include <fstream>
+ 
+ extern "C"
+ {
+@@ -44,6 +47,289 @@ extern "C"
+ #include <phosphor-logging/log.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
++/************************************************************************************Structures.hpp******************************************************************************************/
++typedef uint8_t BYTE;
++typedef unsigned short WORD;
++typedef unsigned int DWORD;
++
++/** The entire SMBIOS table with metadata */
++struct RawSMBIOSData {
++	BYTE    Used20CallingMethod;
++	BYTE    SMBIOSMajorVersion;
++	BYTE    SMBIOSMinorVersion;
++	BYTE    DmiRevision;
++	DWORD   Length;
++	BYTE    SMBIOSTableData[];
++};
++
++/** Generic structure */
++struct SMBIOSStruct {
++	BYTE    Type;
++	BYTE    Length;
++	WORD    Handle;
++};
++
++/** Non-necessary structure */
++struct SMBIOSStructNonRequired : SMBIOSStruct {
++
++};
++
++/** Necessary structure of type 0 */
++struct SMBIOSStructType0 : SMBIOSStruct {
++	BYTE    Vendor;
++	BYTE    BIOSVersion;
++	WORD    BIOSStartingAddressSegment;
++	BYTE    BIOSReleaseDate;
++	BYTE    BIOSROMSize;
++	BYTE    BIOSCharacteristics[8];
++	BYTE    BIOSCharacteristicsExtensions[2];
++	BYTE    SystemBIOSMajorRelease;
++	BYTE    SystemBIOSMinorRelease;
++	BYTE    ECFirmwareMajorRelease;
++	BYTE    ECFirmwareMinorRelease;
++};
++
++/** Necessary structure of type 1 */
++struct SMBIOSStructType1 : SMBIOSStruct {
++	BYTE    Manufacturer;
++	BYTE    ProductName;
++	BYTE    Version;
++	BYTE    SerialNumber;
++	BYTE    UUID[16];
++	BYTE    WakeUpType;
++	BYTE    SKUNumber;
++	BYTE    Family;
++};
++
++/** Structure of type 2 */
++struct SMBIOSStructType2 : SMBIOSStruct {
++	BYTE    Manufacturer;
++	BYTE    Product;
++	BYTE    Version;
++	BYTE    SerialNumber;
++	BYTE    AssetTag;
++	BYTE    FeatureFlags;
++	BYTE    LocationInChassis;
++	WORD    ChassisHandle;
++	BYTE    BoardType;
++	BYTE    NumberOfContainedObjectHandles;
++	BYTE    ContainedObjectHandles[256];
++};
++
++/** Necessary structure of type 3 */
++struct SMBIOSStructType3 : SMBIOSStruct {
++	BYTE    Manufacturer;
++	BYTE    ChassisType;
++	BYTE    Version;
++	BYTE    SerialNumber;
++	BYTE    AssetTagNumber;
++	BYTE    BootUpState;
++	BYTE    PowerSupplyState;
++	BYTE    ThermalState;
++	BYTE    SecurityStatus;
++	BYTE    OEMDefined[4];
++	BYTE    Height;
++	BYTE    NumberOfPowerCords;
++	BYTE    ContainedElementCount;
++	BYTE    ContainedElementRecordLength;
++	BYTE    ContainedElements[65537];
++};
++
++/** Necessary structure of type 4 */
++struct SMBIOSStructType4 : SMBIOSStruct {
++	BYTE    SocketDesignation;
++	BYTE    ProcessorType;
++	BYTE    ProcessorFamily;
++	BYTE    ProcessorManufacturer;
++	BYTE    ProcessorID[8];
++	BYTE    ProcessorVersion;
++	BYTE    Voltage;
++	WORD    ExternalClock;
++	WORD    MaxSpeed;
++	WORD    CurrentSpeed;
++	BYTE    Status;
++	BYTE    ProcessorUpgrade;
++	WORD    L1CacheHandle;
++	WORD    L2CacheHandle;
++	WORD    L3CacheHandle;
++	BYTE    SerialNumber;
++	BYTE    AssetTag;
++	BYTE    PartNumber;
++	BYTE    CoreCount;
++	BYTE    CoreEnabled;
++	BYTE    ThreadCount;
++	WORD    ProcessorCharacteristics;
++	WORD    ProcessorFamily2;
++	WORD    CoreCount2;
++	WORD    CoreEnabled2;
++	WORD    ThreadCount2;
++};
++
++/** Structure of type 5 */
++struct SMBIOSStructType5 : SMBIOSStruct {
++	BYTE    ErrorDetectingMethod;
++	BYTE    ErrorCorrectingCapability;
++	BYTE    SupportedInterleave;
++	BYTE    CurrentInterleave;
++	BYTE    MaximumMemoryModuleSize;
++	WORD    SupportedSpeeds;
++	WORD    SupportedMemoryTypes;
++	BYTE    MemoryModuleVoltage;
++	BYTE    NumberOfAssociatedMemorySlots;
++};
++
++/** Structure of type 6 */
++struct SMBIOSStructType6 : SMBIOSStruct {
++	BYTE    SocketDesignation;
++	BYTE    BankConnections;
++	BYTE    CurrentSpeed;
++	WORD    CurrentMemoryType;
++	BYTE    InstalledSize;
++	BYTE    EnabledSize;
++	BYTE    ErrorStatus;
++};
++
++/** Necessary structure of type 7 */
++struct SMBIOSStructType7 : SMBIOSStruct {
++	BYTE    SocketDesignation;
++	WORD    CacheConfiguration;
++	WORD    MaximumCacheSize;
++	WORD    InstalledSize;
++	WORD    SupportedSRAMType;
++	WORD    CurrentSRAMType;
++	BYTE    CacheSpeed;
++	BYTE    ErrorCorrectionType;
++	BYTE    SystemCachetype;
++	BYTE    Associativity;
++};
++
++/** Structure of type 8 */
++struct SMBIOSStructType8 : SMBIOSStruct {
++	BYTE    InternalReferenceDesignator;
++	BYTE    InternalConnectorType;
++	BYTE    ExternalReferenceDesignator;
++	BYTE    ExternalConnectorType;
++	BYTE    PortType;
++};
++
++/** Necessary structure of type 9 */
++struct SMBIOSStructType9 : SMBIOSStruct {
++	BYTE    SlotDesignation;
++	BYTE    SlotType;
++	BYTE    SlotDataBusWidth;
++	BYTE    CurrentUsage;
++	BYTE    SlotLength;
++	WORD    SlotID;
++	BYTE    SlotCharacteristics1;
++	BYTE    SlotCharacteristics2;
++	WORD    SegmentGroupNumber;
++	BYTE    BusNumber;
++	BYTE    DeviceNumber;
++};
++
++/** Structure of type 10 */
++struct SMBIOSStructType10 : SMBIOSStruct {
++	BYTE    DeviceType;
++	BYTE    DescriptionString;
++};
++
++/** Structure of type 11 */
++struct SMBIOSStructType11 : SMBIOSStruct {
++	BYTE    Count;
++};
++
++/** Structure of type 12 */
++struct SMBIOSStructType12 : SMBIOSStruct {
++	BYTE    Count;
++};
++
++/** Structure of type 13 */
++struct SMBIOSStructType13 : SMBIOSStruct {
++	BYTE    InstalledLanguages;
++	BYTE    Flags;
++	BYTE    Reserved[15];
++	BYTE    CurrentLanguage;
++};
++
++/** Structure of type 14 */
++struct SMBIOSStructType14 : SMBIOSStruct {
++	BYTE    GroupName;
++	BYTE    ItemType;
++	WORD    ItemHandle;
++};
++
++/** Structure of type 15 */
++struct SMBIOSStructType15 : SMBIOSStruct {
++	WORD    LogAreaLength;
++	WORD    LogHeaderStartOffset;
++	WORD    LogDataStartOffset;
++	BYTE    AccessMethod;
++	BYTE    LogStatus;
++	WORD    LogChangeToken[2];
++	WORD    AccessMethodAddress[2];
++	BYTE    LogHeaderFormat;
++	BYTE    NumberOfSupportedLogTypeDescriptors;
++	BYTE    LengthOfEachLogTypeDescriptor;
++};
++
++/** Necessary structure of type 16 */
++struct SMBIOSStructType16 : SMBIOSStruct {
++	BYTE    Location;
++	BYTE    Use;
++	BYTE    MemoryErrorCorrection;
++	BYTE    MaximumCapacity[4];
++	WORD    MemoryErrorInformationHandle;
++	WORD    NumberOfMemoryDevices;
++	BYTE    ExtendedMaximumCapacity[8];
++};
++
++/** Necessary structure of type 17 */
++struct SMBIOSStructType17 : SMBIOSStruct {
++	WORD    PhysicalMemoryArrayHandle;
++	WORD    MemoryErrorInformationHandle;
++	WORD    TotalWidth;
++	WORD    DataWidth;
++	WORD    Size;
++	BYTE    FormFactor;
++	BYTE    DeviceSet;
++	BYTE    DeviceLocator;
++	BYTE    BankLocator;
++	BYTE    MemoryType;
++	WORD    TypeDetail;
++	WORD    Speed;
++	BYTE    Manufacturer;
++	BYTE    SerialNumber;
++	BYTE    AssetTag;
++	BYTE    PartNumber;
++	BYTE    Attributes;
++	BYTE    ExtendedSize[4];
++	WORD    ConfiguredMemoryClockSpeed;
++	WORD    MinimumVoltage;
++	WORD    MaximumVoltage;
++	WORD    ConfiguredVoltage;
++};
++
++/** Necessary structure of type 19 */
++struct SMBIOSStructType19 : SMBIOSStruct {
++	BYTE    StartingAddress[4];
++	BYTE    EndingAddress[4];
++	WORD    MemoryArrayHandle;
++	BYTE    PartitionWidth;
++	BYTE    ExtendedStartingAddress[8];
++	BYTE    ExtendedEndingAddress[8];
++};
++
++/** Necessary structure of type 32 */
++struct SMBIOSStructType32 : SMBIOSStruct {
++	BYTE    Reserved[6];
++	BYTE    BootStatus[10];
++};
++/********************************************************************************************************************************************************************************************/
++
++//typedef unsigned char BYTE;
++std::vector<SMBIOSStruct*> structure_table;
++BYTE fileData[65535];
++
+ namespace cpu_info
+ {
+ static constexpr bool debug = false;
+@@ -281,7 +567,7 @@ static void
+     setDbusProperty(const std::shared_ptr<sdbusplus::asio::connection>& conn,
+                     size_t cpu, const CpuProperty& newProp)
+ {
+-    createCpuUpdatedMatch(conn, cpu);
++    //createCpuUpdatedMatch(conn, cpu);
+     conn->async_method_call(
+         [](const boost::system::error_code ec) {
+             if (ec)
+@@ -347,10 +633,88 @@ static void createCpuUpdatedMatch(
+             }));
+ }
+ 
++/* OpenYard edition based at SMBIOS table parsing*/
++
++SMBIOSStruct* getNextStruct(SMBIOSStruct* curStruct) {
++	char* strings_begin = (char*)curStruct + curStruct->Length;
++	char* next_strings = strings_begin + 1;
++	while (*strings_begin != NULL || *next_strings != NULL) {
++		++strings_begin;
++		++next_strings;
++	}
++	return (SMBIOSStruct*)(next_strings + 1);
++}
++
++std::vector<std::string> getStrings(SMBIOSStruct* curStruct) {
++	std::vector<std::string> strings;
++	std::string res = "";
++	strings.push_back(res);
++	char* cur_char = (char*)curStruct + curStruct->Length;
++	SMBIOSStruct* next_struct = getNextStruct(curStruct);
++
++	while (cur_char < (char*)next_struct) {
++		res.push_back(*cur_char);
++		if (*cur_char == NULL) {
++			strings.push_back(res);
++			res = "";
++		}
++		++cur_char;
++	}
++	return strings;
++}
++
++void smbios_type4_parse(SMBIOSStructType4* curStruct, int cnt, const std::shared_ptr<sdbusplus::asio::connection>& conn) {
++    int cnt_this = cnt;
++    cnt_this++;
++    std::vector<std::string> strings = getStrings(curStruct);
++    setCpuProperty(conn, cnt_this, assetInterfaceName, "Manufacturer",
++                       strings[2]);
++    setCpuProperty(conn, cnt_this, assetInterfaceName, "Model",
++                       strings[3]);
++}
++
+ static void
+     getProcessorInfo(boost::asio::io_service& io,
+                      const std::shared_ptr<sdbusplus::asio::connection>& conn,
+                      const size_t& cpu)
++{
++    int cpu_cnt = 0;
++    std::cerr << "OY_CPUINFO: try to read SMBIOS file in CPU context and set this to d-bus";
++    std::ifstream smbiosFile(mdrType2File, std::ios_base::binary);
++    if (!smbiosFile.good())
++    {
++        phosphor::logging::log<phosphor::logging::level::ERR>(
++            "OY_cpuinfo: Open MDRV2 table file failure");
++            return;
++        //throw sdbusplus::xyz::openbmc_project::Smbios::MDR_V2::Error::
++        //    InvalidParameter();
++    }
++    smbiosFile.read((char*)&fileData[0], 65535);
++    RawSMBIOSData* rawData = (RawSMBIOSData*)fileData;
++
++    SMBIOSStruct* curStruct = (SMBIOSStruct*)rawData->SMBIOSTableData;
++
++	while (cpu_cnt < 1) {
++		if (curStruct->Type == 4) {
++			smbios_type4_parse((SMBIOSStructType4*)curStruct, cpu_cnt, conn);
++            cpu_cnt++;
++		}
++		curStruct = getNextStruct(curStruct);
++	}
++
++    /*std::string cpu1Model = "Intel Xeon Scalable 6340";
++    std::string cpu2Model = "Apsent";
++    setCpuProperty(conn, 1, assetInterfaceName, "Model",
++                       cpu1Model);
++    setCpuProperty(conn, 2, assetInterfaceName, "Model",
++                       cpu2Model);*/
++}
++/* End of OpenYard edition based at SMBIOS table parsing*/
++
++/*static void
++    getProcessorInfo(boost::asio::io_service& io,
++                     const std::shared_ptr<sdbusplus::asio::connection>& conn,
++                     const size_t& cpu)
+ {
+     if (cpuInfoMap.find(cpu) == cpuInfoMap.end() || cpuInfoMap[cpu] == nullptr)
+     {
+@@ -465,7 +829,8 @@ static void
+                 "in-compatible cpu for cpu asset info");
+             break;
+     }
+-}
++}*/
++
+ 
+ /**
+  * Get cpu and pirom address
+@@ -533,9 +898,12 @@ static void
+                     }
+                 }
+             }
++            
++            /*OpenYard variant*/
++            getProcessorInfo(io, conn, 2);
+ 
+             ///\todo replace this with present + power state
+-            if (cpu != 0 && peciAddress != 0)
++            /*if (cpu != 0 && peciAddress != 0)
+             {
+                 if (!i2cDeviceFound)
+                 {
+@@ -546,7 +914,7 @@ static void
+                                                    i2cBus, i2cDevice));
+ 
+                 getProcessorInfo(io, conn, cpu);
+-            }
++            }*/
+         },
+         service, object, "org.freedesktop.DBus.Properties", "GetAll",
+         interface);
+diff --git a/src/dimm.cpp b/src/dimm.cpp
+index 6102627..5e97594 100644
+--- a/src/dimm.cpp
++++ b/src/dimm.cpp
+@@ -18,9 +18,17 @@
+ 
+ #include "mdrv2.hpp"
+ 
++#include <iostream>
++#include <list>
++#include <optional>
++#include <sstream>
++#include <string>
++#include <fstream>
++
+ #include <boost/algorithm/string.hpp>
+ #include <phosphor-logging/elog-errors.hpp>
+ 
++
+ namespace phosphor
+ {
+ namespace smbios
+@@ -39,14 +47,33 @@ using EccType =
+     sdbusplus::xyz::openbmc_project::Inventory::Item::server::Dimm::Ecc;
+ 
+ static constexpr uint16_t maxOldDimmSize = 0x7fff;
++
++/*OpenYard DIMM SMBIOS reader edition*/
++
++
+ void Dimm::memoryInfoUpdate(void)
++{
++    phosphor::logging::log<phosphor::logging::level::ERR>(
++                "OY_DIMMINFO: set DIMM params to dbus");
++    memoryDeviceLocator(dIdThis);
++    manufacturer(MnfThis);
++    partNumber(pNumThis);
++    serialNumber(sNumThis);
++}
++/*End of OpenYard DIMM SMBIOS reader edition*/
++
++/*void Dimm::memoryInfoUpdate(void)
+ {
+     uint8_t* dataIn = storage;
++    phosphor::logging::log<phosphor::logging::level::ERR>(
++                "DIMM: Try to get DIMM info");
+ 
+     dataIn = getSMBIOSTypePtr(dataIn, memoryDeviceType);
+ 
+     if (dataIn == nullptr)
+     {
++        phosphor::logging::log<phosphor::logging::level::ERR>(
++                "DIMM: Failed here");
+         return;
+     }
+     for (uint8_t index = 0; index < dimmNum; index++)
+@@ -54,11 +81,15 @@ void Dimm::memoryInfoUpdate(void)
+         dataIn = smbiosNextPtr(dataIn);
+         if (dataIn == nullptr)
+         {
++            phosphor::logging::log<phosphor::logging::level::ERR>(
++                "DIMM: Failed here2");
+             return;
+         }
+         dataIn = getSMBIOSTypePtr(dataIn, memoryDeviceType);
+         if (dataIn == nullptr)
+         {
++            phosphor::logging::log<phosphor::logging::level::ERR>(
++                "DIMM: Failed here3");
+             return;
+         }
+     }
+@@ -100,8 +131,10 @@ void Dimm::memoryInfoUpdate(void)
+         association::associations(assocs);
+     }
+ 
++    phosphor::logging::log<phosphor::logging::level::ERR>(
++                "DIMM: DIMM info exit");
+     return;
+-}
++}*/
+ 
+ void Dimm::updateEccType(uint16_t exPhyArrayHandle)
+ {
+diff --git a/src/mdrv2.cpp b/src/mdrv2.cpp
+index e71d922..86b2dd2 100644
+--- a/src/mdrv2.cpp
++++ b/src/mdrv2.cpp
+@@ -17,6 +17,7 @@
+ #include "mdrv2.hpp"
+ 
+ #include "pcieslot.hpp"
++//#include "Structures.hpp"
+ 
+ #include <sys/mman.h>
+ 
+@@ -25,6 +26,22 @@
+ #include <xyz/openbmc_project/Smbios/MDR_V2/error.hpp>
+ 
+ #include <fstream>
++#include <iostream>
++#include <list>
++#include <optional>
++#include <sstream>
++#include <string>
++
++//uint8_t fileData[65535];
++//std::vector<std::string> strings;
++
++typedef struct {
++    std::string manufacturer;
++    std::string partNumber;
++    std::string serialNumber;
++}oy_dimm_info;
++
++oy_dimm_info oy_dInfo[32];
+ 
+ namespace phosphor
+ {
+@@ -239,7 +256,7 @@ bool MDR_V2::readDataFromFlash(MDRSMBIOSHeader* mdrHdr, uint8_t* data)
+         phosphor::logging::log<phosphor::logging::level::ERR>(
+             "Data size out of limitation");
+         smbiosFile.close();
+-        return false;
++        //return false;
+     }
+     fileLength -= sizeof(MDRSMBIOSHeader);
+     if (fileLength < mdrHdr->dataSize)
+@@ -392,6 +409,7 @@ uint8_t MDR_V2::directoryEntries(uint8_t value)
+         directoryEntries(value);
+ }
+ 
++
+ void MDR_V2::systemInfoUpdate()
+ {
+     std::string motherboardPath;
+@@ -447,8 +465,11 @@ void MDR_V2::systemInfoUpdate()
+             phosphor::logging::entry("ERROR=%s", e.what()));
+     }
+ 
++    phosphor::logging::log<phosphor::logging::level::ERR>(
++            "OY: try to install 2 CPU slots");
+     cpus.clear();
+-    int num = getTotalCpuSlot();
++    //int num = getTotalCpuSlot();
++    int num = 2;
+     if (num == -1)
+     {
+         phosphor::logging::log<phosphor::logging::level::ERR>(
+@@ -468,7 +489,8 @@ void MDR_V2::systemInfoUpdate()
+ 
+     dimms.clear();
+ 
+-    num = getTotalDimmSlot();
++    //num = getTotalDimmSlot();
++    num = 32;
+     if (num == -1)
+     {
+         phosphor::logging::log<phosphor::logging::level::ERR>(
+@@ -476,14 +498,58 @@ void MDR_V2::systemInfoUpdate()
+         return;
+     }
+ 
++    int dimm_cnt = 0;
++    char *fileData = new char[65535];
++    std::ifstream smbiosFile(mdrType2File, std::ios_base::binary);
++    smbiosFile.read((char*)&fileData[0], 65535);
++
++    //RawSMBIOSData* rawData = (RawSMBIOSData*)fileData;
++    uint8_t* dataIn = (uint8_t*)&fileData[0];
++
+     for (int index = 0; index < num; index++)
+     {
++        
++        dataIn = getSMBIOSTypePtr(dataIn, memoryDeviceType);
++
++        if (dataIn == nullptr)
++        {
++            phosphor::logging::log<phosphor::logging::level::ERR>(
++                "DIMM: Failed here");
++            return;
++        }
++        /*for (uint8_t ind = 0; ind < index; ind++)
++        {
++            dataIn = smbiosNextPtr(dataIn);
++            if (dataIn == nullptr)
++            {
++                phosphor::logging::log<phosphor::logging::level::ERR>(
++                "DIMM: Failed here2");
++                return;
++            }
++            dataIn = getSMBIOSTypePtr(dataIn, memoryDeviceType);
++            if (dataIn == nullptr)
++            {
++                phosphor::logging::log<phosphor::logging::level::ERR>(
++                "DIMM: Failed here3");
++                return;
++            }
++        }*/
++        auto memoryInfo = reinterpret_cast<struct MemoryInfo*>(dataIn);
++        
++        //std::string manufacturer_ = positionToString(memoryInfo->manufacturer, memoryInfo->length, dataIn);
++        std::string snumber_ = positionToString(memoryInfo->manufacturer, memoryInfo->length, dataIn);
++        std::string pnumber_ = positionToString(memoryInfo->assetTag, memoryInfo->length, dataIn);
++        std::string manufacturer_ = "N/A";
+         std::string path = dimmPath + std::to_string(index);
+         dimms.emplace_back(std::make_unique<phosphor::smbios::Dimm>(
+             bus, path, index, smbiosDir.dir[smbiosDirIndex].dataStorage,
+-            motherboardPath));
++            motherboardPath, "A0", manufacturer_, pnumber_, snumber_));
++        //dataIn = NULL;
++        dataIn = smbiosNextPtr(dataIn);
+     }
+ 
++    delete [] fileData;
++
+ #endif
+ 
+     pcies.clear();
+@@ -705,7 +771,7 @@ bool MDR_V2::agentSynchronizeData()
+     {
+         phosphor::logging::log<phosphor::logging::level::ERR>(
+             "Unsupported SMBIOS table version");
+-        return false;
++       //return false;
+     }
+ 
+     systemInfoUpdate();

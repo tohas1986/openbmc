@@ -11,6 +11,7 @@ DEPENDS += " \
     phosphor-logging \
     "
 SRCREV = "5961693877d31224b2ae1c51910b014c09213336"
+#SRCREV = "2ea471a267291f44cf1e53da608e80a89b3a1aa1"
 PACKAGECONFIG ?= "cpuinfo"
 PACKAGECONFIG[smbios-no-dimm] = "-DDIMM_DBUS=OFF,-DDIMM_DBUS=ON"
 PACKAGECONFIG[cpuinfo] = "-DCPU_INFO=ON,-DCPU_INFO=OFF,libpeci i2c-tools"
@@ -19,6 +20,7 @@ PV = "1.0+git${SRCPV}"
 PR = "r1"
 
 SRC_URI = "git://github.com/openbmc/smbios-mdr.git;branch=master;protocol=https"
+#SRC_URI = "git://github.com/tohas1986/smbios-mdr.git;branch=master;protocol=https"
 
 S = "${WORKDIR}/git"
 SYSTEMD_SERVICE:${PN} += "smbios-mdrv2.service"

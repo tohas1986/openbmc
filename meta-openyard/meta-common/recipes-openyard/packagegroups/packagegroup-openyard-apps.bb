@@ -50,6 +50,7 @@ RDEPENDS:${PN}-system = " \
         smbios-mdr \
         iotools \
         phosphor-hwmon \
+        peci-pcie \
         "
 
 RDEPENDS:${PN}-extras:remove = " phosphor-host-state-manager"
