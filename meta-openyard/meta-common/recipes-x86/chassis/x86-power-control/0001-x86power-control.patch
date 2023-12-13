@@ -1,0 +1,92 @@
+diff --git a/src/power_control.cpp b/src/power_control.cpp
+index 1a89323..46c8648 100644
+--- a/src/power_control.cpp
++++ b/src/power_control.cpp
+@@ -31,6 +31,10 @@
+ #include <filesystem>
+ #include <fstream>
+ #include <string_view>
++#include <cstdlib>
++
++int idButtonCnt = 0;
++bool idButtonState = false;
+ 
+ namespace power_control
+ {
+@@ -1719,6 +1723,7 @@ static void powerStateOn(const Event event)
+         case Event::powerButtonPressed:
+             setPowerState(PowerState::gracefulTransitionToOff);
+             gracefulPowerOffTimerStart();
++            gracefulPowerOff();
+             break;
+         case Event::powerOffRequest:
+             setPowerState(PowerState::transitionToOff);
+@@ -1829,6 +1834,7 @@ static void powerStateOff(const Event event)
+         case Event::powerButtonPressed:
+             psPowerOKWatchdogTimerStart();
+             setPowerState(PowerState::waitForPSPowerOK);
++            powerOn();
+             break;
+         case Event::powerOnRequest:
+             psPowerOKWatchdogTimerStart();
+@@ -1916,7 +1922,7 @@ static void powerStateCycleOff(const Event event)
+             break;
+         case Event::powerButtonPressed:
+             powerCycleTimer.cancel();
+-            psPowerOKWatchdogTimerStart();
++            //psPowerOKWatchdogTimerStart();
+             setPowerState(PowerState::waitForPSPowerOK);
+             break;
+         case Event::powerCycleTimerExpired:
+@@ -2217,6 +2223,20 @@ static void nmiButtonHandler(bool state)
+ 
+ static void idButtonHandler(bool state)
+ {
++    lg2::info("ID button pressed");
++    if (idButtonCnt < 1) idButtonCnt++;
++    else {
++        idButtonCnt = 0;
++        if (idButtonState == false) {
++            idButtonState = true;
++            system("busctl set-property xyz.openbmc_project.LED.GroupManager /xyz/openbmc_project/led/groups/enclosure_identify xyz.openbmc_project.Led.Group Asserted b true");
++        }
++        else {
++            idButtonState = false;
++            system("busctl set-property xyz.openbmc_project.LED.GroupManager /xyz/openbmc_project/led/groups/enclosure_identify xyz.openbmc_project.Led.Group Asserted b false");
++        }
++    }
++    
+     idButtonIface->set_property("ButtonPressed", !state);
+ }
+ 
+@@ -2707,11 +2727,22 @@ int main(int argc, char* argv[])
+     // Request ID_BUTTON GPIO events
+     if (idButtonConfig.type == ConfigType::GPIO)
+     {
++        int flag1 = 1;
++        lg2::info("Trying to get idButton config {FLAG}", "FLAG",
++              flag1);
+         if (!idButtonConfig.lineName.empty())
+         {
++            flag1 = 1;
++            lg2::info("Trying to get idButton event {FLAG}", "FLAG",
++                flag1);
+             requestGPIOEvents(idButtonConfig.lineName, idButtonHandler,
+                               idButtonLine, idButtonEvent);
+         }
++        else {
++            flag1 = 1;
++            lg2::info("Failed to get idButton event {FLAG}", "FLAG",
++                flag1);
++        }
+     }
+     else if (idButtonConfig.type == ConfigType::DBUS)
+     {
+@@ -3271,6 +3302,7 @@ int main(int argc, char* argv[])
+ 
+     if (idButtonLine)
+     {
++        lg2::info("idButtonLine is 1");
+         // ID Button Interface
+         idButtonIface = buttonsServer.add_interface(
+             "/xyz/openbmc_project/chassis/buttons/id",

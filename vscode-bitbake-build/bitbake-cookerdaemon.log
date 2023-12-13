@@ -5590,3 +5590,87 @@ Socket is /home/openyard/openbmc/vscode-bitbake-build/bitbake.sock (True)
 /usr/lib/python3/dist-packages/html5lib/_trie/_base.py:3: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working
   from collections import Mapping
 sys:1: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/openyard/openbmc/vscode-bitbake-build/bitbake-cookerdaemon.log' mode='a+' encoding='UTF-8'>
+265180 13:39:16.724995 --- Starting bitbake server pid 265180 at 2023-12-13 13:39:16.724959 ---
+265180 13:39:16.726949 Started bitbake server pid 265180
+265180 13:39:16.727176 Entering server connection loop
+265180 13:39:16.727210 Lockfile is: /home/openyard/openbmc/vscode-bitbake-build/bitbake.lock
+Socket is /home/openyard/openbmc/vscode-bitbake-build/bitbake.sock (True)
+265180 13:39:16.727705 Accepting [<socket.socket fd=6, family=AddressFamily.AF_UNIX, type=SocketKind.SOCK_STREAM, proto=0, laddr=bitbake.sock>] ([])
+265180 13:39:16.728477 Processing Client
+265180 13:39:16.728519 Connecting Client
+265180 13:39:16.728828 Running command ['setFeatures', [2, 1]]
+265180 13:39:16.728970 Command Completed (socket: True)
+265180 13:39:16.729536 Running command ['updateConfig', {'halt': True, 'force': False, 'invalidate_stamp': None, 'dry_run': False, 'dump_signatures': [], 'extra_assume_provided': [], 'profile': False, 'prefile': [], 'postfile': [], 'server_timeout': None, 'nosetscene': False, 'setsceneonly': False, 'skipsetscene': False, 'runall': [], 'runonly': None, 'writeeventlog': None, 'build_verbose_shell': False, 'build_verbose_stdout': False, 'default_loglevel': 20, 'debug_domains': {}}, {'SHELL': '/bin/bash', 'BB_ENV_PASSTHROUGH_ADDITIONS': 'ALL_PROXY BBPATH_EXTRA BB_LOGCONFIG BB_NO_NETWORK BB_NUMBER_THREADS BB_SETSCENE_ENFORCE BB_SRCREV_POLICY DISTRO FTPS_PROXY FTP_PROXY GIT_PROXY_COMMAND HTTPS_PROXY HTTP_PROXY MACHINE NO_PROXY PARALLEL_MAKE SCREENDIR SDKMACHINE SOCKS5_PASSWD SOCKS5_USER SSH_AGENT_PID SSH_AUTH_SOCK STAMPS_DIR TCLIBC TCMODE all_proxy ftp_proxy ftps_proxy http_proxy https_proxy no_proxy ', 'PWD': '/home/openyard/openbmc/vscode-bitbake-build', 'LOGNAME': 'openyard', 'HOME': '/home/openyard', 'BBPATH': '/home/openyard/openbmc/vscode-bitbake-build', 'USER': 'openyard', 'PATH': '/home/openyard/openbmc/scripts:/home/openyard/openbmc/poky/bitbake/bin:/home/openyard/openbmc/node_modules/.bin:/home/openyard/node_modules/.bin:/home/node_modules/.bin:/node_modules/.bin:/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794:/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794/bin/remote-cli:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/snap/bin', 'LC_ALL': 'en_US.UTF-8', 'APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL': '1', 'VSCODE_AMD_ENTRYPOINT': 'vs/workbench/api/node/extensionHostProcess', 'LS_COLORS': '', 'VSCODE_AGENT_FOLDER': '/home/openyard/.vscode-server', 'SSH_CONNECTION': '10.227.78.2 52045 10.227.77.20 22', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'VSCODE_HANDLES_SIGPIPE': 'true', 'PYTHONPATH': '/home/openyard/openbmc/poky/bitbake/lib:', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'SHLVL': '1', 'VSCODE_CWD': '/home/openyard', 'SSH_CLIENT': '10.227.78.2 52045 22', 'XDG_DATA_DIRS': '/usr/local/share:/usr/share:/var/lib/snapd/desktop', 'BROWSER': '/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794/bin/helpers/browser.sh', 'BUILDDIR': '/home/openyard/openbmc/vscode-bitbake-build', 'VSCODE_NLS_CONFIG': '{"locale":"en","osLocale":"en","availableLanguages":{}}', 'MAIL': '/var/mail/openyard', 'VSCODE_HANDLES_UNCAUGHT_ERRORS': 'true', 'OLDPWD': '/home/openyard/openbmc', 'VSCODE_IPC_HOOK_CLI': '/tmp/vscode-ipc-5db8c1e7-90b3-49d6-9b3a-a94d8b88a5c3.sock', '_': '/home/openyard/openbmc/poky/bitbake/bin/bitbake', 'LC_CTYPE': 'C.UTF-8'}, ['/home/openyard/openbmc/poky/bitbake/bin/bitbake', '-p']]
+265180 13:39:16.740086 Command Completed (socket: True)
+265180 13:39:16.988653 Processing Client
+265180 13:39:16.988758 Disconnecting Client (socket: True)
+265180 13:39:16.988915 No timeout, exiting.
+265180 13:39:17.089125 Exiting (socket: True)
+265180 13:39:17.089561 Exiting as we could obtain the lock
+/usr/lib/python3/dist-packages/html5lib/_trie/_base.py:3: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working
+  from collections import Mapping
+sys:1: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/openyard/openbmc/vscode-bitbake-build/bitbake-cookerdaemon.log' mode='a+' encoding='UTF-8'>
+265215 13:39:17.583020 --- Starting bitbake server pid 265215 at 2023-12-13 13:39:17.582988 ---
+265215 13:39:17.584042 Started bitbake server pid 265215
+265215 13:39:17.584232 Entering server connection loop
+265215 13:39:17.584265 Lockfile is: /home/openyard/openbmc/vscode-bitbake-build/bitbake.lock
+Socket is /home/openyard/openbmc/vscode-bitbake-build/bitbake.sock (True)
+265215 13:39:17.584814 Accepting [<socket.socket fd=6, family=AddressFamily.AF_UNIX, type=SocketKind.SOCK_STREAM, proto=0, laddr=bitbake.sock>] ([])
+265215 13:39:17.585862 Processing Client
+265215 13:39:17.585929 Connecting Client
+265215 13:39:17.586266 Running command ['setFeatures', [2, 1]]
+265215 13:39:17.586396 Command Completed (socket: True)
+265215 13:39:17.586972 Running command ['updateConfig', {'halt': True, 'force': False, 'invalidate_stamp': None, 'dry_run': False, 'dump_signatures': [], 'extra_assume_provided': [], 'profile': False, 'prefile': [], 'postfile': [], 'server_timeout': None, 'nosetscene': False, 'setsceneonly': False, 'skipsetscene': False, 'runall': [], 'runonly': None, 'writeeventlog': None, 'build_verbose_shell': False, 'build_verbose_stdout': False, 'default_loglevel': 20, 'debug_domains': {}}, {'SHELL': '/bin/bash', 'BB_ENV_PASSTHROUGH_ADDITIONS': 'ALL_PROXY BBPATH_EXTRA BB_LOGCONFIG BB_NO_NETWORK BB_NUMBER_THREADS BB_SETSCENE_ENFORCE BB_SRCREV_POLICY DISTRO FTPS_PROXY FTP_PROXY GIT_PROXY_COMMAND HTTPS_PROXY HTTP_PROXY MACHINE NO_PROXY PARALLEL_MAKE SCREENDIR SDKMACHINE SOCKS5_PASSWD SOCKS5_USER SSH_AGENT_PID SSH_AUTH_SOCK STAMPS_DIR TCLIBC TCMODE all_proxy ftp_proxy ftps_proxy http_proxy https_proxy no_proxy ', 'PWD': '/home/openyard/openbmc/vscode-bitbake-build', 'LOGNAME': 'openyard', 'HOME': '/home/openyard', 'BBPATH': '/home/openyard/openbmc/vscode-bitbake-build', 'USER': 'openyard', 'PATH': '/home/openyard/openbmc/scripts:/home/openyard/openbmc/poky/bitbake/bin:/home/openyard/openbmc/node_modules/.bin:/home/openyard/node_modules/.bin:/home/node_modules/.bin:/node_modules/.bin:/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794:/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794/bin/remote-cli:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/snap/bin', 'LC_ALL': 'en_US.UTF-8', 'APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL': '1', 'VSCODE_AMD_ENTRYPOINT': 'vs/workbench/api/node/extensionHostProcess', 'LS_COLORS': '', 'VSCODE_AGENT_FOLDER': '/home/openyard/.vscode-server', 'SSH_CONNECTION': '10.227.78.2 52045 10.227.77.20 22', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'VSCODE_HANDLES_SIGPIPE': 'true', 'PYTHONPATH': '/home/openyard/openbmc/poky/bitbake/lib:', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'SHLVL': '1', 'VSCODE_CWD': '/home/openyard', 'SSH_CLIENT': '10.227.78.2 52045 22', 'XDG_DATA_DIRS': '/usr/local/share:/usr/share:/var/lib/snapd/desktop', 'BROWSER': '/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794/bin/helpers/browser.sh', 'BUILDDIR': '/home/openyard/openbmc/vscode-bitbake-build', 'VSCODE_NLS_CONFIG': '{"locale":"en","osLocale":"en","availableLanguages":{}}', 'MAIL': '/var/mail/openyard', 'VSCODE_HANDLES_UNCAUGHT_ERRORS': 'true', 'OLDPWD': '/home/openyard/openbmc', 'VSCODE_IPC_HOOK_CLI': '/tmp/vscode-ipc-5db8c1e7-90b3-49d6-9b3a-a94d8b88a5c3.sock', '_': '/home/openyard/openbmc/poky/bitbake/bin/bitbake-layers', 'LC_CTYPE': 'C.UTF-8'}, ['/home/openyard/openbmc/poky/bitbake/bin/bitbake-layers', 'show-layers']]
+265215 13:39:17.596265 Command Completed (socket: True)
+265215 13:39:17.596385 Running command ['clientComplete']
+265215 13:39:17.604723 Command Completed (socket: True)
+265215 13:39:17.855181 Processing Client
+265215 13:39:17.855312 Disconnecting Client (socket: True)
+265215 13:39:17.855492 No timeout, exiting.
+265215 13:39:17.955753 Exiting (socket: True)
+265215 13:39:17.956283 Exiting as we could obtain the lock
+/usr/lib/python3/dist-packages/html5lib/_trie/_base.py:3: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working
+  from collections import Mapping
+sys:1: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/openyard/openbmc/vscode-bitbake-build/bitbake-cookerdaemon.log' mode='a+' encoding='UTF-8'>
+265258 13:39:19.078809 --- Starting bitbake server pid 265258 at 2023-12-13 13:39:19.078754 ---
+265258 13:39:19.079790 Started bitbake server pid 265258
+265258 13:39:19.079984 Entering server connection loop
+265258 13:39:19.080017 Lockfile is: /home/openyard/openbmc/vscode-bitbake-build/bitbake.lock
+Socket is /home/openyard/openbmc/vscode-bitbake-build/bitbake.sock (True)
+265258 13:39:19.080500 Accepting [<socket.socket fd=6, family=AddressFamily.AF_UNIX, type=SocketKind.SOCK_STREAM, proto=0, laddr=bitbake.sock>] ([])
+265258 13:39:19.081309 Processing Client
+265258 13:39:19.081373 Connecting Client
+265258 13:39:19.081688 Running command ['setFeatures', [2, 1]]
+265258 13:39:19.081815 Command Completed (socket: True)
+265258 13:39:19.082318 Running command ['updateConfig', {'halt': True, 'force': False, 'invalidate_stamp': None, 'dry_run': False, 'dump_signatures': [], 'extra_assume_provided': [], 'profile': False, 'prefile': [], 'postfile': [], 'server_timeout': None, 'nosetscene': False, 'setsceneonly': False, 'skipsetscene': False, 'runall': [], 'runonly': None, 'writeeventlog': None, 'build_verbose_shell': False, 'build_verbose_stdout': False, 'default_loglevel': 20, 'debug_domains': {}}, {'SHELL': '/bin/bash', 'BB_ENV_PASSTHROUGH_ADDITIONS': 'ALL_PROXY BBPATH_EXTRA BB_LOGCONFIG BB_NO_NETWORK BB_NUMBER_THREADS BB_SETSCENE_ENFORCE BB_SRCREV_POLICY DISTRO FTPS_PROXY FTP_PROXY GIT_PROXY_COMMAND HTTPS_PROXY HTTP_PROXY MACHINE NO_PROXY PARALLEL_MAKE SCREENDIR SDKMACHINE SOCKS5_PASSWD SOCKS5_USER SSH_AGENT_PID SSH_AUTH_SOCK STAMPS_DIR TCLIBC TCMODE all_proxy ftp_proxy ftps_proxy http_proxy https_proxy no_proxy ', 'PWD': '/home/openyard/openbmc/vscode-bitbake-build', 'LOGNAME': 'openyard', 'HOME': '/home/openyard', 'BBPATH': '/home/openyard/openbmc/vscode-bitbake-build', 'USER': 'openyard', 'PATH': '/home/openyard/openbmc/scripts:/home/openyard/openbmc/poky/bitbake/bin:/home/openyard/openbmc/node_modules/.bin:/home/openyard/node_modules/.bin:/home/node_modules/.bin:/node_modules/.bin:/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794:/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794/bin/remote-cli:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/snap/bin', 'LC_ALL': 'en_US.UTF-8', 'APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL': '1', 'VSCODE_AMD_ENTRYPOINT': 'vs/workbench/api/node/extensionHostProcess', 'LS_COLORS': '', 'VSCODE_AGENT_FOLDER': '/home/openyard/.vscode-server', 'SSH_CONNECTION': '10.227.78.2 52045 10.227.77.20 22', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'VSCODE_HANDLES_SIGPIPE': 'true', 'PYTHONPATH': '/home/openyard/openbmc/poky/bitbake/lib:', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'SHLVL': '1', 'VSCODE_CWD': '/home/openyard', 'SSH_CLIENT': '10.227.78.2 52045 22', 'XDG_DATA_DIRS': '/usr/local/share:/usr/share:/var/lib/snapd/desktop', 'BROWSER': '/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794/bin/helpers/browser.sh', 'BUILDDIR': '/home/openyard/openbmc/vscode-bitbake-build', 'VSCODE_NLS_CONFIG': '{"locale":"en","osLocale":"en","availableLanguages":{}}', 'MAIL': '/var/mail/openyard', 'VSCODE_HANDLES_UNCAUGHT_ERRORS': 'true', 'OLDPWD': '/home/openyard/openbmc', 'VSCODE_IPC_HOOK_CLI': '/tmp/vscode-ipc-5db8c1e7-90b3-49d6-9b3a-a94d8b88a5c3.sock', '_': '/home/openyard/openbmc/poky/bitbake/bin/bitbake', 'LC_CTYPE': 'C.UTF-8'}, ['/home/openyard/openbmc/poky/bitbake/bin/bitbake', '-p']]
+265258 13:39:19.090913 Command Completed (socket: True)
+265258 13:39:19.340586 Processing Client
+265258 13:39:19.340676 Disconnecting Client (socket: True)
+265258 13:39:19.340798 No timeout, exiting.
+265258 13:39:19.440964 Exiting (socket: True)
+265258 13:39:19.441381 Exiting as we could obtain the lock
+/usr/lib/python3/dist-packages/html5lib/_trie/_base.py:3: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working
+  from collections import Mapping
+sys:1: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/openyard/openbmc/vscode-bitbake-build/bitbake-cookerdaemon.log' mode='a+' encoding='UTF-8'>
+265293 13:39:19.919742 --- Starting bitbake server pid 265293 at 2023-12-13 13:39:19.919716 ---
+265293 13:39:19.920627 Started bitbake server pid 265293
+265293 13:39:19.920799 Entering server connection loop
+265293 13:39:19.920830 Lockfile is: /home/openyard/openbmc/vscode-bitbake-build/bitbake.lock
+Socket is /home/openyard/openbmc/vscode-bitbake-build/bitbake.sock (True)
+265293 13:39:19.921281 Accepting [<socket.socket fd=6, family=AddressFamily.AF_UNIX, type=SocketKind.SOCK_STREAM, proto=0, laddr=bitbake.sock>] ([])
+265293 13:39:19.922316 Processing Client
+265293 13:39:19.922355 Connecting Client
+265293 13:39:19.922649 Running command ['setFeatures', [2, 1]]
+265293 13:39:19.922766 Command Completed (socket: True)
+265293 13:39:19.923290 Running command ['updateConfig', {'halt': True, 'force': False, 'invalidate_stamp': None, 'dry_run': False, 'dump_signatures': [], 'extra_assume_provided': [], 'profile': False, 'prefile': [], 'postfile': [], 'server_timeout': None, 'nosetscene': False, 'setsceneonly': False, 'skipsetscene': False, 'runall': [], 'runonly': None, 'writeeventlog': None, 'build_verbose_shell': False, 'build_verbose_stdout': False, 'default_loglevel': 20, 'debug_domains': {}}, {'SHELL': '/bin/bash', 'BB_ENV_PASSTHROUGH_ADDITIONS': 'ALL_PROXY BBPATH_EXTRA BB_LOGCONFIG BB_NO_NETWORK BB_NUMBER_THREADS BB_SETSCENE_ENFORCE BB_SRCREV_POLICY DISTRO FTPS_PROXY FTP_PROXY GIT_PROXY_COMMAND HTTPS_PROXY HTTP_PROXY MACHINE NO_PROXY PARALLEL_MAKE SCREENDIR SDKMACHINE SOCKS5_PASSWD SOCKS5_USER SSH_AGENT_PID SSH_AUTH_SOCK STAMPS_DIR TCLIBC TCMODE all_proxy ftp_proxy ftps_proxy http_proxy https_proxy no_proxy ', 'PWD': '/home/openyard/openbmc/vscode-bitbake-build', 'LOGNAME': 'openyard', 'HOME': '/home/openyard', 'BBPATH': '/home/openyard/openbmc/vscode-bitbake-build', 'USER': 'openyard', 'PATH': '/home/openyard/openbmc/scripts:/home/openyard/openbmc/poky/bitbake/bin:/home/openyard/openbmc/node_modules/.bin:/home/openyard/node_modules/.bin:/home/node_modules/.bin:/node_modules/.bin:/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794:/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794/bin/remote-cli:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/snap/bin', 'LC_ALL': 'en_US.UTF-8', 'APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL': '1', 'VSCODE_AMD_ENTRYPOINT': 'vs/workbench/api/node/extensionHostProcess', 'LS_COLORS': '', 'VSCODE_AGENT_FOLDER': '/home/openyard/.vscode-server', 'SSH_CONNECTION': '10.227.78.2 52045 10.227.77.20 22', 'LESSCLOSE': '/usr/bin/lesspipe %s %s', 'VSCODE_HANDLES_SIGPIPE': 'true', 'PYTHONPATH': '/home/openyard/openbmc/poky/bitbake/lib:', 'LESSOPEN': '| /usr/bin/lesspipe %s', 'SHLVL': '1', 'VSCODE_CWD': '/home/openyard', 'SSH_CLIENT': '10.227.78.2 52045 22', 'XDG_DATA_DIRS': '/usr/local/share:/usr/share:/var/lib/snapd/desktop', 'BROWSER': '/home/openyard/.vscode-server/bin/6c3e3dba23e8fadc360aed75ce363ba185c49794/bin/helpers/browser.sh', 'BUILDDIR': '/home/openyard/openbmc/vscode-bitbake-build', 'VSCODE_NLS_CONFIG': '{"locale":"en","osLocale":"en","availableLanguages":{}}', 'MAIL': '/var/mail/openyard', 'VSCODE_HANDLES_UNCAUGHT_ERRORS': 'true', 'OLDPWD': '/home/openyard/openbmc', 'VSCODE_IPC_HOOK_CLI': '/tmp/vscode-ipc-5db8c1e7-90b3-49d6-9b3a-a94d8b88a5c3.sock', '_': '/home/openyard/openbmc/poky/bitbake/bin/bitbake-layers', 'LC_CTYPE': 'C.UTF-8'}, ['/home/openyard/openbmc/poky/bitbake/bin/bitbake-layers', 'show-layers']]
+265293 13:39:19.931946 Command Completed (socket: True)
+265293 13:39:19.932068 Running command ['clientComplete']
+265293 13:39:19.940267 Command Completed (socket: True)
+265293 13:39:20.190679 Processing Client
+265293 13:39:20.190770 Disconnecting Client (socket: True)
+265293 13:39:20.190914 No timeout, exiting.
+265293 13:39:20.291165 Exiting (socket: True)
+265293 13:39:20.291934 Exiting as we could obtain the lock
+/usr/lib/python3/dist-packages/html5lib/_trie/_base.py:3: DeprecationWarning: Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since Python 3.3, and in 3.10 it will stop working
+  from collections import Mapping
+sys:1: ResourceWarning: unclosed file <_io.TextIOWrapper name='/home/openyard/openbmc/vscode-bitbake-build/bitbake-cookerdaemon.log' mode='a+' encoding='UTF-8'>

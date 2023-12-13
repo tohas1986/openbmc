@@ -5,7 +5,7 @@
 #include "aspeed-g6.dtsi"
 #include "aspeed-g6-pinctrl.dtsi"
 #include <dt-bindings/gpio/aspeed-gpio.h>
-#include <dt-bindings/leds/leds-pca955x.h>
+//#include <dt-bindings/leds/leds-pca955x.h>
 #include <dt-bindings/i2c/i2c.h>
 
 / {
@@ -14,7 +14,7 @@
 
 	aliases {
 
-		/*i2c16 = &pcie_slo1;
+		i2c16 = &pcie_slo1;
 		i2c17 = &pcie_slo2;
 		i2c18 = &pcie_slo3;
 		i2c19 = &ocp30;
@@ -26,16 +26,16 @@
 		i2c26 = &eeprom1;
 		i2c27 = &data3;
 		i2c28 = &data4;
-		i2c29 = &eeprom2;*/
+		i2c29 = &eeprom2;
 
-		//i2c100 = &eeprom1;
-		//i2c101 = &eeprom2;
+		i2c100 = &eeprom1;
+		i2c101 = &eeprom2;
 
 	};
 
 	chosen {
 		stdout-path = &uart5;
-		bootargs = "earlycon";
+		bootargs = "earlycon root=/dev/ram rw mem.devmem=1";
 	};
 
 	memory@80000000 {
@@ -158,6 +158,14 @@
 	status = "okay";
 };
 
+&vuart1 {
+	status = "okay";
+};
+
+&vuart2 {
+	status = "okay";
+};
+
 
 &mdio0 {
 	status = "okay";
@@ -219,6 +227,7 @@
 
 &peci0 {
 	status = "okay";
+	gpios = <&gpio0 ASPEED_GPIO(F, 6) 0>;
 };
 
 &espi {
@@ -255,12 +264,13 @@
 &i2c1 {
 
 	status = "okay";
+	bus-frequency = <100000>;
 	i2c-mux@73 {
 		compatible = "nxp,pca9548";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0x73>;
-		i2c-mux-idle-disconnect;
+		//i2c-mux-idle-disconnect;
 
 		pcie_slo1: i2c@0 {
 			#address-cells = <1>;
@@ -494,10 +504,10 @@
 	};
 
 	/* PSU2 @ 0xB2 */
-	/*power-supply@51 {
+	power-supply@59 {
 		compatible = "inspur,ipsps1";
-		reg = <0x51>;
-	};*/
+		reg = <0x59>;
+	};
 };
 //
 &i2c6 {
@@ -624,14 +634,14 @@
 
 &gpio0 {
 	gpio-line-names =
-	/*A0 - A7*/	"", "PWRGD_PS_PWROK_PLD_R", "", "", "", "", "", "",
+	/*A0 - A7*/	"FM_BMC_READY_N", "PWRGD_PS_PWROK_PLD_R", "", "", "", "", "", "",
 	/*B0 - B7*/	"", "", "", "", "", "", "", "",
 	/*C0 - C7*/	"", "", "", "", "", "", "", "",
 	/*D0 - D7*/	"", "", "", "", "", "", "", "",
 	/*E0 - E7*/	"", "", "", "", "", "", "", "",
-	/*F0 - F7*/	"", "", "", "", "", "", "PLTRST_N", "POST_COMPLETE",
+	/*F0 - F7*/	"BMC_INITDBP_CPU_PREQ_R_N", "", "", "", "", "", "PLTRST_N", "POST_COMPLETE",
 	/*G0 - G7*/	"", "", "", "", "", "", "", "",
-	/*H0 - H7*/	"", "", "", "", "", "", "", "",
+	/*H0 - H7*/	"", "", "", "", "", "", "FM_BMC_PCH_SCI_LPC_N", "IRQ_BMC_PCH_SMI_LPC_N",
 	/*I0 - I7*/	"", "", "", "", "", "", "", "",
 	/*J0 - J7*/	"", "", "", "", "", "", "", "",
 	/*K0 - K7*/	"", "", "", "", "", "", "", "",
@@ -641,8 +651,8 @@
 	/*O0 - O7*/	"", "", "", "", "", "", "", "",
 	/*P0 - P7*/	"SYS_BMC_PWRBTN_R_N", "SYS_PWRBTN_N", "FP_RST_BTN_N", "FM_BMC_RSTBTN_OUT_N", "", "IRQ_BMC_PCH_NMI_R", "", "",
 	/*Q0 - Q7*/	"", "", "", "", "", "", "", "",
-	/*R0 - R7*/	"FP_ID_BTN_SCM_N", "", "", "", "", "", "", "",
-	/*S0 - S7*/	"", "", "", "", "", "", "", "",
+	/*R0 - R7*/	"FP_ID_BTN_SCM_N", "", "", "BIOS_SEL_N", "", "", "", "",
+	/*S0 - S7*/	"", "", "", "", "", "PMBUS_SEL_N", "", "",
 	/*T0 - T7*/	"", "", "", "", "", "", "", "",
 	/*U0 - U7*/	"", "", "", "", "", "", "", "",
 	/*V0 - V7*/	"", "", "", "", "", "", "", "",
