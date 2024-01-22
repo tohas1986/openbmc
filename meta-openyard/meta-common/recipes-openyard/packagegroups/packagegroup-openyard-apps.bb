@@ -28,7 +28,6 @@ RDEPENDS:${PN}-chassis = " \
 
 SUMMARY:${PN}-fans = "Intel Fans"
 RDEPENDS:${PN}-fans = " \
-        phosphor-pid-control \
         "
 
 SUMMARY:${PN}-flash = "Intel Flash"
@@ -51,6 +50,7 @@ RDEPENDS:${PN}-system = " \
         iotools \
         phosphor-hwmon \
         peci-pcie \
+        virtual-media \
         "
 
 RDEPENDS:${PN}-extras:remove = " phosphor-host-state-manager"
