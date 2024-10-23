@@ -16,7 +16,7 @@ BB_DISKMON_DIRS ??= "\
     HALT,/tmp,10M,1K"
 CONF_VERSION = "2"
 
-BB_NUMBER_THREADS = "8"
-FULL_OPTIMIZATION = "-Os -pipe ${DEBUG_FLAGS}"
-
 require conf/machine/include/obmc-bsp-common.inc
+
+FULL_OPTIMIZATION = "-Os -pipe ${DEBUG_FLAGS}"
+BB_NUMBER_THREADS = "6"
