@@ -17,9 +17,12 @@ SUMMARY:${PN}-chassis = "OpenPOWER Chassis"
 RDEPENDS:${PN}-chassis = " \
         obmc-phosphor-buttons-signals \
         obmc-phosphor-buttons-handler \
+        phosphor-pid-control \
         phosphor-power-control \
-        phosphor-power-psu-monitor \
+        phosphor-post-code-manager \
+        phosphor-host-postd        \
         phosphor-skeleton-control-power \
+        phosphor-ipmi-ipmb \
 "
 
 SUMMARY:${PN}-flash = "System1 Flash"
