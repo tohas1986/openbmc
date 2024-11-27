@@ -15,7 +15,7 @@
     "gpio_definitions": [
         {
             "name": "SOFTWARE_PGOOD",
-            "pin": "A1",
+            "pin": "R1",
             "direction": "out"
         },
         {

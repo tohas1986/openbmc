@@ -1,120 +1,337 @@
-#
-# If the LED has a label in DTS like:
-#   label = "device:color:function";
-# the D-Bus name looks like:
-#   device_function_color
-#
 bmc_booted:
-    platform_power_green:
+    power:
         Action: 'Blink'
+        DutyOn: 50
+        Period: 1000
         Priority: 'On'
+
 power_on:
-    platform_power_green:
+    power:
         Action: 'On'
+        DutyOn: 50
+        Period: 0
         Priority: 'On'
+
+enclosure_fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+
 enclosure_identify:
-    platform_indicator_blue:
+    identify:
         Action: 'Blink'
-        Priority: 'Blink'
-enclosure_fault: &SYS_FAULT
-    platform_fault_red:
-        Action: 'Blink'
-        Priority: 'Blink'
-enclosure_warning: &FRU_FAULT
-    platform_alarm_yellow:
-        Action: 'Blink'
+        DutyOn: 50
+        Period: 1000
         Priority: 'Blink'
 
-bmc_fault:
-    <<: *SYS_FAULT
-motherboard_fault:
-    <<: *SYS_FAULT
-system_fault:
-    <<: *SYS_FAULT
+# The Op Panel on the Romulus system holds a multicolor LED.
+# Both the 'fault' and 'identify' gpios are wired to the same LED.
+# By holding one in 'on' while the other in 'blink' state, ensures
+# the manufacturing process can verify both colors function
+lamp_test:
+    fault:
+        Action: 'Blink'
+        DutyOn: 50
+        Period: 1000
+        Priority: 'Blink'
+    identify:
+        Action: 'On'
+        Priority: 'Blink'
 
-cpu0_fault:
-    <<: *FRU_FAULT
-cpu1_fault:
-    <<: *FRU_FAULT
-
-core0_fault:
-    <<: *FRU_FAULT
-core1_fault:
-    <<: *FRU_FAULT
-core2_fault:
-    <<: *FRU_FAULT
-core3_fault:
-    <<: *FRU_FAULT
-core4_fault:
-    <<: *FRU_FAULT
-core5_fault:
-    <<: *FRU_FAULT
-core6_fault:
-    <<: *FRU_FAULT
-core7_fault:
-    <<: *FRU_FAULT
-core8_fault:
-    <<: *FRU_FAULT
-core9_fault:
-    <<: *FRU_FAULT
-core10_fault:
-    <<: *FRU_FAULT
-core11_fault:
-    <<: *FRU_FAULT
-core12_fault:
-    <<: *FRU_FAULT
-core13_fault:
-    <<: *FRU_FAULT
-core14_fault:
-    <<: *FRU_FAULT
-core15_fault:
-    <<: *FRU_FAULT
-core16_fault:
-    <<: *FRU_FAULT
-core17_fault:
-    <<: *FRU_FAULT
-core18_fault:
-    <<: *FRU_FAULT
-core19_fault:
-    <<: *FRU_FAULT
-core20_fault:
-    <<: *FRU_FAULT
-core21_fault:
-    <<: *FRU_FAULT
-core22_fault:
-    <<: *FRU_FAULT
-core23_fault:
-    <<: *FRU_FAULT
-
-dimm0_fault:
-    <<: *FRU_FAULT
-dimm1_fault:
-    <<: *FRU_FAULT
-dimm2_fault:
-    <<: *FRU_FAULT
-dimm3_fault:
-    <<: *FRU_FAULT
-dimm4_fault:
-    <<: *FRU_FAULT
-dimm5_fault:
-    <<: *FRU_FAULT
-dimm6_fault:
-    <<: *FRU_FAULT
-dimm7_fault:
-    <<: *FRU_FAULT
-dimm8_fault:
-    <<: *FRU_FAULT
-dimm9_fault:
-    <<: *FRU_FAULT
-dimm10_fault:
-    <<: *FRU_FAULT
-dimm11_fault:
-    <<: *FRU_FAULT
-dimm12_fault:
-    <<: *FRU_FAULT
-dimm13_fault:
-    <<: *FRU_FAULT
-dimm14_fault:
-    <<: *FRU_FAULT
-dimm15_fault:
-    <<: *FRU_FAULT
+# All kinds of faults using the same action as enclosure_fault
+Fan0Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+Fan1Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+Fan2Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+bmcFault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core0Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core1Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core2Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core3Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core4Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core5Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core6Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core7Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core8Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core9Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core10Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core11Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core12Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core13Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core14Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core15Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core16Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core17Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core18Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core19Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core20Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core21Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core22Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+core23Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+cpu0Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+cpu1Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm0Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm1Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm2Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm3Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm4Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm5Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm6Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm7Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm8Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm9Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm10Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm11Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm12Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm13Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm14Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+dimm15Fault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+motherboardFault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+occFault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
+systemFault:
+    fault:
+        Action: 'On'
+        DutyOn: 50
+        Period: 0
+        Priority: 'Blink'
