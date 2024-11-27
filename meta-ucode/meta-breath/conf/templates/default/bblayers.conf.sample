@@ -12,6 +12,7 @@ BBLAYERS ?= " \
   ##OEROOT##/meta-openembedded/meta-python \
   ##OEROOT##/meta-phosphor \
   ##OEROOT##/meta-aspeed \
+  ##OEROOT##/meta-openpower \
   ##OEROOT##/meta-ucode \
   ##OEROOT##/meta-ucode/meta-breath \
   "

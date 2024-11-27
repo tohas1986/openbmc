@@ -5,7 +5,7 @@ inherit packagegroup
 
 PROVIDES = "${PACKAGES}"
 PACKAGES = " \
-        ${PN}-extras \
+        ${PN}-chassis \
         ${PN}-fans \
         ${PN}-flash \
         ${PN}-system \
@@ -21,10 +21,23 @@ RPROVIDES:${PN}-fans += "virtual-obmc-fan-mgmt"
 RPROVIDES:${PN}-flash += "virtual-obmc-flash-mgmt"
 RPROVIDES:${PN}-system += "virtual-obmc-system-mgmt"
 
-SUMMARY:${PN}-chassis = "ucode Chassis"
+SUMMARY:${PN}-chassis = "ucode OpenPOWER Chassis"
 RDEPENDS:${PN}-chassis = " \
+    obmc-phosphor-power \
     phosphor-skeleton-control-power \
-    "
+"
+
+# obmc-phosphor-buttons-signals
+# obmc-phosphor-buttons-handler
+# phosphor-power-control
+# phosphor-post-code-manager
+# phosphor-host-postd       
+# phosphor-skeleton-control-power
+# phosphor-ipmi-ipmb
+
+# phosphor-power-control
+# phosphor-power-utils
+# phosphor-power
 
 SUMMARY:${PN}-fans = "ucode Fans"
 RDEPENDS:${PN}-fans = " \
@@ -43,3 +56,5 @@ RDEPENDS:${PN}-system = " \
     phosphor-state-manager \
     smbios-mdr \
     "
+
+# RDEPENDS:${PN}-inventory:append = " openpower-occ-control id-button"
