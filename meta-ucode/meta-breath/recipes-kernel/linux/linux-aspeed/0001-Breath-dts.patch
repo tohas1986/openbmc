@@ -1,19 +1,19 @@
-From 99408eb181b1a48ba631b0e26d18a6c5069121d4 Mon Sep 17 00:00:00 2001
+From a733593bef9e71e47c1c595cca1c9f8b5fb3c31b Mon Sep 17 00:00:00 2001
 From: OpenEmbedded <oe.patch@oe>
 Date: Fri, 1 Nov 2024 11:32:21 +0000
 Subject: [PATCH] Breath dts
 
 ---
- .../boot/dts/aspeed/breath-ast2500-evb.dts    | 241 ++++++++++++++++++
- 1 file changed, 241 insertions(+)
+ .../boot/dts/aspeed/breath-ast2500-evb.dts    | 272 ++++++++++++++++++
+ 1 file changed, 272 insertions(+)
  create mode 100644 arch/arm/boot/dts/aspeed/breath-ast2500-evb.dts
 
 diff --git a/arch/arm/boot/dts/aspeed/breath-ast2500-evb.dts b/arch/arm/boot/dts/aspeed/breath-ast2500-evb.dts
 new file mode 100644
-index 000000000000..96c5588645a2
+index 000000000000..8a1ba60bf5da
 --- /dev/null
 +++ b/arch/arm/boot/dts/aspeed/breath-ast2500-evb.dts
-@@ -0,0 +1,241 @@
+@@ -0,0 +1,272 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +/dts-v1/;
 +
@@ -56,12 +56,43 @@ index 000000000000..96c5588645a2
 +	leds {
 +		compatible = "gpio-leds";
 +
-+		led-fault {
-+			gpios = <&gpio ASPEED_GPIO(A, 2) GPIO_ACTIVE_LOW>;
++		fault {
++			gpios = <&gpio ASPEED_GPIO(N, 2) GPIO_ACTIVE_LOW>;
 +		};
 +
-+		led-identify {
-+			gpios = <&gpio ASPEED_GPIO(A, 3) GPIO_ACTIVE_LOW>;
++		identify {
++			gpios = <&gpio ASPEED_GPIO(N, 4) GPIO_ACTIVE_HIGH>;
++		};
++
++		power {
++			gpios = <&gpio ASPEED_GPIO(R, 5) GPIO_ACTIVE_LOW>;
++		};
++	};
++
++	/* fsi: gpio-fsi { */
++	/* 	compatible = "aspeed,ast2500-cf-fsi-master", "fsi-master"; */
++	/* 	#address-cells = <2>; */
++	/* 	#size-cells = <0>; */
++	/* 	no-gpio-delays; */
++
++	/* 	memory-region = <&coldfire_memory>; */
++	/* 	aspeed,sram = <&sram>; */
++	/* 	aspeed,cvic = <&cvic>; */
++
++	/* 	clock-gpios = <&gpio ASPEED_GPIO(AA, 0) GPIO_ACTIVE_HIGH>; */
++	/* 	data-gpios = <&gpio ASPEED_GPIO(AA, 2) GPIO_ACTIVE_HIGH>; */
++	/* 	mux-gpios = <&gpio ASPEED_GPIO(A, 6) GPIO_ACTIVE_HIGH>; */
++	/* 	enable-gpios = <&gpio ASPEED_GPIO(D, 0) GPIO_ACTIVE_HIGH>; */
++	/* 	trans-gpios = <&gpio ASPEED_GPIO(R, 2) GPIO_ACTIVE_HIGH>; */
++	/* }; */
++
++	gpio-keys {
++		compatible = "gpio-keys";
++
++		id-button {
++			label = "id-button";
++			gpios = <&gpio ASPEED_GPIO(Q, 7) GPIO_ACTIVE_LOW>;
++			linux,code = <ASPEED_GPIO(Q, 7)>;
 +		};
 +	};
 +
@@ -256,5 +287,5 @@ index 000000000000..96c5588645a2
 +
 +/************************/
 -- 
-2.39.2
+2.34.1
 
