@@ -4,8 +4,8 @@
         "power_config": {
             "power_good_in": "SYS_PWROK_BUFF",
             "power_up_outs": [
-                { "name": "SOFTWARE_PGOOD", "polarity": true},
-                { "name": "PWRBTN_OUT_N", "polarity": true}
+                { "name": "SOFTWARE_PGOOD", "polarity": false},
+                { "name": "PWRBTN_OUT_N", "polarity": false}
             ],
             "reset_outs": [
             ]
@@ -15,12 +15,12 @@
     "gpio_definitions": [
         {
             "name": "PWRBTN_N",
-            "pin": "D0",
+            "pin": "F7",
             "direction": "in"
         },
         {
             "name": "SW_RSTBTN_N",
-            "pin": "D2",
+            "pin": "E0",
             "direction": "in"
         },
         {
@@ -30,17 +30,17 @@
         },
         {
             "name": "SOFTWARE_PGOOD",
-            "pin": "R1",
+            "pin": "Z0",
             "direction": "out"
         },
         {
             "name": "PWRBTN_OUT_N",
-            "pin": "D1",
+            "pin": "J1",
             "direction": "out"
         },
         {
             "name": "SYS_PWROK_BUFF",
-            "pin": "D6",
+            "pin": "Z1",
             "direction": "in"
         }
     ]
