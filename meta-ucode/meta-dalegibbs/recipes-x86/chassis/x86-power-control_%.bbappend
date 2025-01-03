@@ -2,6 +2,7 @@ FILESEXTRAPATHS:append := "${THISDIR}/${PN}:"
 
 SRC_URI += " \
             file://power-config-host0.json \
+            file://0001-Added-polarity-checking-for-psPowerOk.patch \
         "
 
 do_install:append() {

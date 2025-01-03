@@ -1,0 +1,42 @@
+From 16c440f85133c51b9bfc5bd50dcde0b53ad51200 Mon Sep 17 00:00:00 2001
+From: ShajTester <kolobrod2002@yandex.ru>
+Date: Fri, 3 Jan 2025 11:01:56 +0300
+Subject: [PATCH] Disable WDT2
+
+---
+ board/aspeed/ast-g5/ast-g5.c | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index e67a4bf8b2..6206498dda 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -16,12 +16,22 @@
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
++
++#define AST_WDT2_BASE 0x1E785020 /* WDT2 */
++#define AST_WDT3_BASE 0x1E785040 /* WDT3 */
++
++#define AST_WDT_CTRL 0x0c
++
+ int board_init(void)
+ {
+-	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
+-	gd->flags = 0;
++    gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
++    gd->flags = 0;
+ 
+-	return 0;
++    /* Disable WDT2 and WDT3 */
++    writel(0, AST_WDT2_BASE + AST_WDT_CTRL);
++    writel(0, AST_WDT3_BASE + AST_WDT_CTRL);
++
++    return 0;
+ }
+ 
+ int dram_init(void)
+-- 
+2.43.0
+

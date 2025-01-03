@@ -1,0 +1,48 @@
+From 9dd981271ae71591a9ac8263807b23aea2e88552 Mon Sep 17 00:00:00 2001
+From: ShajTester <kolobrod2002@yandex.ru>
+Date: Fri, 3 Jan 2025 11:47:07 +0300
+Subject: [PATCH] Added polarity checking for psPowerOk
+
+---
+ src/power_control.cpp | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/power_control.cpp b/src/power_control.cpp
+index 0fd422d..98d618e 100644
+--- a/src/power_control.cpp
++++ b/src/power_control.cpp
+@@ -2997,10 +2997,11 @@ int main(int argc, char* argv[])
+ 
+     if (powerOkConfig.type == ConfigType::GPIO)
+     {
+-        if (psPowerOKLine.get_value() > 0 ||
++        if ((psPowerOKLine.get_value() == powerOkConfig.polarity) ||
+             (sioEnabled &&
+              (sioPowerGoodLine.get_value() == sioPwrGoodConfig.polarity)))
+         {
++            lg2::info("Power trace 1");
+             powerState = PowerState::on;
+         }
+     }
+@@ -3008,15 +3009,18 @@ int main(int argc, char* argv[])
+     {
+         if (getProperty(powerOkConfig))
+         {
++            lg2::info("Power trace 2");
+             powerState = PowerState::on;
+         }
+     }
+     // Check if we need to start the Power Restore policy
+     if (powerState != PowerState::on)
+     {
++        lg2::info("Power trace 3");
+         powerRestore.run();
+     }
+ 
++    lg2::info("Power trace 4");
+     if (nmiOutLine)
+         nmiSourcePropertyMonitor();
+ 
+-- 
+2.43.0
+

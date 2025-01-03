@@ -1,0 +1,401 @@
+// SPDX-License-Identifier: GPL-2.0+
+/dts-v1/;
+
+#include "aspeed-g5.dtsi"
+#include <dt-bindings/gpio/aspeed-gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	model = "Tyan S8036 BMC";
+	compatible = "tyan,s8036-bmc", "aspeed,ast2500";
+
+	chosen {
+		stdout-path = &uart5;
+		bootargs = "console=ttyS4,115200 earlycon";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		p2a_memory: region@987f0000 {
+			no-map;
+			reg = <0x987f0000 0x00010000>; /* 64KB */
+		};
+
+		vga_memory: framebuffer@9f000000 {
+			no-map;
+			reg = <0x9f000000 0x01000000>; /* 16M */
+		};
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>; /* 16M */
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		identify {
+			default-state = "on";
+			gpios = <&gpio ASPEED_GPIO(Z, 2) GPIO_ACTIVE_HIGH>;
+		};
+
+		status_amber {
+			default-state = "off";
+			gpios = <&gpio ASPEED_GPIO(N, 7) GPIO_ACTIVE_HIGH>;
+		};
+
+		fan_fault {
+			default-state = "off";
+			gpios = <&gpio ASPEED_GPIO(G, 1) GPIO_ACTIVE_HIGH>;
+		};
+
+		heartbeat {
+			gpios = <&gpio ASPEED_GPIO(S, 0) GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc 0>, <&adc 1>, <&adc 2>, <&adc 3>,
+			<&adc 4>, <&adc 5>, <&adc 6>, <&adc 7>,
+			<&adc 8>, <&adc 9>, <&adc 10>, <&adc 11>,
+			<&adc 12>, <&adc 13>, <&adc 14>;
+	};
+
+	iio-hwmon-battery {
+		compatible = "iio-hwmon";
+		io-channels = <&adc 15>;
+	};
+};
+
+&fmc {
+	status = "okay";
+	flash@0 {
+		label = "bmc";
+		status = "okay";
+		m25p,fast-read;
+        partitions {
+            compatible = "fixed-partitions";
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            u-boot@0 {
+                reg = <0x0 0x60000>;
+                label = "u-boot";
+            };
+
+            u-boot-env@60000 {
+                reg = <0x60000 0x20000>;
+                label = "u-boot-env";
+            };
+
+            kernel@80000 {
+                reg = <0x80000 0x460000>;
+                label = "kernel";
+            };
+
+            rofs@4c0000 {
+                reg = <0x4e0000 0x1760000>;
+                label = "rofs";
+            };
+
+            rwfs@1c00000 {
+                reg = <0x1c40000 0x3c0000>;
+                label = "rwfs";
+            };
+        };
+	};
+};
+
+&spi1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi1_default>;
+
+	flash@0 {
+		status = "okay";
+		label = "pnor";
+		m25p,fast-read;
+	};
+};
+
+&uart1 {
+	/* Rear RS-232 connector */
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_txd1_default
+			&pinctrl_rxd1_default>;
+};
+
+&uart2 {
+	/* RS-232 connector on header */
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_txd2_default
+			&pinctrl_rxd2_default>;
+};
+
+&uart3 {
+	/* Alternative to vuart to internally connect (route) to uart1
+	 * when vuart cannot be used due to BIOS limitations.
+	 */
+	status = "okay";
+};
+
+&uart4 {
+	/* Alternative to vuart to internally connect (route) to the
+	 * external port usually used by uart1 when vuart cannot be
+	 * used due to BIOS limitations.
+	 */
+	status = "okay";
+};
+
+&uart5 {
+	/* BMC "debug" (console) UART; connected to RS-232 connector
+	 * on header; selectable via jumpers as alternative to uart2
+	 */
+	status = "okay";
+};
+
+&uart_routing {
+	status = "okay";
+};
+
+&vuart {
+	status = "okay";
+
+	/* We enable the VUART here, but leave it in a state that does
+	 * not interfere with the SuperIO. The goal is to have both the
+	 * VUART and the SuperIO available and decide at runtime whether
+	 * the VUART should actually be used. For that reason, configure
+	 * an "invalid" IO address and an IRQ that is not used by the
+	 * BMC.
+	 */
+/*	aspeed,lpc-io-reg = <0xffff>;
+	aspeed,lpc-interrupts = <15 IRQ_TYPE_LEVEL_HIGH>;
+*/
+};
+
+&lpc_ctrl {
+	status = "okay";
+};
+
+&p2a {
+	status = "okay";
+	memory-region = <&p2a_memory>;
+};
+
+&lpc_snoop {
+	status = "okay";
+	snoop-ports = <0x80>;
+};
+
+&adc {
+	status = "okay";
+};
+
+&vhub {
+	status = "okay";
+};
+
+&pwm_tacho {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_default>;
+
+	/* CPU fan */
+	fan@0 {
+		reg = <0x00>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+	};
+
+	/* PWM group for chassis fans #1, #2, #3 and #4 */
+	fan@2 {
+		reg = <0x03>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x02>;
+	};
+
+	fan@3 {
+		reg = <0x03>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x03>;
+	};
+
+	fan@4 {
+		reg = <0x03>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x04>;
+	};
+
+	fan@5 {
+		reg = <0x03>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x05>;
+	};
+
+	/* PWM group for chassis fans #5 and #6  */
+	fan@6 {
+		reg = <0x04>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x06>;
+	};
+
+	fan@7 {
+		reg = <0x04>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x07>;
+	};
+};
+
+&i2c0 {
+	/* Directly connected to Sideband-Temperature Sensor Interface (APML) */
+	status = "okay";
+};
+
+&i2c1 {
+	/* Directly connected to IPMB HDR. */
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+
+};
+
+&i2c3 {
+	status = "okay";
+
+};
+
+&i2c4 {
+	status = "okay";
+};
+
+&i2c5 {
+	status = "okay";
+
+	/* Also connected to:
+	 * - PCA9544
+	 * - CLK BUFF
+	 * - OCP FRU
+	 */
+};
+
+&i2c6 {
+	status = "okay";
+	/* Connected to:
+	 * - PCA9548 @0xE0
+	 * - PCA9548 @0xE2
+	 * - PCA9544 @0xE4
+	 */
+};
+
+&i2c7 {
+	status = "okay";
+
+	/* Connected to:
+	 * - PCH SMBUS #4
+	 */
+};
+
+&i2c8 {
+	status = "okay";
+
+	/* Not connected */
+};
+
+&mac0 {
+	status = "okay";
+	use-ncsi;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rmii1_default>;
+};
+
+&mac1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default &pinctrl_mdio2_default>;
+};
+
+&ibt {
+	status = "okay";
+};
+
+&kcs3 {
+	aspeed,lpc-io-reg = <0xCA2>;
+	status = "okay";
+};
+
+&kcs4 {
+	aspeed,lpc-io-reg = <0xCA4>;
+	status = "okay";
+};
+
+/* Enable BMC VGA output to show an early (pre-BIOS) boot screen */
+&gfx {
+	status = "okay";
+	memory-region = <&gfx_memory>;
+};
+
+&peci0 {
+	status = "okay";
+};
+
+/* We're following the GPIO naming as defined at
+ * https://github.com/openbmc/docs/blob/master/designs/device-tree-gpio-naming.md.
+ *
+ * Notes on led-identify and id-button:
+ * - A physical button is connected to id-button which
+ *   triggers the clock on a D flip-flop. The /Q output of the
+ *   flip-flop drives its D input.
+ * - The flip-flop's Q output drives led-identify which is
+ *   connected to LEDs.
+ * - With that, every button press toggles the LED between on and off.
+ *
+ * Notes on power-, reset- and nmi- button and control:
+ * - The -button signals can be used to monitor physical buttons.
+ * - The -control signals can be used to actuate the specific
+ *   operation.
+ * - In hardware, the -button signals are connected to the -control
+ *   signals through drivers with the -control signals being
+ *   protected through diodes.
+ */
+&gpio {
+	status = "okay";
+	gpio-line-names =
+        /*A0-A7*/    "PCH_SMI_ACTIVE_N","MEM_THERM_EVENT_CPU1_N","MEM_THERM_EVENT_CPU2_N","CPU_CATERR_LVT3_N","","","","",
+        /*B0-B7*/    "BMC_JTAG_TCK_MUX_SEL","BMC_REMOTE_DEBUG_EN_DET","BMC_PRDY_N","BMC_PWR_DEBUG_N","BMC_PREQ_N","IRQ_BMC_SMI_LPC_N","BMC_PCB_REV_0","",
+        /*C0-C7*/    "BMC_I2C_10_SCL","BMC_I2C_10_SDA","BMC_I2C_11_SCL","BMC_I2C_11_SDA","BMC_I2C_12_SCL","BMC_I2C_12_SDA","BMC_I2C_13_SCL","BMC_I2C_13_SDA",
+        /*D0-D7*/    "BMC_SD2_CLK","BMC_SD2_CMD","BMC_SD2_DAT0","BMC_SD2_DAT1","BMC_SD2_DAT2","BMC_SD2_DAT3","BMC_SD2_CD_N","BMC_SD2_WP_N",
+        /*E0-E7*/    "RESET_BUTTON","","PRDY_N","","","DEBUG_EN_N","","",
+        /*F0-F7*/    "CPU1_SKTOCC_LVT3_N","CPU2_SKTOCC_LVT3_N","IRQ_SML0_ALERT_N","BMC_LCD_INT_N_R","CPU1_MEMHOT_OUT_N","CPU2_MEMHOT_OUT_N","SPEAKER_BMC","POWER_BUTTON",
+        /*G0-G7*/    "SPI_BIOS_SELECT","SYS_FAN_FAULT_LED","CHASSIS_INTRUSION"/*INTRUDER_N*/,"P3VBAT_BRIDGE_EN","BMC_RST_RTC_N","CPU2_DISABLE_COD","CPLD_PWROK_BMC","ID_BUTTON",
+        /*H0-H7*/    "POST_COMPLETE","PS_PWROK","CPU_ERR2_LVT3_N","PCH_BMC_THERMTRIP_N","CPU_MSMI_LVT3_N","BMC_CPLD_OVER_LOAD_N","PSU1_ALERT_N","PSU2_ALERT_N",
+        /*I0-I7*/    "PSU1_PRSNT_N","PSU2_PRSNT_N","VR_VENDOR_TYPE","PSU_SMART_ON","BMC_SPI_1_CS0_N","BMC_SPI_1_SCK","BMC_SPI_1_MOSI","BMC_SPI_1_MISO",
+        /*J0-J7*/    "BMC_FW_OK","POWER_OUT","RESET_OUT","MUX_ID_LED","","","","",
+        /*K0-K7*/    "","","","","","","","",
+        /*L0-L7*/    "","","","","","","","",
+        /*M0-M7*/    "BMC_JTAG_MUX_S","FM_CPU_DEBUG_EN_LVC3","DIMM_HOT_EVENT_N","BMC_OSP_I2C_RST_N","RST_PCH_RSMRST_N","IRQ_NMI_EVENT_N","BMC_SD_MODULE_RESET_N","BMC_SD_MODULE_R_INT_N",
+        /*N0-N7*/    "BMC_PWM_0","","PVCCIN_CPU1_PWR_IN_ALERT_N","PVCCIN_CPU2_PWR_IN_ALERT_N","BMC_FAN_FAULT_LED4","BMC_FAN_FAULT_LED5","","SYS_ALERT_LED",
+        /*O0-O7*/    "","","","","","","","",
+        /*P0-P7*/    "","","","","","","","",
+        /*Q0-Q7*/    "","","","","","","CPU_CATERR","PWR_DEBUG_N"/*PRSNT_N*/,
+        /*R0-R7*/    "","XDP_PRST_N","SIO_ONCONTROL","","NMI_OUT","NMI_BUTTON","","PCH_BMC_THERMTRIP",
+        /*S0-S7*/    "BMC_FAN_FAULT_LED0","BMC_FAN_FAULT_LED1","BMC_FAN_FAULT_LED2","BMC_FAN_FAULT_LED3","BMC_HW_STRAP_GPIOS4","BMC_HW_STRAP_GPIOS5","BMC_HW_STRAP_GPIOS6","BMC_HW_STRAP_GPIOS7",
+        /*T0-T7*/    "","","","","","","","",
+        /*U0-U7*/    "","","","","","","","",
+        /*V0-V7*/    "","","","","","","","",
+        /*W0-W7*/    "","","","","","","","",
+        /*X0-X7*/    "","","","","","","","",
+        /*Y0-Y7*/    "SIO_S3","SIO_S5","CPU1_PROCHOT_LVC3_N","CPU2_PROCHOT_LVC3_N","","","","",
+        /*Z0-Z7*/    "BMC_FAN_FAULT_LED6","SIO_POWER_GOOD","BMC_ID_LED_CTRL","BMC_FAN_FAULT_LED7","BMC_HW_STRAP_GPIOZ4","BMC_HW_STRAP_GPIOZ5","BMC_HW_STRAP_GPIOZ6","BMC_HW_STRAP_GPIOZ7",
+        /*AA0-AA7*/  "BMC_FAN_0_PRSNT_N","BMC_FAN_1_PRSNT_N","BMC_FAN_2_PRSNT_N","BMC_FAN_3_PRSNT_N","BMC_FAN_4_PRSNT_N","BMC_FAN_5_PRSNT_N","BMC_FAN_6_PRSNT_N","BMC_FAN_7_PRSNT_N",
+        /*AB0-AB7*/  "PVCCIO_CPU1_VR_HOT_N","PVCCIO_CPU2_VR_HOT_N","CPLD_THERMTRIP_BMC_N","BMC_CPLD_WDT_N","","","","",
+        /*AC0-AC7*/  "","","","","","","","";
+};
