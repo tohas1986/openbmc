@@ -1,0 +1,110 @@
+From 9cea4c6aa2c49977c8b9cca44d88b334663a0795 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 2 Apr 2021 12:35:27 +0000
+Subject: [PATCH] cpusensor-Add-debug
+
+---
+ src/CPUSensorMain.cpp | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/src/CPUSensorMain.cpp b/src/CPUSensorMain.cpp
+index f304e3f..02714b8 100644
+--- a/src/CPUSensorMain.cpp
++++ b/src/CPUSensorMain.cpp
+@@ -41,6 +41,8 @@
+ #include <variant>
+ #include <vector>
+ 
++#include <CLI/CLI.hpp>
++
+ // clang-format off
+ // this needs to be included last or we'll have build issues
+ #include <linux/peci-ioctl.h>
+@@ -49,7 +51,8 @@
+ #endif
+ // clang-format on
+ 
+-static constexpr bool debug = false;
++//static constexpr bool debug = false;
++bool DEBUG = false;
+ 
+ boost::container::flat_map<std::string, std::unique_ptr<CPUSensor>> gCpuSensors;
+ boost::container::flat_map<std::string,
+@@ -227,7 +230,7 @@ bool createSensors(boost::asio::io_service& io,
+             // shouldn't have an empty name file
+             continue;
+         }
+-        if (debug)
++        if (DEBUG)
+         {
+             std::cout << "Checking: " << hwmonNamePath << ": " << hwmonName
+                       << "\n";
+@@ -329,7 +332,7 @@ bool createSensors(boost::asio::io_service& io,
+             auto findSensor = gCpuSensors.find(sensorName);
+             if (findSensor != gCpuSensors.end())
+             {
+-                if (debug)
++                if (DEBUG)
+                 {
+                     std::cout << "Skipped: " << inputPath << ": " << sensorName
+                               << " is already created\n";
+@@ -386,7 +389,7 @@ bool createSensors(boost::asio::io_service& io,
+                 sensorName, std::move(sensorThresholds), *interfacePath, cpuId,
+                 show, dtsOffset);
+             createdSensors.insert(sensorName);
+-            if (debug)
++            if (DEBUG)
+             {
+                 std::cout << "Mapped: " << inputPath << " to " << sensorName
+                           << "\n";
+@@ -426,7 +429,7 @@ void exportDevice(const CPUConfig& config)
+         if (boost::starts_with(directoryName, busStr) &&
+             boost::ends_with(directoryName, addrHexStr))
+         {
+-            if (debug)
++            if (DEBUG)
+             {
+                 std::cout << parameters << " on bus " << busStr
+                           << " is already exported\n";
+@@ -542,7 +545,7 @@ void detectCpu(boost::asio::deadline_timer& pingTimer,
+             keepPinging = true;
+         }
+ 
+-        if (debug)
++        if (DEBUG)
+         {
+             std::cout << config.name << ", state: " << config.state << "\n";
+         }
+@@ -679,7 +682,7 @@ bool getCpuConfig(const std::shared_ptr<sdbusplus::asio::connection>& systemBus,
+                 uint64_t addr = std::visit(VariantToUnsignedIntVisitor(),
+                                            findAddress->second);
+ 
+-                if (debug)
++                if (DEBUG)
+                 {
+                     std::cout << "bus: " << bus << "\n";
+                     std::cout << "addr: " << addr << "\n";
+@@ -702,8 +705,13 @@ bool getCpuConfig(const std::shared_ptr<sdbusplus::asio::connection>& systemBus,
+     return false;
+ }
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++
++    CLI::App app("PECI CPU/DIMM sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     boost::container::flat_set<CPUConfig> cpuConfigs;
+@@ -737,7 +745,7 @@ int main()
+                 return;
+             }
+ 
+-            if (debug)
++            if (DEBUG)
+             {
+                 std::cout << message.get_path() << " is changed\n";
+             }

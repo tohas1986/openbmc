@@ -1,0 +1,109 @@
+From f068a29bd735f29f90e836e29df34659f5b1b734 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 24 Nov 2020 16:50:39 +0000
+Subject: [PATCH 1/1] lpc_snoop: Add polling mode
+
+---
+ drivers/soc/aspeed/aspeed-lpc-snoop.c | 58 +++++++++++++++++++++++++++++++++--
+ 1 file changed, 55 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/soc/aspeed/aspeed-lpc-snoop.c b/drivers/soc/aspeed/aspeed-lpc-snoop.c
+index bf98ba0..5d9ce15 100644
+--- a/drivers/soc/aspeed/aspeed-lpc-snoop.c
++++ b/drivers/soc/aspeed/aspeed-lpc-snoop.c
+@@ -23,6 +23,7 @@
+ #include <linux/platform_device.h>
+ #include <linux/poll.h>
+ #include <linux/regmap.h>
++#include <linux/workqueue.h>
+ 
+ #define DEVICE_NAME	"aspeed-lpc-snoop"
+ 
+@@ -71,6 +72,7 @@ struct aspeed_lpc_snoop {
+ 	struct clk		*clk;
+ 	struct aspeed_lpc_snoop_channel chan[NUM_SNOOP_CHANNELS];
+ 	u8 prev_val[NUM_SNOOP_CHANNELS];
++	struct delayed_work rx_poll_work;
+ };
+ 
+ static struct aspeed_lpc_snoop_channel *snoop_file_to_chan(struct file *file)
+@@ -166,6 +168,49 @@ static irqreturn_t aspeed_lpc_snoop_irq(int irq, void *arg)
+ 	return IRQ_HANDLED;
+ }
+ 
++static void lpc_poll_work(struct work_struct *work)
++{
++	struct aspeed_lpc_snoop *lpc_snoop =
++		container_of(to_delayed_work(work),
++			struct aspeed_lpc_snoop, rx_poll_work);
++
++	u32 reg, data;
++
++	if (regmap_read(lpc_snoop->regmap, HICR6, &reg))
++		goto done;
++
++	/* Check if one of the snoop channels is interrupting */
++	reg &= (HICR6_STR_SNP0W | HICR6_STR_SNP1W);
++	if (!reg)
++		goto done;
++
++	/* Ack pending IRQs */
++	regmap_write(lpc_snoop->regmap, HICR6, reg);
++
++	/* Read and save most recent snoop'ed data byte to FIFO */
++	regmap_read(lpc_snoop->regmap, SNPWDR, &data);
++
++	if (reg & HICR6_STR_SNP0W) {
++		u8 val = (data & SNPWDR_CH0_MASK) >> SNPWDR_CH0_SHIFT;
++
++		if (val != lpc_snoop->prev_val[0]) {
++			put_fifo_with_discard(&lpc_snoop->chan[0], val);
++			lpc_snoop->prev_val[0] = val;
++		}
++	}
++	if (reg & HICR6_STR_SNP1W) {
++		u8 val = (data & SNPWDR_CH1_MASK) >> SNPWDR_CH1_SHIFT;
++
++		if (val != lpc_snoop->prev_val[1]) {
++			put_fifo_with_discard(&lpc_snoop->chan[1], val);
++			lpc_snoop->prev_val[1] = val;
++		}
++	}
++
++done:
++	schedule_delayed_work(&lpc_snoop->rx_poll_work, msecs_to_jiffies(1000));
++}
++
+ static int aspeed_lpc_snoop_config_irq(struct aspeed_lpc_snoop *lpc_snoop,
+ 				       struct platform_device *pdev)
+ {
+@@ -185,6 +230,8 @@ static int aspeed_lpc_snoop_config_irq(struct aspeed_lpc_snoop *lpc_snoop,
+ 		return rc;
+ 	}
+ 
++	dev_info(dev, "IRQ assigned: %d\n", lpc_snoop->irq);
++
+ 	return 0;
+ }
+ 
+@@ -305,9 +352,14 @@ static int aspeed_lpc_snoop_probe(struct platform_device *pdev)
+ 		return rc;
+ 	}
+ 
+-	rc = aspeed_lpc_snoop_config_irq(lpc_snoop, pdev);
+-	if (rc)
+-		goto err;
++	if (of_property_read_bool(dev->of_node, "polling")) {
++		INIT_DELAYED_WORK(&lpc_snoop->rx_poll_work, lpc_poll_work);
++		schedule_delayed_work(&lpc_snoop->rx_poll_work, msecs_to_jiffies(1000));
++	} else {
++		rc = aspeed_lpc_snoop_config_irq(lpc_snoop, pdev);
++		if (rc)
++			goto err;
++	}
+ 
+ 	rc = aspeed_lpc_enable_snoop(lpc_snoop, dev, 0, port);
+ 	if (rc)
+-- 
+2.7.4
+

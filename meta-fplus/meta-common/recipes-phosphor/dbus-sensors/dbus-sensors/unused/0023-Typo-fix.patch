@@ -1,0 +1,61 @@
+From 74c4d64f263e7b893356cda65a588991ec65cbaf Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 21 Sep 2020 13:27:07 +0000
+Subject: [PATCH] Typo fix
+
+---
+ include/NVMeSensor.hpp | 1 +
+ include/PSUSensor.hpp  | 2 +-
+ src/MCUTempSensor.cpp  | 4 ++--
+ 3 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/include/NVMeSensor.hpp b/include/NVMeSensor.hpp
+index d6d9b13..eba9108 100644
+--- a/include/NVMeSensor.hpp
++++ b/include/NVMeSensor.hpp
+@@ -7,6 +7,7 @@
+ #include <boost/asio/io_service.hpp>
+ #include <boost/asio/ip/tcp.hpp>
+ #include <sensor.hpp>
++#include <boost/asio.hpp>
+ 
+ class NVMeSensor : public Sensor
+ {
+diff --git a/include/PSUSensor.hpp b/include/PSUSensor.hpp
+index d7876b1..a7e73db 100644
+--- a/include/PSUSensor.hpp
++++ b/include/PSUSensor.hpp
+@@ -140,10 +140,10 @@ class PSUSensor : public Sensor, public std::enable_shared_from_this<PSUSensor>
+     void handleResponse(const boost::system::error_code& err);
+     void checkThresholds(void) override;
+     void updateMinMaxValues(void);
++    std::optional<BridgeGpio> bridgeGpio;
+     PowerState powerState;
+     std::string _sensorName;
+ 
+-
+     int fd;
+     static constexpr unsigned int sensorPollMs = 5000;
+     static constexpr unsigned int sensorPollPowerOffMs = 5000;
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index 14323ed..25a0662 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -185,7 +185,7 @@ void MCUTempSensor::read(void)
+             ret = -1;
+         }
+ 
+-        int ret = getMCURegsInfoWord(tempReg, &temp);
++        ret = getMCURegsInfoWord(tempReg, &temp);
+         if (ret >= 0)
+         {
+             double v = static_cast<double>(temp);
+@@ -275,7 +275,7 @@ void createSensors(
+                     sensor = std::make_unique<MCUTempSensor>(
+                         dbusConnection, io, name, pathPair.first, objectServer,
+                         std::move(sensorThresholds), busId, mcuAddress,
+-                        tempReg. powerState);
++                        tempReg, powerState);
+ 
+                     sensor->init();
+                 }

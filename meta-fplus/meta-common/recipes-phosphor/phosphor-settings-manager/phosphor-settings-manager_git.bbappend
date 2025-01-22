@@ -1,0 +1,6 @@
+FILESEXTRAPATHS:append := ":${THISDIR}/${PN}"
+SRC_URI:append = " file://boot-settings.override.yml "
+SRC_URI:append = " file://sol-default.override.yml "
+SRC_URI:append = " file://pohcounter.override.yml "
+SRC_URI:append = " file://apply-time.override.yml "
+SRC_URI:append = " file://powerpolicy-default-ALWAYS_POWER_ON.override.yml "

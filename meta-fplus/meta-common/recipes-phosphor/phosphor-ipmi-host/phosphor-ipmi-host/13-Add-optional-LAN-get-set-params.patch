@@ -1,0 +1,147 @@
+From dff5f9465de861d9140b2b2c9d3ff9c910ee39d2 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 13:07:35 +0000
+Subject: [PATCH] Add optional parameters to get/setLan Add RMCP Primary and
+ Secondary port to Set/Get LAN Parameters
+
+---
+ transporthandler.cpp | 70 ++++++++++++++++++++++++++++++++++++++++++++
+ transporthandler.hpp |  9 ++++++
+ 2 files changed, 79 insertions(+)
+
+diff --git a/transporthandler.cpp b/transporthandler.cpp
+index 79a7fd0..43465db 100644
+--- a/transporthandler.cpp
++++ b/transporthandler.cpp
+@@ -1260,6 +1260,18 @@ RspType<> setLan(Context::ptr ctx, uint4_t channelBits, uint4_t reserved1,
+                 return response(resp);
+             }
+         }
++        case LanParam::IP4Header:
++        case LanParam::RMCPPortPrimary:
++        case LanParam::RMCPPortSecondary:
++        case LanParam::BMCArpControl:
++        case LanParam::GratuitosArpInterval:
++        case LanParam::BackupGatewayAddress:
++        case LanParam::BackupGatewayMAC:
++        case LanParam::VLANPriority:
++        case LanParam::BadPasswordThreshold:
++        {
++            return responseSuccess();
++        }
+     }
+ 
+     if ((parameter >= oemCmdStart) && (parameter <= oemCmdEnd))
+@@ -1380,6 +1392,35 @@ RspType<message::Payload> getLan(Context::ptr ctx, uint4_t channelBits,
+             ret.pack(dataRef(netmask));
+             return responseSuccess(std::move(ret));
+         }
++        case LanParam::IP4Header:
++        {
++            ret.pack(static_cast<uint8_t>(0x40));
++            ret.pack(static_cast<uint8_t>(0x40));
++            ret.pack(static_cast<uint8_t>(0x10));
++            return responseSuccess(std::move(ret));
++        }
++        case LanParam::RMCPPortPrimary:
++        {
++            ret.pack(static_cast<uint8_t>(0x6f));
++            ret.pack(static_cast<uint8_t>(0x02));
++            return responseSuccess(std::move(ret));
++        }
++        case LanParam::RMCPPortSecondary:
++        {
++            ret.pack(static_cast<uint8_t>(0x98));
++            ret.pack(static_cast<uint8_t>(0x02));
++            return responseSuccess(std::move(ret));
++        }
++        case LanParam::BMCArpControl:
++        {
++            ret.pack(static_cast<uint8_t>(0x02));
++            return responseSuccess(std::move(ret));
++        }
++        case LanParam::GratuitosArpInterval:
++        {
++            ret.pack(static_cast<uint8_t>(20));
++            return responseSuccess(std::move(ret));
++        }
+         case LanParam::Gateway1:
+         {
+             auto gateway =
+@@ -1399,6 +1440,20 @@ RspType<message::Payload> getLan(Context::ptr ctx, uint4_t channelBits,
+             ret.pack(dataRef(mac));
+             return responseSuccess(std::move(ret));
+         }
++        case LanParam::BackupGatewayAddress:
++        {
++            auto gateway =
++                channelCall<getGatewayProperty<AF_INET>>(channel).value_or(
++                    in_addr{});
++            ret.pack(dataRef(gateway));
++            return responseSuccess(std::move(ret));
++        }
++        case LanParam::BackupGatewayMAC:
++        {
++            ether_addr mac{};
++            ret.pack(dataRef(mac));
++            return responseSuccess(std::move(ret));
++        }
+         case LanParam::SNMPCommunity:
+         {
+             std::string communityString;
+@@ -1433,6 +1488,11 @@ RspType<message::Payload> getLan(Context::ptr ctx, uint4_t channelBits,
+             ret.pack(vlan);
+             return responseSuccess(std::move(ret));
+         }
++        case LanParam::VLANPriority:
++        {
++            ret.pack(static_cast<uint8_t>(0x00));
++            return responseSuccess(std::move(ret));
++        }
+         case LanParam::CiphersuiteSupport:
+         {
+             if (getChannelSessionSupport(channel) ==
+@@ -1567,6 +1627,16 @@ RspType<message::Payload> getLan(Context::ptr ctx, uint4_t channelBits,
+                 return response(resp);
+             }
+         }
++        case LanParam::BadPasswordThreshold:
++        {
++            ret.pack(static_cast<uint8_t>(0x00));
++            ret.pack(static_cast<uint8_t>(0x00));
++            ret.pack(static_cast<uint8_t>(0x00));
++            ret.pack(static_cast<uint8_t>(0x00));
++            ret.pack(static_cast<uint8_t>(0x00));
++            ret.pack(static_cast<uint8_t>(0x00));
++            return responseSuccess(std::move(ret));
++        }
+     }
+ 
+     if ((parameter >= oemCmdStart) && (parameter <= oemCmdEnd))
+diff --git a/transporthandler.hpp b/transporthandler.hpp
+index 7b78961..b888188 100644
+--- a/transporthandler.hpp
++++ b/transporthandler.hpp
+@@ -65,13 +65,22 @@ enum class LanParam : uint8_t
+     IPSrc = 4,
+     MAC = 5,
+     SubnetMask = 6,
++    IP4Header = 7,
++    RMCPPortPrimary = 8,
++    RMCPPortSecondary = 9,
++    BMCArpControl = 10,
++    GratuitosArpInterval = 11,
+     Gateway1 = 12,
+     Gateway1MAC = 13,
++    BackupGatewayAddress = 14,
++    BackupGatewayMAC = 15,
+     SNMPCommunity = 16,
+     VLANId = 20,
++    VLANPriority = 21,
+     CiphersuiteSupport = 22,
+     CiphersuiteEntries = 23,
+     cipherSuitePrivilegeLevels = 24,
++    BadPasswordThreshold = 26,
+     IPFamilySupport = 50,
+     IPFamilyEnables = 51,
+     IPv6Status = 55,

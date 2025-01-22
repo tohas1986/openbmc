@@ -18,6 +18,7 @@ RCONFLICTS:${PN} = "db3"
 CVE_PRODUCT = "oracle_berkeley_db berkeley_db"
 CVE_VERSION = "11.2.${PV}"
 
+PR = "r1"
 PE = "1"
 
 SRC_URI = "https://download.oracle.com/berkeley-db/db-${PV}.tar.gz"

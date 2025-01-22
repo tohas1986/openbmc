@@ -1,0 +1,243 @@
+From ffceff9e7f28a295299100e133cd69c4add58ccf Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 10:07:57 +0000
+Subject: [PATCH 07/16] CPUSensor: Change timer; Add debug; Add exit on error
+
+---
+ include/CPUSensor.hpp |  2 +-
+ src/CPUSensor.cpp     |  6 ++++--
+ src/CPUSensorMain.cpp | 54 +++++++++++++++++++++++++++++----------------------
+ 3 files changed, 36 insertions(+), 26 deletions(-)
+
+diff --git a/include/CPUSensor.hpp b/include/CPUSensor.hpp
+index 29b8209..e317ce3 100644
+--- a/include/CPUSensor.hpp
++++ b/include/CPUSensor.hpp
+@@ -35,7 +35,7 @@ class CPUSensor : public Sensor
+   private:
+     sdbusplus::asio::object_server& objServer;
+     boost::asio::posix::stream_descriptor inputDev;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     boost::asio::streambuf readBuf;
+     std::string nameTcontrol;
+     std::string path;
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index 939bbc2..692beae 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -21,7 +21,7 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/read_until.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+@@ -136,10 +136,11 @@ void CPUSensor::setupRead(void)
+         pollTime = sensorFailedPollTimeMs;
+         markAvailable(false);
+     }
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(pollTime));
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(pollTime));
+     waitTimer.async_wait([&](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
++            exit(0);
+             return; // we're being canceled
+         }
+         setupRead();
+@@ -201,6 +202,7 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+ 
+     if (err == boost::system::errc::bad_file_descriptor)
+     {
++        exit(0);
+         return; // we're being destroyed
+     }
+     if (err == boost::system::errc::operation_canceled)
+diff --git a/src/CPUSensorMain.cpp b/src/CPUSensorMain.cpp
+index f304e3f..3818ae7 100644
+--- a/src/CPUSensorMain.cpp
++++ b/src/CPUSensorMain.cpp
+@@ -23,7 +23,7 @@
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/container/flat_map.hpp>
+ #include <boost/container/flat_set.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ #include <sdbusplus/bus/match.hpp>
+@@ -41,6 +41,8 @@
+ #include <variant>
+ #include <vector>
+ 
++#include <CLI/CLI.hpp>
++
+ // clang-format off
+ // this needs to be included last or we'll have build issues
+ #include <linux/peci-ioctl.h>
+@@ -49,7 +51,8 @@
+ #endif
+ // clang-format on
+ 
+-static constexpr bool debug = false;
++//static constexpr bool debug = false;
++bool DEBUG = false;
+ 
+ boost::container::flat_map<std::string, std::unique_ptr<CPUSensor>> gCpuSensors;
+ boost::container::flat_map<std::string,
+@@ -93,8 +96,8 @@ static constexpr std::array<const char*, 3> hiddenProps = {
+     CPUSensor::labelTcontrol, "Tthrottle", "Tjmax"};
+ 
+ void detectCpuAsync(
+-    boost::asio::deadline_timer& pingTimer,
+-    boost::asio::deadline_timer& creationTimer, boost::asio::io_service& io,
++    boost::asio::steady_timer& pingTimer,
++    boost::asio::steady_timer& creationTimer, boost::asio::io_service& io,
+     sdbusplus::asio::object_server& objectServer,
+     std::shared_ptr<sdbusplus::asio::connection>& dbusConnection,
+     boost::container::flat_set<CPUConfig>& cpuConfigs,
+@@ -227,7 +230,7 @@ bool createSensors(boost::asio::io_service& io,
+             // shouldn't have an empty name file
+             continue;
+         }
+-        if (debug)
++        if (DEBUG)
+         {
+             std::cout << "Checking: " << hwmonNamePath << ": " << hwmonName
+                       << "\n";
+@@ -329,7 +332,7 @@ bool createSensors(boost::asio::io_service& io,
+             auto findSensor = gCpuSensors.find(sensorName);
+             if (findSensor != gCpuSensors.end())
+             {
+-                if (debug)
++                if (DEBUG)
+                 {
+                     std::cout << "Skipped: " << inputPath << ": " << sensorName
+                               << " is already created\n";
+@@ -386,7 +389,7 @@ bool createSensors(boost::asio::io_service& io,
+                 sensorName, std::move(sensorThresholds), *interfacePath, cpuId,
+                 show, dtsOffset);
+             createdSensors.insert(sensorName);
+-            if (debug)
++            if (DEBUG)
+             {
+                 std::cout << "Mapped: " << inputPath << " to " << sensorName
+                           << "\n";
+@@ -426,7 +429,7 @@ void exportDevice(const CPUConfig& config)
+         if (boost::starts_with(directoryName, busStr) &&
+             boost::ends_with(directoryName, addrHexStr))
+         {
+-            if (debug)
++            if (DEBUG)
+             {
+                 std::cout << parameters << " on bus " << busStr
+                           << " is already exported\n";
+@@ -447,8 +450,8 @@ void exportDevice(const CPUConfig& config)
+     std::cout << parameters << " on bus " << busStr << " is exported\n";
+ }
+ 
+-void detectCpu(boost::asio::deadline_timer& pingTimer,
+-               boost::asio::deadline_timer& creationTimer,
++void detectCpu(boost::asio::steady_timer& pingTimer,
++               boost::asio::steady_timer& creationTimer,
+                boost::asio::io_service& io,
+                sdbusplus::asio::object_server& objectServer,
+                std::shared_ptr<sdbusplus::asio::connection>& dbusConnection,
+@@ -542,7 +545,7 @@ void detectCpu(boost::asio::deadline_timer& pingTimer,
+             keepPinging = true;
+         }
+ 
+-        if (debug)
++        if (DEBUG)
+         {
+             std::cout << config.name << ", state: " << config.state << "\n";
+         }
+@@ -551,7 +554,7 @@ void detectCpu(boost::asio::deadline_timer& pingTimer,
+     if (rescanDelaySeconds)
+     {
+         creationTimer.expires_from_now(
+-            boost::posix_time::seconds(rescanDelaySeconds));
++            boost::asio::chrono::seconds(rescanDelaySeconds));
+         creationTimer.async_wait([&](const boost::system::error_code& ec) {
+             if (ec == boost::asio::error::operation_aborted)
+             {
+@@ -575,14 +578,14 @@ void detectCpu(boost::asio::deadline_timer& pingTimer,
+ }
+ 
+ void detectCpuAsync(
+-    boost::asio::deadline_timer& pingTimer,
+-    boost::asio::deadline_timer& creationTimer, boost::asio::io_service& io,
++    boost::asio::steady_timer& pingTimer,
++    boost::asio::steady_timer& creationTimer, boost::asio::io_service& io,
+     sdbusplus::asio::object_server& objectServer,
+     std::shared_ptr<sdbusplus::asio::connection>& dbusConnection,
+     boost::container::flat_set<CPUConfig>& cpuConfigs,
+     ManagedObjectType& sensorConfigs)
+ {
+-    pingTimer.expires_from_now(boost::posix_time::seconds(1));
++    pingTimer.expires_from_now(boost::asio::chrono::seconds(1));
+     pingTimer.async_wait([&](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
+@@ -679,7 +682,7 @@ bool getCpuConfig(const std::shared_ptr<sdbusplus::asio::connection>& systemBus,
+                 uint64_t addr = std::visit(VariantToUnsignedIntVisitor(),
+                                            findAddress->second);
+ 
+-                if (debug)
++                if (DEBUG)
+                 {
+                     std::cout << "bus: " << bus << "\n";
+                     std::cout << "addr: " << addr << "\n";
+@@ -702,20 +705,25 @@ bool getCpuConfig(const std::shared_ptr<sdbusplus::asio::connection>& systemBus,
+     return false;
+ }
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++
++    CLI::App app("PECI CPU/DIMM sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     boost::container::flat_set<CPUConfig> cpuConfigs;
+ 
+     sdbusplus::asio::object_server objectServer(systemBus);
+     std::vector<std::unique_ptr<sdbusplus::bus::match::match>> matches;
+-    boost::asio::deadline_timer pingTimer(io);
+-    boost::asio::deadline_timer creationTimer(io);
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer pingTimer(io);
++    boost::asio::steady_timer creationTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     ManagedObjectType sensorConfigs;
+ 
+-    filterTimer.expires_from_now(boost::posix_time::seconds(1));
++    filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+     filterTimer.async_wait([&](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
+@@ -737,13 +745,13 @@ int main()
+                 return;
+             }
+ 
+-            if (debug)
++            if (DEBUG)
+             {
+                 std::cout << message.get_path() << " is changed\n";
+             }
+ 
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+                 {
+-- 
+2.7.4
+

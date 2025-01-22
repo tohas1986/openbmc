@@ -10,8 +10,8 @@ inherit pypi setuptools3
 CLEANBROKEN = "1"
 
 RDEPENDS:${PN} += " \
-    python3-simplejson \
-    python3-netclient \
-    python3-compression \
-    python3-json \
+    ${PYTHON_PN}-simplejson \
+    ${PYTHON_PN}-netclient \
+    ${PYTHON_PN}-compression \
+    ${PYTHON_PN}-json \
 "

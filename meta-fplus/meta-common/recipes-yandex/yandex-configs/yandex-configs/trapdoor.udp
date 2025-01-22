@@ -1,0 +1,17 @@
+# Forward dropbear login/logout messages to remote host
+template(name="LogglyFormat" type="list") {
+	constant(value="<")
+	property(name="pri")
+	constant(value=">")
+	property(name="timestamp")
+	constant(value=" ")
+	property(name="hostname")
+	constant(value=".ipmi.yandex.net ")
+	property(name="procid")
+	constant(value=" ")
+	property(name="msg")
+}
+
+if ($!_COMM == "dropbear" and not ($msg contains "syslogin_perform_logout") and not ($msg contains "lastlog_")) then {
+    action(type="omfwd" Target="trapdoor.yandex.net" Port="514" Protocol="udp" template="LogglyFormat")
+}

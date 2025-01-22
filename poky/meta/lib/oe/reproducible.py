@@ -115,8 +115,7 @@ def get_source_date_epoch_from_git(d, sourcedir):
         return None
 
     bb.debug(1, "git repository: %s" % gitpath)
-    p = subprocess.run(['git', '-c', 'log.showSignature=false', '--git-dir', gitpath, 'log', '-1', '--pretty=%ct'],
-                       check=True, stdout=subprocess.PIPE)
+    p = subprocess.run(['git', '--git-dir', gitpath, 'log', '-1', '--pretty=%ct'], check=True, stdout=subprocess.PIPE)
     return int(p.stdout.decode('utf-8'))
 
 def get_source_date_epoch_from_youngest_file(d, sourcedir):
@@ -131,9 +130,6 @@ def get_source_date_epoch_from_youngest_file(d, sourcedir):
         files = [f for f in files if not f[0] == '.']
 
         for fname in files:
-            if fname == "singletask.lock":
-                 # Ignore externalsrc/devtool lockfile [YOCTO #14921]
-                 continue
             filename = os.path.join(root, fname)
             try:
                 mtime = int(os.lstat(filename).st_mtime)

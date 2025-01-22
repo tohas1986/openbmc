@@ -1,0 +1,21 @@
+From 5856050f3aba885eb73a4f806afcd954c6c6bca0 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 25 Nov 2022 13:25:45 +0000
+Subject: [PATCH] Fix bug with missing value_start
+
+---
+ socsec/otptool.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/socsec/otptool.py b/socsec/otptool.py
+index c8e54057..2ff3374c 100755
+--- a/socsec/otptool.py
++++ b/socsec/otptool.py
+@@ -1035,6 +1035,7 @@ class OTP(object):
+                 bit_offset = info['bit_offset']
+                 offset = dw_offset*32 + bit_offset
+                 bit_length = info['bit_length']
++                value_start = info['value_start']
+                 offset_value = int(value, 16) - value_start
+ 
+                 if offset_value < 0 or offset_value > bit_length:

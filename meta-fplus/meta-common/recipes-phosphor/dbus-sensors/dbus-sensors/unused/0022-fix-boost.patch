@@ -1,0 +1,24 @@
+From 6d4e51a5cdab8bfa8f6f8e993f2a8ced480f97c7 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Fri, 18 Sep 2020 14:33:43 +0000
+Subject: [PATCH] fix boost
+
+---
+ include/NVMeSensor.hpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/NVMeSensor.hpp b/include/NVMeSensor.hpp
+index 5d2927a..110be41 100644
+--- a/include/NVMeSensor.hpp
++++ b/include/NVMeSensor.hpp
+@@ -4,6 +4,7 @@
+ #include <libmctp.h>
+ 
+ #include <sensor.hpp>
++#include <boost/asio.hpp>
+ 
+ class NVMeSensor : public Sensor
+ {
+-- 
+2.7.4
+

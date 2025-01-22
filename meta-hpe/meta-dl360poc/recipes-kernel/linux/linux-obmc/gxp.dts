@@ -10,8 +10,6 @@
   };
 
   aliases {
-    ethernet0 = &umac0;
-    ethernet1 = &umac1;
   };
 
   memory@40000000 {
@@ -461,11 +459,11 @@
     };
 
     thumbnail: thumbnail@c0000500 {
-      compatible = "hpe,gxp-video-thumbnail";
+      compatible = "hpe,gxp-thumbnail";
       reg = <0xc0000500 0x20>;
       bits-per-pixel = <32>;
-      width = <1024>;
-      height = <768>;
+      width = <800>;
+      height = <600>;
     };
 
     xreg: xreg@d1000300 {

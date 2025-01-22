@@ -1,0 +1,52 @@
+From 688fc06d666f139c49c75a5d2327d3999ff5ab06 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 30 Sep 2020 13:25:06 +0000
+Subject: [PATCH] Copy image files together with signature files
+
+---
+ static/flash.cpp | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/static/flash.cpp b/static/flash.cpp
+index 748a6cf..c4a0db0 100644
+--- a/static/flash.cpp
++++ b/static/flash.cpp
+@@ -9,6 +9,7 @@
+ #include <phosphor-logging/lg2.hpp>
+ 
+ #include <filesystem>
++#include <iostream>
+ 
+ namespace
+ {
+@@ -52,8 +53,28 @@ void Activation::flashWrite()
+ 
+     for (const auto& bmcImage : parent.imageUpdateList)
+     {
+-        fs::copy_file(uploadDir / versionId / bmcImage, toPath / bmcImage,
+-                      fs::copy_options::overwrite_existing);
++        std::string from(uploadDir / versionId / bmcImage);
++        std::string to(toPath / bmcImage);
++
++        try
++        {
++            fs::copy_file(from, to, fs::copy_options::overwrite_existing);
++        }
++        catch(...)
++        {
++        }
++
++        // Also copy signature file
++        from += ".sig";
++        to += ".sig";
++        try
++        {
++            fs::copy_file(from, to, fs::copy_options::overwrite_existing);
++        }
++        catch(...)
++        {
++        }
++
+     }
+ }
+ 

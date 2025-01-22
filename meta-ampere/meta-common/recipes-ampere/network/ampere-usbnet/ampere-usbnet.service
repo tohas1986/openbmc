@@ -1,14 +1,12 @@
 [Unit]
 Description=Ampere Ethernet over USB gadget device
-After=multi-user.target
-StartLimitIntervalSec=20
-StartLimitBurst=3
+After=phosphor-ipmi-host.service
 
 [Service]
+Type=oneshot
+RemainAfterExit=yes
 ExecStart=/usr/sbin/ampere_usbnet.sh
-Restart=on-failure
-RestartMode=direct
-RestartSec=5
+ExecStop=/usr/bin/usb-ctrl ecm usbnet off
 
 [Install]
 WantedBy=multi-user.target

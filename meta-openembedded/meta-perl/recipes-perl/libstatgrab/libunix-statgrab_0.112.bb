@@ -37,3 +37,4 @@ export LD = "${CCLD}"
 
 inherit cpan pkgconfig ptest-perl
 
+BBCLASSEXTEND = "native"

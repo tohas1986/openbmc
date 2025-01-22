@@ -36,7 +36,6 @@ PREMIRRORS:forcevariable = ""
         # No mirrors and broken git, should fail
         features = """
 DL_DIR = "%s"
-SRC_URI:pn-dbus-wait = "git://git.yoctoproject.org/dbus-wait;branch=master;protocol=git"
 GIT_PROXY_COMMAND = "false"
 MIRRORS:forcevariable = ""
 PREMIRRORS:forcevariable = ""
@@ -49,7 +48,6 @@ PREMIRRORS:forcevariable = ""
         # Broken git but a specific mirror
         features = """
 DL_DIR = "%s"
-SRC_URI:pn-dbus-wait = "git://git.yoctoproject.org/dbus-wait;branch=master;protocol=git"
 GIT_PROXY_COMMAND = "false"
 MIRRORS:forcevariable = "git://.*/.* http://downloads.yoctoproject.org/mirror/sources/"
 """ % dldir
@@ -103,7 +101,7 @@ class Dependencies(OESelftestTestCase):
 
             r = """
             LICENSE="CLOSED"
-            SRC_URI="git://example.com/repo;branch=master;rev=ffffffffffffffffffffffffffffffffffffffff"
+            SRC_URI="git://example.com/repo;branch=master"
             """
             f = self.write_recipe(textwrap.dedent(r), tempdir)
             d = tinfoil.parse_recipe_file(f)

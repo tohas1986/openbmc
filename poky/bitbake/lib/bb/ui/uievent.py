@@ -65,27 +65,35 @@ class BBUIEventQueue:
         self.server = server
 
         self.t = threading.Thread()
-        self.t.daemon = True
+        self.t.setDaemon(True)
         self.t.run = self.startCallbackHandler
         self.t.start()
 
     def getEvent(self):
-        with bb.utils.lock_timeout(self.eventQueueLock):
-            if not self.eventQueue:
-                return None
-            item = self.eventQueue.pop(0)
-            if not self.eventQueue:
-                self.eventQueueNotify.clear()
-            return item
+
+        self.eventQueueLock.acquire()
+
+        if not self.eventQueue:
+            self.eventQueueLock.release()
+            return None
+
+        item = self.eventQueue.pop(0)
+
+        if not self.eventQueue:
+            self.eventQueueNotify.clear()
+
+        self.eventQueueLock.release()
+        return item
 
     def waitEvent(self, delay):
         self.eventQueueNotify.wait(delay)
         return self.getEvent()
 
     def queue_event(self, event):
-        with bb.utils.lock_timeout(self.eventQueueLock):
-            self.eventQueue.append(event)
-            self.eventQueueNotify.set()
+        self.eventQueueLock.acquire()
+        self.eventQueue.append(event)
+        self.eventQueueNotify.set()
+        self.eventQueueLock.release()
 
     def send_event(self, event):
         self.queue_event(pickle.loads(event))

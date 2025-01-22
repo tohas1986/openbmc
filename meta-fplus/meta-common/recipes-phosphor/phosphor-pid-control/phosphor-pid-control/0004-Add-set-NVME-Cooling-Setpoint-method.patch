@@ -1,0 +1,189 @@
+From c235ea385d38b7004b38d85aeb680526c38115f8 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Tue, 2 Mar 2021 13:28:57 +0000
+Subject: [PATCH] Add set NVME Cooling Setpoint method
+
+---
+ ipmi/manual_messages.hpp |   3 +-
+ ipmi/manualcmds.cpp      | 125 +++++++++++++++++++++++++++++++++++++++
+ ipmi/manualcmds.hpp      |   3 +
+ 3 files changed, 130 insertions(+), 1 deletion(-)
+
+diff --git a/ipmi/manual_messages.hpp b/ipmi/manual_messages.hpp
+index eb3778c..45c7397 100644
+--- a/ipmi/manual_messages.hpp
++++ b/ipmi/manual_messages.hpp
+@@ -12,7 +12,8 @@ enum ManualSubCmd
+     getControlState = 0,
+     setControlState = 1,
+     getFailsafeState = 2,
+-    setFanPwm = 3
++    setFanPwm = 3,
++    setNVMECoolingSetpoint = 4
+ };
+ 
+ struct FanCtrlRequest
+diff --git a/ipmi/manualcmds.cpp b/ipmi/manualcmds.cpp
+index 0a9d647..d56a627 100644
+--- a/ipmi/manualcmds.cpp
++++ b/ipmi/manualcmds.cpp
+@@ -32,6 +32,9 @@
+ #include <variant>
+ #include <iostream>
+ #include <sstream>
++#include "nlohmann/json.hpp"
++#include <fstream>
++#include <iomanip>
+ 
+ namespace pid_control
+ {
+@@ -173,6 +176,126 @@ ipmi_ret_t ZoneControlIpmiHandler::setFanPwm(const uint8_t* reqBuf,
+     return rc;
+ }
+ 
++/*
++ * <method name="Set NVME Cooling Setpoint"> </method>
++ * ipmitool raw 0x2e 0x04 0xcf 0xc2 0x00 4 0 <value>
++ */
++ipmi_ret_t ZoneControlIpmiHandler::setNVMECoolingSetpoint(const uint8_t* reqBuf, 
++                                                                    uint8_t* replyBuf, 
++                                                                    size_t* dataLen)
++{
++    if (*dataLen < sizeof(struct FanCtrlRequestSet))
++    {
++        return IPMI_CC_INVALID;
++    }
++
++    const auto request =
++        reinterpret_cast<const struct FanCtrlRequestSet*>(&reqBuf[0]);
++
++    uint8_t setpoint = static_cast<uint8_t>(request->value);
++
++    constexpr size_t maxStepwisePoints = 5;
++
++    struct PidsStruct {
++        double reading[maxStepwisePoints];
++    };
++
++    struct JsonStruct {
++        std::string name;
++        PidsStruct pidsstruct;
++    };
++
++    int oldCoolingSetPoint = 0;
++
++    std::ifstream input("/usr/share/swampd/config.json");
++    nlohmann::json j;
++    input >> j;
++
++    JsonStruct jsonstruct;
++
++    auto zones = j["zones"];
++    std::ofstream output("/usr/share/swampd/config.json");
++
++    for (auto &zone : zones) {
++        auto pids = zone["pids"];
++
++        for (auto &name : pids) {
++            jsonstruct.name = name["name"];
++
++            if (name["name"] == "NVME") {
++                auto pid = name["pid"];
++                auto reading = pid.find("reading");
++
++                std::cerr << reading.key() << ": " << reading.value().at("1")
++                        << "\n";
++
++                oldCoolingSetPoint = reading.value().at("1");
++
++                if(oldCoolingSetPoint == setpoint)
++                {
++                    reading.value().at("1") = oldCoolingSetPoint;
++                }
++                else
++                {
++                    reading.value().at("1") = setpoint;
++                }
++
++                std::cerr << reading.key() << ": " << reading.value().at("1")
++                        << "\n";
++
++                pid["reading"] = reading.value();
++
++                name["pid"] = pid;
++            }
++        }
++        zone["pids"] = pids;
++    }
++
++    j["zones"] = zones;
++
++    std::cerr << "Updating cooling setpoint from: " << oldCoolingSetPoint
++        << " to " << unsigned(setpoint) << "\n";
++    output << std::setw(4) << j;
++
++    output.close();
++    input.close();
++
++    ipmi_ret_t rc = IPMI_CC_OK;
++
++    if(oldCoolingSetPoint == setpoint)
++    {
++        std::cerr << "No need to restart PID control service" << "\n";
++
++        return rc;
++    }
++    else
++    {
++        char command[100];
++        std::stringstream cmd;
++        std::string cmd_str;
++        int systemRet;
++
++        cmd << "systemctl restart phosphor-pid-control.service";
++        std::cerr << cmd.str() << "\n";
++        cmd_str = cmd.str();
++
++        memset(command,0,sizeof(command));
++        std::copy(cmd_str.begin(), cmd_str.end(), command);
++        systemRet = system(command);
++
++        rc = IPMI_CC_OK;
++        
++        if(systemRet != 0)
++        {
++            rc = IPMI_CC_INVALID;
++        }
++
++        return rc;
++    }
++
++    return rc;
++}
++
+ /* Three command packages: get, set true, set false */
+ ipmi_ret_t manualModeControl(ZoneControlIpmiHandler* handler,
+                              [[maybe_unused]] ipmi_cmd_t cmd,
+@@ -200,6 +323,8 @@ ipmi_ret_t manualModeControl(ZoneControlIpmiHandler* handler,
+             return handler->getFailsafeModeState(reqBuf, replyCmdBuf, dataLen);
+         case setFanPwm:
+             return handler->setFanPwm(reqBuf, replyCmdBuf, dataLen);
++        case setNVMECoolingSetpoint:
++            return handler->setNVMECoolingSetpoint(reqBuf, replyCmdBuf, dataLen);
+         default:
+             rc = IPMI_CC_INVALID;
+     }
+diff --git a/ipmi/manualcmds.hpp b/ipmi/manualcmds.hpp
+index 74eabed..c98db45 100644
+--- a/ipmi/manualcmds.hpp
++++ b/ipmi/manualcmds.hpp
+@@ -34,6 +34,9 @@ class ZoneControlIpmiHandler
+     ipmi_ret_t setFanPwm(const uint8_t* reqBuf, uint8_t* replyBuf,
+                                   size_t* dataLen);
+ 
++    ipmi_ret_t setNVMECoolingSetpoint(const uint8_t* reqBuf, uint8_t* replyBuf,
++                                      size_t* dataLen);
++
+   private:
+     std::unique_ptr<ZoneControlInterface> _control;
+ };

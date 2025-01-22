@@ -1,8 +1,8 @@
-FILESEXTRAPATHS:append := "${THISDIR}/${PN}:"
+FILESEXTRAPATHS:append:bletchley := "${THISDIR}/${PN}:"
 
 SRC_URI += "file://gpio_defs.json"
 
-do_install:append() {
+do_install:append:bletchley() {
         install -d ${D}${sysconfdir}/default/obmc/gpio/
         install -m 0644 ${WORKDIR}/gpio_defs.json ${D}/${sysconfdir}/default/obmc/gpio/
 }

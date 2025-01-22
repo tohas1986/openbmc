@@ -1,0 +1,25 @@
+From afc7fd4406c5bcccd128ad4c64f02e60a083bc58 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Thu, 25 Jun 2020 08:27:09 +0000
+Subject: [PATCH] verbose true
+
+---
+ main.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/main.cpp b/main.cpp
+index 1094e43..7ebe857 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -114,7 +114,7 @@ int main(int argc, char* argv[])
+     const char* snoopDbus = SNOOP_BUSNAME;
+ 
+     bool deferSignals = true;
+-    bool verbose = false;
++    bool verbose = true;
+ 
+     // clang-format off
+     static const struct option long_options[] = {
+-- 
+2.7.4
+

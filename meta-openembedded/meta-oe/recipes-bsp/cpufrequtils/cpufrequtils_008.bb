@@ -16,6 +16,7 @@ SRC_URI = "git://github.com/emagii/cpufrequtils.git;branch=master;protocol=https
 
 EXTRA_OEMAKE:append = " ${@['', 'NLS=false']['${USE_NLS}' == 'no']} "
 
+PR = "r5"
 
 S = "${WORKDIR}/git"
 

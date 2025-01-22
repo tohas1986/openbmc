@@ -1,5 +1,3 @@
-.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
-
 Release 2.5 (sumo)
 ==================
 
@@ -87,6 +85,8 @@ The following recipes have been removed:
 Scripts and Tools Changes
 -------------------------
 
+The following are changes to scripts and tools:
+
 -  ``yocto-bsp``, ``yocto-kernel``, and ``yocto-layer``: The
    ``yocto-bsp``, ``yocto-kernel``, and ``yocto-layer`` scripts
    previously shipped with poky but not in OpenEmbedded-Core have been
@@ -117,6 +117,8 @@ Scripts and Tools Changes
 BitBake Changes
 ---------------
 
+The following are BitBake changes:
+
 -  The ``--runall`` option has changed. There are two different
    behaviors people might want:
 
@@ -135,7 +137,7 @@ BitBake Changes
 -  Several explicit "run this task for all recipes in the dependency
    tree" tasks have been removed (e.g. ``fetchall``, ``checkuriall``,
    and the ``*all`` tasks provided by the ``distrodata`` and
-   :ref:`ref-classes-archiver` classes). There is a BitBake option to complete this for
+   :ref:`archiver <ref-classes-archiver>` classes). There is a BitBake option to complete this for
    any arbitrary task. For example::
 
       bitbake <target> -c fetchall
@@ -149,7 +151,7 @@ BitBake Changes
 Python and Python 3 Changes
 ---------------------------
 
-Here are auto-packaging changes to Python and Python 3:
+The following are auto-packaging changes to Python and Python 3:
 
 The script-managed ``python-*-manifest.inc`` files that were previously
 used to generate Python and Python 3 packages have been replaced with a
@@ -183,7 +185,9 @@ change please see :yocto_git:`this commit
 Miscellaneous Changes
 ---------------------
 
--  The :ref:`ref-classes-kernel` class supports building packages for multiple kernels.
+The following are additional changes:
+
+-  The :ref:`kernel <ref-classes-kernel>` class supports building packages for multiple kernels.
    If your kernel recipe or ``.bbappend`` file mentions packaging at
    all, you should replace references to the kernel in package names
    with ``${KERNEL_PACKAGE_NAME}``. For example, if you disable
@@ -191,7 +195,7 @@ Miscellaneous Changes
    ``RDEPENDS_kernel-base = ""`` you can avoid warnings using
    ``RDEPENDS_${KERNEL_PACKAGE_NAME}-base = ""`` instead.
 
--  The :ref:`ref-classes-buildhistory` class commits changes to the repository by
+-  The :ref:`buildhistory <ref-classes-buildhistory>` class commits changes to the repository by
    default so you no longer need to set ``BUILDHISTORY_COMMIT = "1"``.
    If you want to disable commits you need to set
    ``BUILDHISTORY_COMMIT = "0"`` in your configuration.
@@ -203,12 +207,12 @@ Miscellaneous Changes
    maintains a full-featured BSP in the ``meta-ti`` layer. This rename
    avoids the previous name clash that existed between the two BSPs.
 
--  The :ref:`ref-classes-update-alternatives` class no longer works with SysV ``init``
+-  The :ref:`update-alternatives <ref-classes-update-alternatives>` class no longer works with SysV ``init``
    scripts because this usage has been problematic. Also, the
    ``sysklogd`` recipe no longer uses ``update-alternatives`` because it
    is incompatible with other implementations.
 
--  By default, the :ref:`ref-classes-cmake` class uses
+-  By default, the :ref:`cmake <ref-classes-cmake>` class uses
    ``ninja`` instead of ``make`` for building. This improves build
    performance. If a recipe is broken with ``ninja``, then the recipe
    can set ``OECMAKE_GENERATOR = "Unix Makefiles"`` to change back to
@@ -260,7 +264,7 @@ Miscellaneous Changes
    will trigger a warning during :ref:`ref-tasks-rootfs`.
 
    For more information, see the
-   ":ref:`dev-manual/new-recipe:post-installation scripts`"
+   ":ref:`dev-manual/common-tasks:post-installation scripts`"
    section in the Yocto Project Development Tasks Manual.
 
 -  The ``elf`` image type has been removed. This image type was removed

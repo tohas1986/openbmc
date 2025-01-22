@@ -1,0 +1,31 @@
+From 8b42bf8154650e60d7b2cb8c2ba52365219ce5af Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 20 Dec 2022 10:44:43 +0000
+Subject: [PATCH] Fix failure due to root/ADMIN roles separation
+
+---
+ redfish-core/lib/account_service.hpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/redfish-core/lib/account_service.hpp b/redfish-core/lib/account_service.hpp
+index 3a8ffbc9..e9a19a56 100644
+--- a/redfish-core/lib/account_service.hpp
++++ b/redfish-core/lib/account_service.hpp
+@@ -90,7 +90,7 @@ inline std::string getRoleIdFromPrivilege(std::string_view role)
+     {
+         return "Operator";
+     }
+-    return "";
++    return "NoAccess";
+ }
+ inline std::string getPrivilegeFromRoleId(std::string_view role)
+ {
+@@ -106,7 +106,7 @@ inline std::string getPrivilegeFromRoleId(std::string_view role)
+     {
+         return "priv-operator";
+     }
+-    return "";
++    return "NoAccess";
+ }
+ 
+ /**

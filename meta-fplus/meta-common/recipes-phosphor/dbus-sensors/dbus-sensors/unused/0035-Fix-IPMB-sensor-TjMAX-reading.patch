@@ -1,0 +1,365 @@
+From 87e659b0bb556c92dc58e218fa8f047090ef3ff3 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Wed, 7 Apr 2021 14:55:47 +0000
+Subject: [PATCH] Fix IPMB sensor TjMAX reading
+
+---
+ include/IpmbSensor.hpp |  14 +++----
+ src/IpmbSensor.cpp     | 111 +++++++++++++++++--------------------------------
+ 2 files changed, 44 insertions(+), 81 deletions(-)
+
+diff --git a/include/IpmbSensor.hpp b/include/IpmbSensor.hpp
+index f354177..9d08ea9 100644
+--- a/include/IpmbSensor.hpp
++++ b/include/IpmbSensor.hpp
+@@ -1,7 +1,8 @@
+ #pragma once
++#include "sensor.hpp"
++
+ #include <boost/asio/steady_timer.hpp>
+ #include <boost/container/flat_map.hpp>
+-#include <sensor.hpp>
+ 
+ #include <chrono>
+ #include <limits>
+@@ -38,7 +39,6 @@ enum class ReadingFormat
+     byte3,
+     elevenBit,
+     elevenBitShift,
+-    linearElevenBit,
+     medimmsensor,
+     cpu,
+     dts,
+@@ -54,7 +54,7 @@ constexpr uint8_t getSensorReading = 0x2d;
+ 
+ static bool isValid(const std::vector<uint8_t>& data)
+ {
+-    constexpr auto readingUnavailableBit = 5;
++    constexpr auto ReadingUnavailableBit = 5;
+ 
+     // Proper 'Get Sensor Reading' response has at least 4 bytes, including
+     // Completion Code. Our IPMB stack strips Completion Code from payload so we
+@@ -65,7 +65,7 @@ static bool isValid(const std::vector<uint8_t>& data)
+     }
+ 
+     // Per IPMI 'Get Sensor Reading' specification
+-    if (data[1] & (1 << readingUnavailableBit))
++    if (data[1] & (1 << ReadingUnavailableBit))
+     {
+         return false;
+     }
+@@ -88,10 +88,9 @@ struct IpmbSensor : public Sensor
+                const std::string& sensorConfiguration,
+                sdbusplus::asio::object_server& objectServer,
+                std::vector<thresholds::Threshold>&& thresholds,
+-               uint8_t hostSMbusIndex,
+                uint8_t& deviceAddress,  uint8_t& deviceCPUID, uint8_t& deviceChannelID,
+                uint8_t& deviceDIMMID, std::string& deviceTypeName,std::string& sensorTypeName);
+-    ~IpmbSensor() override;
++    ~IpmbSensor();
+ 
+     void checkThresholds(void) override;
+     void read(void);
+@@ -106,7 +105,6 @@ struct IpmbSensor : public Sensor
+     double scaleVal;
+     double offsetVal;
+     uint8_t commandAddress;
+-    uint8_t netfn;
+     uint8_t deviceCPUID = 0;
+     uint8_t deviceChannelID = 0;
+     uint8_t deviceDIMMID = 0;
+@@ -115,10 +113,10 @@ struct IpmbSensor : public Sensor
+                         0xff, 0x00, 0x00, 0x00, 0x00};
+     std::vector<uint8_t> temp;
+ 
++    uint8_t netfn;
+     uint8_t command;
+     uint8_t deviceAddress;
+     uint8_t errorCount;
+-    uint8_t hostSMbusIndex;
+     std::vector<uint8_t> commandData;
+     std::optional<uint8_t> initCommand;
+     std::vector<uint8_t> initData;
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index a3aba09..3bc50ff 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -14,9 +14,15 @@
+ // limitations under the License.
+ */
+ 
+-#include <IpmbSensor.hpp>
+-#include <Utils.hpp>
+-#include <VariantVisitors.hpp>
++#include "IpmbSensor.hpp"
++
++#include "Utils.hpp"
++#include "VariantVisitors.hpp"
++
++#include <math.h>
++#include <CLI/CLI.hpp>
++
++#include <boost/algorithm/string.hpp>
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/container/flat_map.hpp>
+@@ -25,7 +31,6 @@
+ #include <sdbusplus/bus/match.hpp>
+ 
+ #include <chrono>
+-#include <cmath>
+ #include <functional>
+ #include <iostream>
+ #include <limits>
+@@ -35,9 +40,8 @@
+ #include <tuple>
+ #include <variant>
+ #include <vector>
+-#include <CLI/CLI.hpp>
+-
+ #include <chrono>
++#include <cmath>
+ 
+ bool DEBUG = false;
+ 
+@@ -48,12 +52,10 @@ static constexpr double ipmbMinReading = 0;
+ 
+ static constexpr uint8_t meAddress = 1;
+ static constexpr uint8_t lun = 0;
+-static constexpr uint8_t hostSMbusIndexDefault = 0x03;
+ 
+ static constexpr const char* sensorPathPrefix = "/xyz/openbmc_project/sensors/";
+ 
+ std::vector<uint8_t> meDataDIMMandCPU;
+-static uint64_t readingMeDIMMDataTime = 0;
+ double TjmaxValue = 100;
+ int requestCnt = 0;
+ 
+@@ -70,15 +72,13 @@ IpmbSensor::IpmbSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+                        const std::string& sensorConfiguration,
+                        sdbusplus::asio::object_server& objectServer,
+                        std::vector<thresholds::Threshold>&& thresholdData,
+-                       uint8_t hostSMbusIndex,
+                        uint8_t& deviceAddress, uint8_t& deviceCPUID, uint8_t& deviceChannelID,
+                        uint8_t& deviceDIMMID, std::string& deviceTypeName,std::string& sensorTypeName) :
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(thresholdData), sensorConfiguration,
+            "xyz.openbmc_project.Configuration.ExitAirTemp", ipmbMaxReading,
+            ipmbMinReading, conn, PowerState::on),
+-    deviceAddress(deviceAddress), deviceCPUID(deviceCPUID), deviceChannelID(deviceChannelID), deviceDIMMID(deviceDIMMID), deviceTypeName(deviceTypeName), hostSMbusIndex(hostSMbusIndex),
+-    objectServer(objectServer), waitTimer(io)
++    deviceAddress(deviceAddress), deviceCPUID(deviceCPUID), deviceChannelID(deviceChannelID), deviceDIMMID(deviceDIMMID), deviceTypeName(deviceTypeName),objectServer(objectServer), waitTimer(io)
+ {
+     std::string dbusPath = sensorPathPrefix + sensorTypeName + "/" + name;
+ 
+@@ -194,14 +194,12 @@ void IpmbSensor::loadDefaults()
+         command = ipmi::me_bridge::sendRawPmbus;
+         initCommand = ipmi::me_bridge::sendRawPmbus;
+         // pmbus read temp
+-        commandData = {0x57,          0x01, 0x00, 0x16, hostSMbusIndex,
+-                       deviceAddress, 0x00, 0x00, 0x00, 0x00,
+-                       0x01,          0x02, 0x8d};
++        commandData = {0x57, 0x01, 0x00, 0x16, 0x3,  deviceAddress, 0x00,
++                       0x00, 0x00, 0x00, 0x01, 0x02, 0x8d};
+         // goto page 0
+-        initData = {0x57,          0x01, 0x00, 0x14, hostSMbusIndex,
+-                    deviceAddress, 0x00, 0x00, 0x00, 0x00,
+-                    0x02,          0x00, 0x00, 0x00};
+-        readingFormat = ReadingFormat::linearElevenBit;
++        initData = {0x57, 0x01, 0x00, 0x14, 0x03, deviceAddress, 0x00,
++                    0x00, 0x00, 0x00, 0x02, 0x00, 0x00,          0x00};
++        readingFormat = ReadingFormat::elevenBit;
+     }
+     else if (type == IpmbType::IR38363VR)
+     {
+@@ -209,9 +207,8 @@ void IpmbSensor::loadDefaults()
+         netfn = ipmi::me_bridge::netFn;
+         command = ipmi::me_bridge::sendRawPmbus;
+         // pmbus read temp
+-        commandData = {0x57,          0x01, 0x00, 0x16, hostSMbusIndex,
+-                       deviceAddress, 00,   0x00, 0x00, 0x00,
+-                       0x01,          0x02, 0x8D};
++        commandData = {0x57, 0x01, 0x00, 0x16, 0x03, deviceAddress, 00,
++                       0x00, 0x00, 0x00, 0x01, 0x02, 0x8D};
+         readingFormat = ReadingFormat::elevenBitShift;
+     }
+     else if (type == IpmbType::ADM1278HSC)
+@@ -223,13 +220,9 @@ void IpmbSensor::loadDefaults()
+             case IpmbSubType::curr:
+                 uint8_t snsNum;
+                 if (subType == IpmbSubType::temp)
+-                {
+                     snsNum = 0x8d;
+-                }
+                 else
+-                {
+                     snsNum = 0x8c;
+-                }
+                 netfn = ipmi::me_bridge::netFn;
+                 command = ipmi::me_bridge::sendRawPmbus;
+                 commandData = {0x57, 0x01, 0x00, 0x86, deviceAddress,
+@@ -254,13 +247,11 @@ void IpmbSensor::loadDefaults()
+         command = ipmi::me_bridge::sendRawPmbus;
+         initCommand = ipmi::me_bridge::sendRawPmbus;
+         // pmbus read temp
+-        commandData = {0x57,          0x01, 0x00, 0x16, hostSMbusIndex,
+-                       deviceAddress, 0x00, 0x00, 0x00, 0x00,
+-                       0x01,          0x02, 0x8d};
++        commandData = {0x57, 0x01, 0x00, 0x16, 0x3,  deviceAddress, 0x00,
++                       0x00, 0x00, 0x00, 0x01, 0x02, 0x8d};
+         // goto page 0
+-        initData = {0x57,          0x01, 0x00, 0x14, hostSMbusIndex,
+-                    deviceAddress, 0x00, 0x00, 0x00, 0x00,
+-                    0x02,          0x00, 0x00, 0x00};
++        initData = {0x57, 0x01, 0x00, 0x14, 0x03, deviceAddress, 0x00,
++                    0x00, 0x00, 0x00, 0x02, 0x00, 0x00,          0x00};
+         readingFormat = ReadingFormat::byte3;
+     }
+     else
+@@ -323,6 +314,9 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+             }
+ 
+             int16_t value = ((data[4] << 8) | data[3]);
++            constexpr const size_t shift = 16 - 11; // 11bit into 16bit
++            value <<= shift;
++            value >>= shift;
+             resp = value;
+             return true;
+         }
+@@ -341,37 +335,19 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+             resp = ((data[4] << 8) | data[3]) >> 3;
+             return true;
+         }
+-        case (ReadingFormat::linearElevenBit):
+-        {
+-            if (data.size() < 5)
+-            {
+-                if (!errCount)
+-                {
+-                    std::cerr << "Invalid data length returned for " << name
+-                              << "\n";
+-                }
+-                return false;
+-            }
+-
+-            int16_t value = ((data[4] << 8) | data[3]);
+-            constexpr const size_t shift = 16 - 11; // 11bit into 16bit
+-            value <<= shift;
+-            value >>= shift;
+-            resp = value;
+-            return true;
+-        }
+         case (ReadingFormat::medimmsensor):
+         {
+             if (data.size() < 3)
+             {
+                 return false;
+             }
+-
++            if(requestCnt > 24)
++            {
++                requestCnt = 0;
++            }
+             if(meDataDIMMandCPU.size() >= (deviceDIMMID + deviceChannelID*4 + 3))
+             {
+                 resp = meDataDIMMandCPU[deviceDIMMID + deviceChannelID*4 + 3];
+-                readingMeDIMMDataTime = std::chrono::duration_cast<std::chrono::seconds>(
+-                std::chrono::system_clock::now().time_since_epoch()).count();
+ 
+                 return true;
+             }
+@@ -405,14 +381,10 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+             {
+                 return false;
+             }
+-            if (TjmaxValue > 0)
++            if (TjmaxValue > 0 && ipmi::sensor::isValid(data))
+             {
+                 resp = TjmaxValue - data[3];
+                 return true;
+-            } else
+-            {
+-                resp = 100 - data[3];
+-                return true;
+             }
+             return false;
+         }
+@@ -492,6 +464,7 @@ void IpmbSensor::read(void)
+                     {
+                         updateValue(value);
+                     }
++
+                     read();
+                 },
+                 "xyz.openbmc_project.Ipmi.Channel.Ipmb",
+@@ -547,6 +520,7 @@ void IpmbSensor::read(void)
+                 read();
+                 return;
+             }
++
+             dbusConnection->async_method_call(
+                 [this](boost::system::error_code ec,
+                        const IpmbMethodType& response) {
+@@ -703,6 +677,7 @@ void createSensors(
+                         std::cerr << "error populating thresholds for " << name
+                                   << "\n";
+                     }
++
+                     uint8_t deviceAddress =  0;
+                     try
+                     {
+@@ -752,7 +727,7 @@ void createSensors(
+                     {
+                         deviceTypeName =
+                             loadVariant<std::string>(entry.second, "TypeName");
+-                        //std::cout << deviceTypeName << "\n";
++                        //std::cerr << deviceTypeName << "\n";
+                     }
+                     catch(...)
+                     {
+@@ -769,15 +744,6 @@ void createSensors(
+                     {
+                         std::cerr << "Unable to get Class, setting to default" << "\n";
+                     }
+-
+-                    uint8_t hostSMbusIndex = hostSMbusIndexDefault;
+-                    auto findSmType = entry.second.find("HostSMbusIndex");
+-                    if (findSmType != entry.second.end())
+-                    {
+-                        hostSMbusIndex = std::visit(
+-                            VariantToUnsignedIntVisitor(), findSmType->second);
+-                    }
+-
+                     /* Default sensor type is "temperature" */
+                     std::string sensorTypeName = "temperature";
+                     auto findType = entry.second.find("SensorType");
+@@ -790,9 +756,9 @@ void createSensors(
+                     auto& sensor = sensors[name];
+                     sensor = std::make_unique<IpmbSensor>(
+                         dbusConnection, io, name, pathPair.first, objectServer,
+-                        std::move(sensorThresholds), deviceAddress,
+-                        hostSMbusIndex, deviceCPUID,
+-                        deviceChannelID, deviceDIMMID, deviceTypeName, sensorTypeName);
++                        std::move(sensorThresholds), deviceAddress, deviceCPUID,
++                        deviceChannelID, deviceDIMMID, deviceTypeName,
++                        sensorTypeName);
+ 
+                     /* Initialize scale and offset value */
+                     sensor->scaleVal = 1;
+@@ -920,7 +886,6 @@ void reinitSensors(sdbusplus::message::message& message)
+             initCmdTimer->async_wait([](const boost::system::error_code ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+                 {
+-                    //return; // we're being canceled
+                     std::cerr << "read: Error occured, exiting\n";
+                     exit(-1);
+                 }
+@@ -966,7 +931,7 @@ int main(int argc, char* argv[])
+                 createSensors(io, objectServer, sensors, systemBus);
+                 if (sensors.empty())
+                 {
+-                    std::cout << "Configuration not detected\n";
++                    std::cerr << "Configuration not detected\n";
+                 }
+             });
+         };

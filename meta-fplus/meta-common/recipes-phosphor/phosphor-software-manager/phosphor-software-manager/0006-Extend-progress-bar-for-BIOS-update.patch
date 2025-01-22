@@ -1,0 +1,35 @@
+From d45180fd053743ae67f0828ab3474f4693f03afa Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Mon, 27 Jun 2022 14:08:22 +0000
+Subject: [PATCH] Extend-progress-bar-for-BIOS-update
+
+---
+ activation.cpp | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/activation.cpp b/activation.cpp
+index 06b460b..ca4ca4e 100644
+--- a/activation.cpp
++++ b/activation.cpp
+@@ -480,11 +480,18 @@ void Activation::onStateChangesBios(sdbusplus::message::message& msg)
+ 
+     auto biosServiceFile = "obmc-flash-host-bios@" + versionId + ".service";
+ 
++	if(activationProgress->progress() != 95)
++	{
++		activationProgress->progress(activationProgress->progress() + 5);
++	}
++
+     if (newStateUnit == biosServiceFile)
+     {
+         // unsubscribe to systemd signals
+         unsubscribeFromSystemdSignals();
+ 
++		std::cerr << newStateResult << "\n";
++
+         if (newStateResult == "done")
+         {
+             // Set activation progress to 100
+-- 
+2.36.1
+

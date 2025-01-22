@@ -1,0 +1,70 @@
+From fac2dc19088bf1871505c249b94e26c82ca69850 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Wed, 26 Aug 2020 10:39:07 +0000
+Subject: [PATCH] Checked all warnings being treated as errors
+
+---
+ include/nbd_proxy.hpp              | 6 +++---
+ redfish-core/lib/virtual_media.hpp | 8 ++++----
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/include/nbd_proxy.hpp b/include/nbd_proxy.hpp
+index 462e4a7..e11d93b 100644
+--- a/include/nbd_proxy.hpp
++++ b/include/nbd_proxy.hpp
+@@ -88,8 +88,8 @@ struct NbdProxyServer : std::enable_shared_from_this<NbdProxyServer>
+             });
+ 
+         auto mountHandler = [this, self(shared_from_this())](
+-                                const boost::system::error_code ec,
+-                                const bool status) {
++                                const boost::system::error_code ec/*,
++                                const bool status*/) {
+             if (ec)
+             {
+                 BMCWEB_LOG_ERROR << "DBus error: cannot call mount method = "
+@@ -433,7 +433,7 @@ void requestRoutes(App& app)
+                 session->second->close();
+             })
+         .onmessage([](crow::websocket::Connection& conn,
+-                      const std::string& data, bool isBinary) {
++                      const std::string& data/*, bool isBinary*/) {
+             BMCWEB_LOG_DEBUG << "nbd-proxy.onmessage(len = " << data.length()
+                              << ")";
+             // Acquire proxy from sessions
+diff --git a/redfish-core/lib/virtual_media.hpp b/redfish-core/lib/virtual_media.hpp
+index dbe29b1..3ffcc00 100644
+--- a/redfish-core/lib/virtual_media.hpp
++++ b/redfish-core/lib/virtual_media.hpp
+@@ -795,8 +795,8 @@ class VirtualMediaActionInsertMedia : public Node
+ 
+             // Pass secret over pipe
+             secretPipe->async_write(
+-                [asyncResp](const boost::system::error_code& ec,
+-                            std::size_t size) {
++                [asyncResp](const boost::system::error_code& ec/*,
++                            std::size_t size*/) {
+                     if (ec)
+                     {
+                         BMCWEB_LOG_ERROR << "Failed to pass secret: " << ec;
+@@ -1012,7 +1012,7 @@ class VirtualMediaCollection : public Node
+     /**
+      * Functions triggers appropriate requests on DBus
+      */
+-    void doGet(crow::Response& res, const crow::Request& req,
++    void doGet(crow::Response& res/*, const crow::Request& req*/,
+                const std::vector<std::string>& params) override
+     {
+         auto asyncResp = std::make_shared<AsyncResp>(res);
+@@ -1087,7 +1087,7 @@ class VirtualMedia : public Node
+     /**
+      * Functions triggers appropriate requests on DBus
+      */
+-    void doGet(crow::Response& res, const crow::Request& req,
++    void doGet(crow::Response& res/*, const crow::Request& req*/,
+                const std::vector<std::string>& params) override
+     {
+         // Check if there is required param, truly entering this shall be
+-- 
+2.7.4
+

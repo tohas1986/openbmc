@@ -1,0 +1,334 @@
+From 3b2504dc48200004f962da279135d0242a47fc48 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 09:55:16 +0000
+Subject: [PATCH 04/20] ADCSensor: Change timer; Add debug
+
+%% original patch: 0001-ADCSensor-Change-timer-Add-debug-Add-exit-on-error.patch
+---
+ include/ADCSensor.hpp |  4 +--
+ src/ADCSensor.cpp     | 31 ++++++------------
+ src/ADCSensorMain.cpp | 88 ++++++++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 78 insertions(+), 45 deletions(-)
+
+diff --git a/include/ADCSensor.hpp b/include/ADCSensor.hpp
+index d1edf6d..6fe5726 100644
+--- a/include/ADCSensor.hpp
++++ b/include/ADCSensor.hpp
+@@ -66,7 +66,7 @@ class ADCSensor : public Sensor, public std::enable_shared_from_this<ADCSensor>
+               std::shared_ptr<sdbusplus::asio::connection>& conn,
+               boost::asio::io_service& io, const std::string& sensorName,
+               std::vector<thresholds::Threshold>&& thresholds,
+-              const double scaleFactor, PowerState readState,
++              const double scaleFactor, double max, double min, PowerState powerState,
+               const std::string& sensorConfiguration,
+               std::optional<BridgeGpio>&& bridgeGpio);
+     ~ADCSensor() override;
+@@ -75,7 +75,7 @@ class ADCSensor : public Sensor, public std::enable_shared_from_this<ADCSensor>
+   private:
+     sdbusplus::asio::object_server& objServer;
+     boost::asio::posix::stream_descriptor inputDev;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     std::shared_ptr<boost::asio::streambuf> readBuf;
+     std::string path;
+     double scaleFactor;
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index 3cd40e8..d506a7c 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -20,7 +20,7 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/read_until.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+@@ -34,6 +34,8 @@
+ #include <string>
+ #include <vector>
+ 
++extern bool DEBUG;
++
+ static constexpr unsigned int sensorPollMs = 500;
+ static constexpr size_t warnAfterErrorCount = 10;
+ static constexpr unsigned int gpioBridgeEnableMs = 20;
+@@ -49,14 +51,14 @@ ADCSensor::ADCSensor(const std::string& path,
+                      std::shared_ptr<sdbusplus::asio::connection>& conn,
+                      boost::asio::io_service& io, const std::string& sensorName,
+                      std::vector<thresholds::Threshold>&& thresholdsIn,
+-                     const double scaleFactor, PowerState readState,
++                     const double scaleFactor, double max, double min, PowerState powerState,
+                      const std::string& sensorConfiguration,
+                      std::optional<BridgeGpio>&& bridgeGpio) :
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(thresholdsIn), sensorConfiguration,
+            "xyz.openbmc_project.Configuration.ADC",
+            maxVoltageReading / scaleFactor, minVoltageReading / scaleFactor,
+-           conn, readState),
++           conn, powerState),
+     std::enable_shared_from_this<ADCSensor>(), objServer(objectServer),
+     inputDev(io, open(path.c_str(), O_RDONLY)), waitTimer(io), path(path),
+     scaleFactor(scaleFactor), bridgeGpio(std::move(bridgeGpio)),
+@@ -102,13 +104,14 @@ void ADCSensor::setupRead(void)
+ 
+     if (bridgeGpio.has_value())
+     {
++        if (DEBUG) std::cerr << name << " GPIO Bridge up\n";
+         (*bridgeGpio).set(1);
+         // In case a channel has a bridge circuit,we have to turn the bridge on
+         // prior to reading a value at least for one scan cycle to get a valid
+         // value. Guarantee that the HW signal can be stable, the HW signal
+         // could be instability.
+         waitTimer.expires_from_now(
+-            boost::posix_time::milliseconds(gpioBridgeEnableMs));
++            boost::asio::chrono::milliseconds(gpioBridgeEnableMs));
+         waitTimer.async_wait(
+             [weakRef, buffer](const boost::system::error_code& ec) {
+                 std::shared_ptr<ADCSensor> self = weakRef.lock();
+@@ -170,6 +173,7 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+             rawValue = std::stod(response);
+             double nvalue = (rawValue / sensorScaleFactor) / scaleFactor;
+             nvalue = std::round(nvalue * roundFactor) / roundFactor;
++            if (DEBUG) std::cerr << name << " value:" << rawValue << " Rounded value:" << nvalue << "\n";
+             updateValue(nvalue);
+         }
+         catch (std::invalid_argument&)
+@@ -186,6 +190,7 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+     inputDev.close();
+     if (bridgeGpio.has_value())
+     {
++        if (DEBUG) std::cerr << name << " GPIO Bridge down\n";
+         (*bridgeGpio).set(0);
+     }
+     int fd = open(path.c_str(), O_RDONLY);
+@@ -195,30 +200,14 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+         return; // we're no longer valid
+     }
+     inputDev.assign(fd);
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollMs));
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+     waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+         std::shared_ptr<ADCSensor> self = weakRef.lock();
+-        if (ec == boost::asio::error::operation_aborted)
+-        {
+-            if (self)
+-            {
+-                std::cerr << "adcsensor " << self->name << " read cancelled\n";
+-            }
+-            else
+-            {
+-                std::cerr << "adcsensor read cancelled no self\n";
+-            }
+-            return; // we're being canceled
+-        }
+ 
+         if (self)
+         {
+             self->setupRead();
+         }
+-        else
+-        {
+-            std::cerr << "adcsensor weakref no self\n";
+-        }
+     });
+ }
+ 
+diff --git a/src/ADCSensorMain.cpp b/src/ADCSensorMain.cpp
+index 5265321..17701ad 100644
+--- a/src/ADCSensorMain.cpp
++++ b/src/ADCSensorMain.cpp
+@@ -35,7 +35,9 @@
+ #include <variant>
+ #include <vector>
+ 
+-static constexpr bool debug = false;
++#include <CLI/CLI.hpp>
++
++bool DEBUG = false;
+ 
+ namespace fs = std::filesystem;
+ 
+@@ -53,7 +55,8 @@ bool isAdc(const fs::path& parentPath)
+     std::ifstream nameFile(namePath);
+     if (!nameFile.good())
+     {
+-        std::cerr << "Failure reading " << namePath.string() << "\n";
++        if (DEBUG)
++            std::cerr << "Failure reading " << namePath.string() << "\n";
+         return false;
+     }
+ 
+@@ -82,7 +85,7 @@ void createSensors(
+                            paths))
+             {
+                 std::cerr << "No temperature sensors in system\n";
+-                return;
++                exit(0);
+             }
+ 
+             // iterate through all found adc sensors, and try to match them with
+@@ -132,8 +135,9 @@ void createSensors(
+                     auto findIndex = baseConfiguration->second.find("Index");
+                     if (findIndex == baseConfiguration->second.end())
+                     {
+-                        std::cerr << "Base configuration missing Index"
+-                                  << baseConfiguration->first << "\n";
++                        if (DEBUG)
++                            std::cerr << "Base configuration missing Index"
++                                      << baseConfiguration->first << "\n";
+                         continue;
+                     }
+ 
+@@ -151,23 +155,26 @@ void createSensors(
+                 }
+                 if (sensorData == nullptr)
+                 {
+-                    std::cerr << "failed to find match for " << path.string()
+-                              << "\n";
++                    if (DEBUG)
++                        std::cerr << "failed to find match for " << path.string()
++                                  << "\n";
+                     continue;
+                 }
+ 
+                 if (baseConfiguration == nullptr)
+                 {
+-                    std::cerr << "error finding base configuration for"
+-                              << path.string() << "\n";
++                    if (DEBUG)
++                        std::cerr << "error finding base configuration for"
++                                  << path.string() << "\n";
+                     continue;
+                 }
+ 
+                 auto findSensorName = baseConfiguration->second.find("Name");
+                 if (findSensorName == baseConfiguration->second.end())
+                 {
+-                    std::cerr << "could not determine configuration name for "
+-                              << path.string() << "\n";
++                    if (DEBUG)
++                        std::cerr << "could not determine configuration name for "
++                                  << path.string() << "\n";
+                     continue;
+                 }
+                 std::string sensorName =
+@@ -198,8 +205,9 @@ void createSensors(
+                 std::vector<thresholds::Threshold> sensorThresholds;
+                 if (!parseThresholdsFromConfig(*sensorData, sensorThresholds))
+                 {
+-                    std::cerr << "error populating thresholds for "
+-                              << sensorName << "\n";
++                    if (DEBUG)
++                        std::cerr << "error populating thresholds for "
++                                  << sensorName << "\n";
+                 }
+ 
+                 auto findScaleFactor =
+@@ -216,13 +224,30 @@ void createSensors(
+                     }
+                 }
+ 
++                auto findMinReading =
++                    baseConfiguration->second.find("Min");
++                float minReading = 0.0;
++                if (findMinReading != baseConfiguration->second.end())
++                {
++                    minReading = std::visit(VariantToFloatVisitor(),
++                                             findMinReading->second);
++                }
++                auto findMaxReading =
++                    baseConfiguration->second.find("Max");
++                float maxReading = 60.0;
++                if (findMaxReading != baseConfiguration->second.end())
++                {
++                    maxReading = std::visit(VariantToFloatVisitor(),
++                                             findMaxReading->second);
++                }
++
+                 auto findPowerOn = baseConfiguration->second.find("PowerState");
+-                PowerState readState = PowerState::always;
++                PowerState powerState = PowerState::always;
+                 if (findPowerOn != baseConfiguration->second.end())
+                 {
+-                    std::string powerState = std::visit(
++                    std::string strpowerState = std::visit(
+                         VariantToStringVisitor(), findPowerOn->second);
+-                    setReadState(powerState, readState);
++                    setReadState(strpowerState, powerState);
+                 }
+ 
+                 auto findCPU = baseConfiguration->second.find("CPURequired");
+@@ -275,10 +300,25 @@ void createSensors(
+                     }
+                 }
+ 
++                if (DEBUG)
++                {
++                    std::cerr << "Creating sensor " << sensorName;
++                    std::cerr << " PowerState:";
++                    if (powerState == PowerState::always)
++                        std::cerr << "Always";
++                    if (powerState == PowerState::on)
++                        std::cerr << "On";
++                    if (powerState == PowerState::biosPost)
++                        std::cerr << "biosPost";
++
++                    std::cerr << " Scale factor:" << scaleFactor;
++                    std::cerr << " MinReading:" << minReading << " MaxReading:" << maxReading;
++                    std::cerr << "\n";
++                }
+                 sensor = std::make_shared<ADCSensor>(
+                     path.string(), objectServer, dbusConnection, io, sensorName,
+-                    std::move(sensorThresholds), scaleFactor, readState,
+-                    *interfacePath, std::move(bridgeGpio));
++                    std::move(sensorThresholds), scaleFactor, maxReading, minReading,
++                    powerState, *interfacePath, std::move(bridgeGpio));
+                 sensor->setupRead();
+             }
+         }));
+@@ -287,8 +327,12 @@ void createSensors(
+         std::vector<std::string>{sensorTypes.begin(), sensorTypes.end()});
+ }
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++    CLI::App app("ADC sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     systemBus->request_name("xyz.openbmc_project.ADCSensor");
+@@ -302,7 +346,7 @@ int main()
+         createSensors(io, objectServer, sensors, systemBus, nullptr);
+     });
+ 
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message& message) {
+             if (message.is_method_error())
+@@ -312,7 +356,7 @@ int main()
+             }
+             sensorsChanged->insert(message.get_path());
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+@@ -360,7 +404,7 @@ int main()
+             }
+ 
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+-- 
+2.7.4
+

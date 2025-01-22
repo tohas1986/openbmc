@@ -1,0 +1,63 @@
+From 5ddf65877cc4f8400eddd35f774c87bb7ee547fe Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 11 Oct 2022 10:44:05 +0000
+Subject: [PATCH] Fix ipmitool sdr error
+
+---
+ src/manufacturingcommands.cpp | 2 +-
+ src/sensorcommands.cpp        | 6 ++++++
+ src/storagecommands.cpp       | 4 +++-
+ 3 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/manufacturingcommands.cpp b/src/manufacturingcommands.cpp
+index 42185a7..60b62df 100644
+--- a/src/manufacturingcommands.cpp
++++ b/src/manufacturingcommands.cpp
+@@ -834,7 +834,7 @@ bool findFruDevice(const std::shared_ptr<sdbusplus::asio::connection>& bus,
+     // GetAll the objects under service FruDevice
+     ec = boost::system::errc::make_error_code(boost::system::errc::success);
+     auto obj = bus->yield_method_call<ManagedObjectType>(
+-        yield, ec, "xyz.openbmc_project.EntityManager", "/",
++        yield, ec, "xyz.openbmc_project.EntityManager", "/xyz/openbmc_project/inventory",
+         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+     if (ec)
+     {
+diff --git a/src/sensorcommands.cpp b/src/sensorcommands.cpp
+index cdb379d..14d335a 100644
+--- a/src/sensorcommands.cpp
++++ b/src/sensorcommands.cpp
+@@ -1736,6 +1736,12 @@ ipmi::RspType<uint8_t,  // sdr version
+         return ipmi::response(ret);
+     }
+ 
++    std::cerr << __FUNCTION__ << ":" << __LINE__
++              << " NumberOfSensors:" << getNumberOfSensors()
++              << " fruCount:" << +fruCount
++              << " type12Count:" << +ipmi::storage::type12Count
++              << " nmDiscoverSDRCount:" << +ipmi::storage::nmDiscoverySDRCount
++              << "\n";
+     uint16_t recordCount = getNumberOfSensors() + fruCount +
+                            ipmi::storage::type12Count +
+                            ipmi::storage::nmDiscoverySDRCount;
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index 17f9b53..8ffe4f8 100644
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -36,6 +36,8 @@
+ #include <stdexcept>
+ #include <unordered_set>
+ 
++#undef USING_ENTITY_MANAGER_DECORATORS
++
+ static constexpr bool DEBUG = false;
+ 
+ namespace intel_oem::ipmi::sel
+@@ -711,7 +713,7 @@ ipmi_ret_t getFruSdrs(ipmi::Context::ptr ctx, size_t index,
+     // todo: this should really use caching, this is a very inefficient lookup
+     boost::system::error_code ec;
+     ManagedObjectType entities = ctx->bus->yield_method_call<ManagedObjectType>(
+-        ctx->yield, ec, entityManagerServiceName, "/",
++        ctx->yield, ec, entityManagerServiceName, "/xyz/openbmc_project/inventory",
+         "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+ 
+     if (ec)

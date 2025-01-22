@@ -7,9 +7,6 @@ SRC_URI += "file://samhain-not-run-ptest-on-host.patch \
 
 PROVIDES += "samhain"
 
-MODE_NAME = "standalone"
-SAMHAIN_MODE = "no"
-
 SYSTEMD_SERVICE:${PN} = "samhain.service"
 
 inherit ptest

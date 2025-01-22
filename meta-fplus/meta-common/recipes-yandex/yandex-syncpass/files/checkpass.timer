@@ -1,0 +1,11 @@
+[Unit]
+Description=Runs password check
+
+[Timer]
+# Run after booting
+OnBootSec=3min
+Unit=checkpass.service
+Persistent=true
+
+[Install]
+WantedBy=multi-user.target

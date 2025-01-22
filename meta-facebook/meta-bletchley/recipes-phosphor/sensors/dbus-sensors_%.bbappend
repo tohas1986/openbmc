@@ -1,6 +1,6 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
-PACKAGECONFIG = " \
+PACKAGECONFIG:bletchley = " \
     adcsensor \
     fansensor \
     hwmontempsensor \

@@ -1,0 +1,43 @@
+diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
+index fff02dc..d27f3d3 100644
+--- a/arch/arm/mach-aspeed/ast-scu.c
++++ b/arch/arm/mach-aspeed/ast-scu.c
+@@ -544,3 +544,25 @@ void ast_config_uart5_clk(void)
+ 	ast_scu_write(ast_scu_read(AST_SCU_MISC2_CTRL) &
+ 				~(1 << 28), AST_SCU_MISC2_CTRL);
+ }
++
++
++void ast_enable_pass_through(void)
++{
++	//Enable GPIOD pin mode, SCU80[16:23] = 00 */
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) & (~0x00FF0000),
++		AST_SCU_FUN_PIN_CTRL1);
++
++	//Enable all pass through pins by setting SCU8C[15:12] = 0x3.
++	//Pass-through pins set:
++	//GPIOD0 -> GPIOD1
++	//GPIOD2 -> GPIOD3
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL4) | (0x3000),
++		AST_SCU_FUN_PIN_CTRL4);
++
++	//Disable HWStrap for GPIOE pass-through mode
++	//The write operation to SCU70(0x1e6e2070) only can set to '1'.
++	//To clear to '0', it must write '1' to 0x1e6e207c
++	if (ast_scu_read(AST_SCU_HW_STRAP1) & (0x1 << 22)){
++		ast_scu_write((0x1 << 22), AST_SCU_REVISION_ID);
++	}
++}
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index 5a1fade..b492003 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -20,6 +20,8 @@ int board_early_init_f(void)
+ {
+ 	/* make sure uart5 is using 24MHz clock */
+ 	ast_config_uart5_clk();
++	/*enable pass through*/
++	ast_enable_pass_through();
+ 
+ 	return 0;
+ }

@@ -1,0 +1,29 @@
+From 30bf281a8ec418bca11e34a4e438ac78a121ece6 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Tue, 2 Mar 2021 15:35:45 +0000
+Subject: [PATCH] Decrease NMI getButtonEnabled logging
+
+---
+ src/chassiscommands.cpp | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/chassiscommands.cpp b/src/chassiscommands.cpp
+index 1171441..dab08c6 100644
+--- a/src/chassiscommands.cpp
++++ b/src/chassiscommands.cpp
+@@ -340,9 +340,9 @@ static std::optional<bool> getButtonEnabled(const std::string& buttonPath)
+     }
+     catch (sdbusplus::exception::SdBusError& e)
+     {
+-        log<level::ERR>("Fail to get button disabled property",
+-                        entry("PATH=%s", buttonPath.c_str()),
+-                        entry("ERROR=%s", e.what()));
++        //log<level::ERR>("Fail to get button disabled property",
++        //                entry("PATH=%s", buttonPath.c_str()),
++        //                entry("ERROR=%s", e.what()));
+         return std::nullopt;
+     }
+     return std::make_optional(buttonDisabled);
+-- 
+2.7.4
+

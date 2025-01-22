@@ -22,7 +22,9 @@ RDEPENDS:${PN}-flash = " \
 
 SUMMARY:${PN}-system = "ASRock System"
 RDEPENDS:${PN}-system = " \
+	bmcweb \
+	webui-vue \
 	phosphor-host-postd \
+	phosphor-ipmi-kcs \
 	phosphor-post-code-manager \
-	phosphor-software-manager \
 	"

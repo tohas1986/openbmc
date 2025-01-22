@@ -1,0 +1,58 @@
+From 0559586fe6f2206d93df46958e77b7d1a67b7378 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 2 Sep 2020 16:05:23 +0000
+Subject: [PATCH 1/1] virtual-media: increase timeout
+
+---
+ virtual-media/virtual-media.json | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/virtual-media/virtual-media.json b/virtual-media/virtual-media.json
+index bae48bb..3ead55f 100644
+--- a/virtual-media.json
++++ b/virtual-media.json
+@@ -1,12 +1,12 @@
+ {
+-    "InactivityTimeout": 1800,
++    "InactivityTimeout": 36000,
+     "MountPoints": {
+         "ISO0": {
+             "EndpointId": "/nbd/0",
+             "Mode": 1,
+             "NBDDevice": "nbd0",
+             "UnixSocket": "/tmp/nbd0.sock",
+-            "Timeout": 30,
++            "Timeout": 300,
+             "BlockSize": 512
+         },
+         "USB0": {
+@@ -14,7 +14,7 @@
+             "Mode": 1,
+             "NBDDevice": "nbd1",
+             "UnixSocket": "/tmp/nbd1.sock",
+-            "Timeout": 30,
++            "Timeout": 300,
+             "BlockSize": 512
+         },
+         "USB1": {
+@@ -22,7 +22,7 @@
+             "Mode": 1,
+             "NBDDevice": "nbd2",
+             "UnixSocket": "/tmp/nbd2.sock",
+-            "Timeout": 30,
++            "Timeout": 300,
+             "BlockSize": 512
+         },
+         "USB2": {
+@@ -30,7 +30,7 @@
+             "Mode": 1,
+             "NBDDevice": "nbd3",
+             "UnixSocket": "/tmp/nbd3.sock",
+-            "Timeout": 30,
++            "Timeout": 300,
+             "BlockSize": 512
+         }
+     }
+-- 
+2.7.4
+

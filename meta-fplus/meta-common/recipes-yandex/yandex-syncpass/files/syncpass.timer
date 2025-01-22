@@ -1,0 +1,12 @@
+[Unit]
+Description=Runs password synchronization each 24 hours
+
+[Timer]
+# Run every 24 hours
+OnCalendar=daily
+RandomizedDelaySec=120min
+Unit=syncpass.service
+Persistent=true
+
+[Install]
+WantedBy=multi-user.target

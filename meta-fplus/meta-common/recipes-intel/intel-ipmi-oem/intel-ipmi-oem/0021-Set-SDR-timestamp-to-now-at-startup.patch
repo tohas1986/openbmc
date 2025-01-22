@@ -1,0 +1,24 @@
+From 41366526b74394937002e441c9a5e4c26fd26842 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 20 Sep 2021 17:02:16 +0000
+Subject: [PATCH] Set SDR timestamp to now() at startup
+
+---
+ src/sensorcommands.cpp | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/sensorcommands.cpp b/src/sensorcommands.cpp
+index 0cb9511..98b4804 100644
+--- a/src/sensorcommands.cpp
++++ b/src/sensorcommands.cpp
+@@ -55,7 +55,9 @@ static constexpr int sensorMapSdrUpdatePeriod = 60;
+ 
+ constexpr size_t maxSDRTotalSize =
+     76; // Largest SDR Record Size (type 01) + SDR Overheader Size
+-constexpr static const uint32_t noTimestamp = 0xFFFFFFFF;
++static const uint32_t noTimestamp = std::chrono::duration_cast<std::chrono::seconds>(
++                                              std::chrono::system_clock::now().time_since_epoch())
++                                              .count();
+ 
+ static uint16_t sdrReservationID;
+ static uint32_t sdrLastAdd = noTimestamp;

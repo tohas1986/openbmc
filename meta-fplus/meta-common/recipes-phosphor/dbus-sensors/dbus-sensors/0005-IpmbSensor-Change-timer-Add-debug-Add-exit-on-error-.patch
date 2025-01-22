@@ -1,0 +1,100 @@
+From 1fc9560ba5d6152912cc9a2aaa8daae709d43b17 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 13 Dec 2022 11:38:17 +0000
+Subject: [PATCH] IpmbSensor: Change timer; Add debug; Add exit on error;
+
+---
+ src/IpmbSensor.cpp | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 3fc0ee51..29565e9f 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -22,6 +22,8 @@
+ #include <sdbusplus/asio/object_server.hpp>
+ #include <sdbusplus/bus/match.hpp>
+ 
++#include <CLI/CLI.hpp>
++
+ #include <chrono>
+ #include <cmath>
+ #include <functional>
+@@ -34,7 +36,7 @@
+ #include <variant>
+ #include <vector>
+ 
+-constexpr const bool debug = false;
++static bool DEBUG = false;
+ 
+ constexpr const char* sensorType = "IpmbSensor";
+ static constexpr double ipmbMaxReading = 0xFF;
+@@ -354,7 +356,7 @@ void IpmbSensor::ipmbRequestCompletionCb(const boost::system::error_code& ec,
+         return;
+     }
+     const std::vector<uint8_t>& data = std::get<5>(response);
+-    if constexpr (debug)
++    if (DEBUG)
+     {
+         std::cout << name << ": ";
+         for (size_t d : data)
+@@ -403,7 +405,7 @@ void IpmbSensor::read(void)
+         [weakRef{weak_from_this()}](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
+-            return; // we're being canceled
++            exit(0);
+         }
+         std::shared_ptr<IpmbSensor> self = weakRef.lock();
+         if (!self)
+@@ -517,14 +519,14 @@ void createSensors(
+     if (!dbusConnection)
+     {
+         std::cerr << "Connection not created\n";
+-        return;
++        exit(0);
+     }
+     dbusConnection->async_method_call(
+         [&](boost::system::error_code ec, const ManagedObjectType& resp) {
+         if (ec)
+         {
+             std::cerr << "Error contacting entity manager\n";
+-            return;
++            exit(0);
+         }
+         for (const auto& [path, interfaces] : resp)
+         {
+@@ -624,7 +626,7 @@ void reinitSensors(sdbusplus::message_t& message)
+             initCmdTimer->async_wait([](const boost::system::error_code ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+                 {
+-                    return; // we're being canceled
++                    exit(0); // we're being canceled
+                 }
+ 
+                 for (const auto& [name, sensor] : sensors)
+@@ -639,8 +641,11 @@ void reinitSensors(sdbusplus::message_t& message)
+     }
+ }
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++    CLI::App app("IPMB (ME) sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
+ 
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+@@ -661,7 +666,7 @@ int main()
+         configTimer.async_wait([&](const boost::system::error_code& ec) {
+             if (ec == boost::asio::error::operation_aborted)
+             {
+-                return; // we're being canceled
++                exit(0); // we're being canceled
+             }
+             createSensors(io, objectServer, sensors, systemBus);
+             if (sensors.empty())
+-- 
+2.36.1
+

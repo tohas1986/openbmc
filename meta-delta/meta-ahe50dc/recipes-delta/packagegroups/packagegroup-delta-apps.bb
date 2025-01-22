@@ -36,4 +36,5 @@ RDEPENDS:${PN}-flash = " \
 
 SUMMARY:${PN}-system = "Delta Power System"
 RDEPENDS:${PN}-system = " \
+        bmcweb \
         "

@@ -1,0 +1,225 @@
+{
+    "sensors" : [
+        {
+            "name": "fan3",
+            "type": "fan",
+            "readPath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/fan3_input",
+            "writePath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/pwm3",
+            "min": 0,
+            "max": 255
+        },
+        {
+            "name": "fan4",
+            "type": "fan",
+            "readPath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/fan4_input",
+            "writePath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/pwm4",
+            "min": 0,
+            "max": 255
+        },
+        {    "name": "CPU0_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/CPU0_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "CPU1_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/CPU1_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+
+        {    "name": "DIMM_P0_A0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_A0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_B0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_B0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_C0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_C0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_D0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_D0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_E0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_E0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_F0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_F0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_G0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_G0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_H0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_H0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_I0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_I0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_J0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_J0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_K0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_K0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_L0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_L0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_M0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_M0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_N0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_N0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_O0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_O0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_P0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_P0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+
+        {    "name": "M2_0_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/M2_0_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "M2_1_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/M2_1_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "M2_BPB1_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/M2_BPB1_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "M2_BPB2_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/M2_BPB2_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+
+        {    "name": "NVME_0_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_0_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_1_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_1_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_2_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_2_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_3_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_3_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_4_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_4_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_5_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_5_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_6_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_6_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_7_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_7_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_8_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_8_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_9_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_9_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_10_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_10_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_11_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_11_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+
+        {    "name": "SATA0_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SATA0_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SATA1_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SATA1_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SATA2_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SATA2_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SATA3_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SATA3_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+
+        {    "name": "OCP30_LEFT_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/OCP30_LEFT_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "OCP30_RIGHT_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/OCP30_RIGHT_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+
+        {    "name": "SIO_TEMP_1", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SIO_TEMP_1", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SIO_TEMP_2", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SIO_TEMP_2", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SIO_TEMP_3", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SIO_TEMP_3", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SIO_TEMP_4", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SIO_TEMP_4", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" }
+    ],
+    "zones" : [
+        {
+            "id": 0,
+            "minThermalOutput": 20.0,
+            "failsafePercent": 100.0,
+            "pids": [
+                {
+                    "name": "FAN",
+                    "type": "fan",
+                    "setpoint": 65.0,
+                    "inputs": ["fan3", "fan4"],
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "proportionalCoeff": 0.0,
+                        "integralCoeff": 0.0,
+                        "feedFwdOffsetCoeff": 0.0,
+                        "feedFwdGainCoeff": 1.0,
+                        "integralLimit_min": 0.0,
+                        "integralLimit_max": 0.0,
+                        "outLim_min": 0.0,
+                        "outLim_max": 100.0,
+                        "slewNeg": 0.0,
+                        "slewPos": 0.0
+                    }
+                },
+                {
+                    "name": "CPU",
+                    "type": "temp",
+                    "inputs": [ "CPU0_TEMP", "CPU1_TEMP" ],
+                    "setpoint": 85.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "proportionalCoeff": -20.0,
+                        "integralCoeff": -0.1,
+                        "feedFwdOffsetCoeff": 0.0,
+                        "feedFwdGainCoeff": 0.0,
+                        "integralLimit_min": 0.0,
+                        "integralLimit_max": 0.0,
+                        "outLim_min": 0.0,
+                        "outLim_max": 70.0,
+                        "slewNeg": 0.0,
+                        "slewPos": 0.0,
+                        "positiveHysteresis": 0.0,
+                        "negativeHysteresis": 0.0,
+                        "isCeiling": false
+                    }
+                },
+                {
+                    "name": "DIMM",
+                    "type": "stepwise",
+                    "inputs":
+                            [
+                                "DIMM_P0_A0", "DIMM_P0_B0", "DIMM_P0_C0", "DIMM_P0_D0", "DIMM_P0_E0", "DIMM_P0_F0", "DIMM_P0_G0",
+                                "DIMM_P0_H0", "DIMM_P1_I0", "DIMM_P1_J0", "DIMM_P1_K0", "DIMM_P1_L0", "DIMM_P1_M0", "DIMM_P1_N0",
+                                "DIMM_P1_O0", "DIMM_P1_P0"
+                            ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 61, "1": 85 },
+                        "output":  { "0":  0, "1": 70 }
+                    }
+                },
+                {
+                    "name": "M2",
+                    "type": "stepwise",
+                    "inputs": [ "M2_0_TEMP", "M2_1_TEMP" ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 50, "1": 75 },
+                        "output":  { "0":  0, "1": 70 }
+                    }
+                },
+                {
+                    "name": "NVME",
+                    "type": "stepwise",
+                    "inputs": [ "NVME_0_TEMP", "NVME_1_TEMP", "NVME_2_TEMP", "NVME_3_TEMP", "NVME_4_TEMP", "NVME_5_TEMP",
+                                "NVME_6_TEMP", "NVME_7_TEMP", "NVME_8_TEMP", "NVME_9_TEMP", "NVME_10_TEMP", "NVME_11_TEMP"
+                            ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 50, "1": 70 },
+                        "output":  { "0":  0, "1": 70 }
+                    }
+                },
+                {
+                    "name": "OCPZ",
+                    "type": "stepwise",
+                    "inputs": [ "OCP30_LEFT_TEMP", "OCP30_LEFT_TEMP" ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 65, "1": 85 },
+                        "output":  { "0":  0, "1": 70 }
+                    }
+                },
+                {
+                    "name": "SIO",
+                    "type": "stepwise",
+                    "inputs": [ "SIO_TEMP_1", "SIO_TEMP_2", "SIO_TEMP_3", "SIO_TEMP_4" ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 69, "1": 85 },
+                        "output":  { "0":  0, "1": 70 }
+                    }
+                },
+                {
+                    "name": "SATA",
+                    "type": "stepwise",
+                    "inputs": [ "SATA0_TEMP", "SATA1_TEMP", "SATA2_TEMP", "SATA3_TEMP" ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 10.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 35, "1": 55 },
+                        "output":  { "0":  0, "1": 50 }
+                    }
+                },
+                {
+                    "name": "M2_BPB",
+                    "type": "stepwise",
+                    "inputs": [ "M2_BPB1_TEMP", "M2_BPB2_TEMP"],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 10.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 35, "1": 55 },
+                        "output":  { "0":  0, "1": 70 }
+                    }
+                }
+            ]
+        }
+    ]
+}

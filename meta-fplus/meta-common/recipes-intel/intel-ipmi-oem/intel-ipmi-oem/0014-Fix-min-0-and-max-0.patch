@@ -1,0 +1,53 @@
+From 251220400a6b80904cda11fff64b4740dcf1b226 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 9 Apr 2021 08:49:00 +0000
+Subject: [PATCH] Fix min=0 and max=0
+
+---
+ include/sensorutils.hpp | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/include/sensorutils.hpp b/include/sensorutils.hpp
+index e448cee..c20f157 100644
+--- a/include/sensorutils.hpp
++++ b/include/sensorutils.hpp
+@@ -154,26 +154,33 @@ static inline void normalizeIntExp(int16_t& ibase, int8_t& expShift,
+ // To use with Wolfram Alpha, make all variables single letters
+ // bExp becomes E, rExp becomes R
+ // https://www.wolframalpha.com/input/?i=y%3D%28%28M*x%29%2B%28B*%2810%5EE%29%29%29*%2810%5ER%29
+-static inline bool getSensorAttributes(const double max, const double min,
++static inline bool getSensorAttributes(const double _max, const double _min,
+                                        int16_t& mValue, int8_t& rExp,
+                                        int16_t& bValue, int8_t& bExp,
+                                        bool& bSigned)
+ {
++    double min = _min;
++    double max = _max;
++
+     if (!(std::isfinite(min)))
+     {
+-        std::cerr << "getSensorAttributes: Min value is unusable\n";
+-        return false;
++        min = -127.0;
+     }
+     if (!(std::isfinite(max)))
+     {
+-        std::cerr << "getSensorAttributes: Max value is unusable\n";
+-        return false;
++        max = 127.0;
++    }
++
++    if (min == max)
++    {
++        min = -127.0;
++        max = 127.0;
+     }
+ 
+     // Because NAN has already been tested for, this comparison works
+     if (max <= min)
+     {
+-        std::cerr << "getSensorAttributes: Max must be greater than min\n";
++        std::cerr << "getSensorAttributes: Max must be greater than min. Max:" << max << " Min:" << min << "\n";
+         return false;
+     }
+ 

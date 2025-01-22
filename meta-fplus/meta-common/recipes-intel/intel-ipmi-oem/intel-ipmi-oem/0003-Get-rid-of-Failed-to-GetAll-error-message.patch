@@ -1,0 +1,46 @@
+From 0c1aa4382bf61a34aae990ac899a57f001302ab7 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 7 Apr 2021 15:45:16 +0000
+Subject: [PATCH] Get rid of Failed to GetAll error message intel-ipmi-oem:
+ Stop spamming with Failed to GetObject Decrease NMI getButtonEnabled logging
+
+---
+ include/sdrutils.hpp    | 4 ++--
+ src/chassiscommands.cpp | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/sdrutils.hpp b/include/sdrutils.hpp
+index 4f33c52..b7a8ecb 100644
+--- a/include/sdrutils.hpp
++++ b/include/sdrutils.hpp
+@@ -467,7 +467,7 @@ static inline std::map<std::string, std::vector<std::string>>
+     }
+     catch (const std::exception& e)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
++        phosphor::logging::log<phosphor::logging::level::DEBUG>(
+             "Failed to GetObject", phosphor::logging::entry("PATH=%s", path),
+             phosphor::logging::entry("WHAT=%s", e.what()));
+     }
+@@ -493,7 +493,7 @@ static inline std::map<std::string, DbusVariant>
+     }
+     catch (const std::exception& e)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
++        phosphor::logging::log<phosphor::logging::level::DEBUG>(
+             "Failed to GetAll", phosphor::logging::entry("PATH=%s", path),
+             phosphor::logging::entry("INTF=%s", interface),
+             phosphor::logging::entry("WHAT=%s", e.what()));
+diff --git a/src/chassiscommands.cpp b/src/chassiscommands.cpp
+index 4f748ff..3d876c8 100644
+--- a/src/chassiscommands.cpp
++++ b/src/chassiscommands.cpp
+@@ -341,7 +341,7 @@ static std::optional<bool> getButtonEnabled(const std::string& buttonPath)
+     }
+     catch (const sdbusplus::exception_t& e)
+     {
+-        log<level::ERR>("Fail to get button disabled property",
++        log<level::DEBUG>("Fail to get button disabled property",
+                         entry("PATH=%s", buttonPath.c_str()),
+                         entry("ERROR=%s", e.what()));
+         return std::nullopt;

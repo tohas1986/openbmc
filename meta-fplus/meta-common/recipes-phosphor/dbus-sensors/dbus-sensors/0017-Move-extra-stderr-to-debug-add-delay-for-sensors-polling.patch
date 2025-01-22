@@ -1,0 +1,149 @@
+From b55a04a00c79317261b3e5f0c2e69ab63718fe3f Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 14 Apr 2023 15:46:25 +0000
+Subject: [PATCH] Move-extra-stderr-to-debug-add-delay-for-sensors-polling
+
+---
+ src/GPUSensor.cpp | 50 +++++++++++++++++++++++++++++------------------
+ 1 file changed, 31 insertions(+), 19 deletions(-)
+
+diff --git a/src/GPUSensor.cpp b/src/GPUSensor.cpp
+index b9c6189..f841161 100644
+--- a/src/GPUSensor.cpp
++++ b/src/GPUSensor.cpp
+@@ -26,6 +26,7 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/container/flat_map.hpp>
++#include <boost/thread/thread.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ #include <sdbusplus/bus/match.hpp>
+@@ -210,7 +211,10 @@ int GPUSensor::getRegister(uint8_t idx, uint32_t* value)
+         ret = i2c_smbus_write_i2c_block_data(fd, 0x5C, 0x5, fpgapowercmd);
+         if (ret < 0)
+         {
+-            std::cerr << "Failed to write block data" << " Bus:" << i2cBus << "\n";
++            if(DEBUG)
++            {
++                std::cerr << "Failed to write block data" << " Bus:" << i2cBus << "\n";
++            }
+             close(fd);
+             return -1;
+         }
+@@ -221,7 +225,10 @@ int GPUSensor::getRegister(uint8_t idx, uint32_t* value)
+         ret = i2c_smbus_write_i2c_block_data(fd, 0x5C, 0x5, gputempcmd);
+         if (ret < 0)
+         {
+-            std::cerr << "Failed to write block data" << " Bus:" << i2cBus << "\n";
++            if(DEBUG)
++            {
++                std::cerr << "Failed to write block data" << " Bus:" << i2cBus << "\n";
++            }
+             close(fd);
+             return -1;
+         }
+@@ -232,7 +239,10 @@ int GPUSensor::getRegister(uint8_t idx, uint32_t* value)
+         ret = i2c_smbus_write_i2c_block_data(fd, 0x5C, 0x5, hbmtempcmd);
+         if (ret < 0)
+         {
+-            std::cerr << "Failed to write block data" << " Bus:" << i2cBus << "\n";
++            if(DEBUG)
++            {
++                std::cerr << "Failed to write block data" << " Bus:" << i2cBus << "\n";
++            }
+             close(fd);
+             return -1;
+         }
+@@ -244,7 +254,10 @@ int GPUSensor::getRegister(uint8_t idx, uint32_t* value)
+ 
+         if (ret < 0)
+         {
+-            std::cerr << "Failed to write block data" << " Bus:" << i2cBus << "\n";
++            if(DEBUG)
++            {
++                std::cerr << "Failed to write block data" << " Bus:" << i2cBus << "\n";
++            }
+             close(fd);
+             return -1;
+         }
+@@ -257,7 +270,10 @@ int GPUSensor::getRegister(uint8_t idx, uint32_t* value)
+ 
+         if (ret < 0)
+         {
+-            std::cerr << "Failed to read block data" << " Bus:" << i2cBus << "\n";
++            if(DEBUG)
++            {
++                std::cerr << "Failed to read block data" << " Bus:" << i2cBus << "\n";
++            }
+             close(fd);
+             return -1;
+         }
+@@ -277,20 +293,11 @@ int GPUSensor::getRegister(uint8_t idx, uint32_t* value)
+                 std::cerr << "Data in Query could not be read, waiting for valid results" << "\n";
+                 std::cerr << "Response: "<< std::hex << std::setfill('0') << std::setw(2) << +response[4] << "\n";
+             }
+-
++            usleep(100);
+             continue;
+         }
+     }
+ 
+-    /*ret = i2c_smbus_read_i2c_block_data(fd, 0x5C, 5, response);
+-
+-    if (ret < 0)
+-    {
+-        std::cerr << "Failed to read block data" << " Bus:" << i2cBus << "\n";
+-        close(fd);
+-        return -1;
+-    }*/
+-
+     if(DEBUG)
+     {
+         for(int i=0;i<5; i++)
+@@ -304,7 +311,10 @@ int GPUSensor::getRegister(uint8_t idx, uint32_t* value)
+     ret = i2c_smbus_read_i2c_block_data(fd, 0x5D, 5, response);
+     if (ret < 0)
+     {
+-        std::cerr << "Failed to read block data" << " Bus:" << i2cBus << "\n";
++        if(DEBUG)
++        {
++            std::cerr << "Failed to read block data" << " Bus:" << i2cBus << "\n";
++        }
+         close(fd);
+         return -1;
+     }
+@@ -373,8 +383,8 @@ void GPUSensor::readSensor(void)
+             readSensor();
+             return;
+         }
+-        uint32_t value;
+-        int ret;
++        uint32_t value = 0;
++        int ret = 0;
+ 
+         /* Don't read anything if power is off */
+         if (isPowerOn())
+@@ -393,16 +403,18 @@ void GPUSensor::readSensor(void)
+                 if ((value >= 110 && value <= 255) || (value <= 0))
+                 {
+                     updateValue(std::numeric_limits<double>::quiet_NaN());
++                    if(DEBUG)std::cerr << "Reading Error after all for " << name << " : "<< +value << "\n";
+                 }
+                 else
+                 {
+                     updateValue(static_cast<double>(value));
++                    if(DEBUG)std::cerr << "Value after all for " << name << " : "<< +value << "\n";
+                 }
+             }
+             else
+             {
+                 updateValue(static_cast<double>(value));
+-                if(DEBUG)std::cerr << "Value after all: " << +value << "\n";
++                if(DEBUG)std::cerr << "Value after all for " << name << " : "<< +value << "\n";
+             }
+         }
+         else
+-- 
+2.34.1
+

@@ -1,0 +1,55 @@
+From 7b74b2e9557ebc37dcd3f6eb5c491d12cf573619 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 6 Apr 2021 08:48:34 +0000
+Subject: [PATCH] Exit if not sure what to do (sic)
+
+---
+ power-control-x86/src/power_control.cpp | 18 +++---------------
+ 1 file changed, 3 insertions(+), 15 deletions(-)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index 95bdec7..d8903e4 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -13,8 +13,6 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ */
+-#include "i2c.hpp"
+-
+ #include <sys/sysinfo.h>
+ #include <systemd/sd-journal.h>
+ 
+@@ -978,8 +976,7 @@ static bool requestGPIOEvents(
+             if (ec)
+             {
+                 std::cerr << name << " fd handler error: " << ec.message() << "\n";
+-                // TODO: throw here to force power-control to restart?
+-                return;
++                exit(1);
+             }
+             handler();
+         });
+@@ -1134,17 +1131,8 @@ static void forcePowerOff()
+             return;
+         }
+ 
+-        // TODO May be exit(1)
+-        std::cerr << "PCH Power-button override failed. Issuing Unconditional Powerdown SMBus command.\n";
+-        const static constexpr size_t pchDevBusAddress = 3;
+-        const static constexpr size_t pchDevSlaveAddress = 0x44;
+-        const static constexpr size_t pchCmdReg = 0;
+-        const static constexpr size_t pchPowerDownCmd = 0x02;
+-        if (i2cSet(pchDevBusAddress, pchDevSlaveAddress, pchCmdReg,
+-                   pchPowerDownCmd) < 0)
+-        {
+-            std::cerr << "Unconditional Powerdown command failed! Not sure what to do now\n";
+-        }
++        std::cerr << "PCH Power-button override failed, exiting\n";
++        exit(1);
+     });
+ }
+ 
+-- 
+2.7.4
+

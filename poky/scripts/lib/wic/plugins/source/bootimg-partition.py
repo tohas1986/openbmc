@@ -32,7 +32,6 @@ class BootimgPartitionPlugin(SourcePlugin):
     """
 
     name = 'bootimg-partition'
-    image_boot_files_var_name = 'IMAGE_BOOT_FILES'
 
     @classmethod
     def do_configure_partition(cls, part, source_params, cr, cr_workdir,
@@ -57,12 +56,12 @@ class BootimgPartitionPlugin(SourcePlugin):
             else:
                 var = ""
 
-            boot_files = get_bitbake_var(cls.image_boot_files_var_name + var)
+            boot_files = get_bitbake_var("IMAGE_BOOT_FILES" + var)
             if boot_files is not None:
                 break
 
         if boot_files is None:
-            raise WicError('No boot files defined, %s unset for entry #%d' % (cls.image_boot_files_var_name, part.lineno))
+            raise WicError('No boot files defined, IMAGE_BOOT_FILES unset for entry #%d' % part.lineno)
 
         logger.debug('Boot files: %s', boot_files)
 
@@ -113,7 +112,7 @@ class BootimgPartitionPlugin(SourcePlugin):
                 # Use a custom configuration for extlinux.conf
                 extlinux_conf = custom_cfg
                 logger.debug("Using custom configuration file "
-                             "%s for extlinux.conf", configfile)
+                             "%s for extlinux.cfg", configfile)
             else:
                 raise WicError("configfile is specified but failed to "
                                "get it from %s." % configfile)

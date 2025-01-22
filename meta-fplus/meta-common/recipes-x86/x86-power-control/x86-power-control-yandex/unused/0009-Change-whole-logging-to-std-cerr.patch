@@ -1,0 +1,1219 @@
+From 198bce241aaf3187b85010171d3d5fa0bc0623e6 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 6 Apr 2021 08:45:29 +0000
+Subject: [PATCH] Change whole logging to std::cerr
+
+---
+ power-control-x86/src/power_control.cpp | 435 +++++++++-----------------------
+ 1 file changed, 124 insertions(+), 311 deletions(-)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index 20053d5..95bdec7 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -138,18 +138,13 @@ static constexpr uint8_t beepPowerFail = 8;
+ 
+ static void beep(const uint8_t& beepPriority)
+ {
+-    std::string logMsg = "Beep with priority: " + std::to_string(beepPriority);
+-    phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
++    std::cerr << "Beep with priority: " + std::to_string(beepPriority) << "\n";
+ 
+     conn->async_method_call(
+         [](boost::system::error_code ec) {
+             if (ec)
+             {
+-                std::string errMsg =
+-                    "beep returned error with async_method_call (ec = " +
+-                    ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr <<  "beep returned error with async_method_call (ec = " << ec.message() << "\n";
+                 return;
+             }
+         },
+@@ -212,12 +207,7 @@ static std::string getPowerStateName(PowerState state)
+ }
+ static void logStateTransition(const PowerState state)
+ {
+-    std::string logMsg =
+-        "Host0: Moving to \"" + getPowerStateName(state) + "\" state";
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        logMsg.c_str(),
+-        phosphor::logging::entry("STATE=%s", getPowerStateName(state).c_str()),
+-        phosphor::logging::entry("HOST=0"));
++    std::cerr << "Host0: Moving to \"" << getPowerStateName(state) << "\" state\n";
+ }
+ 
+ enum class Event
+@@ -326,11 +316,7 @@ static std::string getEventName(Event event)
+ }
+ static void logEvent(const std::string_view stateHandler, const Event event)
+ {
+-    std::string logMsg{stateHandler};
+-    logMsg += ": " + getEventName(event) + " event received";
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        logMsg.c_str(),
+-        phosphor::logging::entry("EVENT=%s", getEventName(event).c_str()));
++    std::cerr << std::string(stateHandler) << ": " << getEventName(event) << " event received\n";
+ }
+ 
+ // Power state handlers
+@@ -390,9 +376,7 @@ static void sendPowerControlEvent(const Event event)
+     std::function<void(const Event)> handler = getPowerStateHandler(powerState);
+     if (handler == nullptr)
+     {
+-        std::string errMsg = "Failed to find handler for power state: " +
+-                             std::to_string(static_cast<int>(powerState));
+-        phosphor::logging::log<phosphor::logging::level::INFO>(errMsg.c_str());
++        std::cerr << "Failed to find handler for power state: " << std::to_string(static_cast<int>(powerState)) << "\n";
+         return;
+     }
+     handler(event);
+@@ -469,10 +453,7 @@ static void savePowerState(const PowerState state)
+             // completion.
+             if (ec != boost::asio::error::operation_aborted)
+             {
+-                std::string errMsg =
+-                    "Power-state save async_wait failed: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "Power-state save async_wait failed: " << ec.message() << "\n";
+             }
+             return;
+         }
+@@ -551,8 +532,7 @@ static void clearRestartCause()
+ }
+ static void setRestartCauseProperty(const std::string& cause)
+ {
+-    std::string logMsg = "RestartCause set to " + cause;
+-    phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
++    std::cerr << "RestartCause set to " << cause << "\n";
+     restartCauseIface->set_property("RestartCause", cause);
+ }
+ 
+@@ -565,8 +545,7 @@ static void resetACBootProperty()
+             [](boost::system::error_code ec) {
+                 if (ec)
+                 {
+-                    phosphor::logging::log<phosphor::logging::level::ERR>(
+-                        "failed to reset ACBoot property");
++                    std::cerr << "failed to reset ACBoot property\n";
+                 }
+             },
+             "xyz.openbmc_project.Settings",
+@@ -675,10 +654,7 @@ static int initializePowerStateStorage()
+     {
+         if (ec.value() != 0)
+         {
+-            std::string errMsg =
+-                "failed to create " + powerControlDir.string() + ec.message();
+-            phosphor::logging::log<phosphor::logging::level::ERR>(
+-                errMsg.c_str());
++            std::cerr << "failed to create " << powerControlDir.string() << ec.message() << "\n";
+             return -1;
+         }
+     }
+@@ -696,8 +672,7 @@ static bool wasPowerDropped()
+     std::ifstream powerStateStream(powerControlDir / powerStateFile);
+     if (!powerStateStream.is_open())
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Failed to open power state file");
++        std::cerr << "Failed to open power state file\n";
+         return false;
+     }
+ 
+@@ -716,8 +691,7 @@ static void invokePowerRestorePolicy(const std::string& policy)
+     }
+     policyInvoked = true;
+ 
+-    std::string logMsg = "Power restore delay expired, invoking " + policy;
+-    phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
++    std::cerr << "Power restore delay expired, invoking " <<  policy << "\n";
+     if (policy ==
+         "xyz.openbmc_project.Control.Power.RestorePolicy.Policy.AlwaysOn")
+     {
+@@ -729,16 +703,14 @@ static void invokePowerRestorePolicy(const std::string& policy)
+     {
+         if (wasPowerDropped())
+         {
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "Power was dropped, restoring Host On state");
++            std::cerr << "Power was dropped, restoring Host On state\n";
+             sendPowerControlEvent(Event::powerOnRequest);
+             setRestartCauseProperty(
+                 getRestartCause(RestartCause::powerPolicyRestore));
+         }
+         else
+         {
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No power drop, restoring Host Off state");
++            std::cerr << "No power drop, restoring Host Off state\n";
+         }
+     }
+     // We're done with the previous power state for the restore policy, so store
+@@ -770,9 +742,7 @@ static void powerRestorePolicyDelay(int delay)
+ 
+     static boost::asio::steady_timer powerRestorePolicyTimer(io);
+     powerRestorePolicyTimer.expires_after(std::chrono::seconds(delay));
+-    std::string logMsg =
+-        "Power restore delay of " + std::to_string(delay) + " seconds started";
+-    phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
++    std::cerr << "Power restore delay of " << std::to_string(delay) << " seconds started\n";
+     powerRestorePolicyTimer.async_wait([](const boost::system::error_code ec) {
+         if (ec)
+         {
+@@ -780,10 +750,7 @@ static void powerRestorePolicyDelay(int delay)
+             // completion.
+             if (ec != boost::asio::error::operation_aborted)
+             {
+-                std::string errMsg =
+-                    "power restore policy async_wait failed: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "power restore policy async_wait failed: " << ec.message() << "\n";
+             }
+             return;
+         }
+@@ -810,8 +777,7 @@ static void powerRestorePolicyDelay(int delay)
+                     }
+                     catch (std::exception& e)
+                     {
+-                        phosphor::logging::log<phosphor::logging::level::ERR>(
+-                            "Unable to read power restore policy value");
++                        std::cerr << "Unable to read power restore policy value\n";
+                         powerRestorePolicyMatch.reset();
+                         return;
+                     }
+@@ -832,8 +798,7 @@ static void powerRestorePolicyDelay(int delay)
+                     std::get_if<std::string>(&policyProperty);
+                 if (policy == nullptr)
+                 {
+-                    phosphor::logging::log<phosphor::logging::level::ERR>(
+-                        "Unable to read power restore policy value");
++                    std::cerr << "Unable to read power restore policy value\n";
+                     return;
+                 }
+                 invokePowerRestorePolicy(*policy);
+@@ -848,8 +813,7 @@ static void powerRestorePolicyDelay(int delay)
+ 
+ static void powerRestorePolicyStart()
+ {
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        "Power restore policy started");
++    std::cerr << "Power restore policy started\n";
+     powerRestorePolicyLog();
+ 
+     // Get the desired delay time
+@@ -873,8 +837,7 @@ static void powerRestorePolicyStart()
+                 }
+                 catch (std::exception& e)
+                 {
+-                    phosphor::logging::log<phosphor::logging::level::ERR>(
+-                        "Unable to read power restore delay value");
++                    std::cerr << "Unable to read power restore delay value\n";
+                     powerRestoreDelayMatch.reset();
+                     return;
+                 }
+@@ -894,8 +857,7 @@ static void powerRestorePolicyStart()
+             const uint16_t* delay = std::get_if<uint16_t>(&delayProperty);
+             if (delay == nullptr)
+             {
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    "Unable to read power restore delay value");
++                std::cerr << "Unable to read power restore delay value\n";
+                 return;
+             }
+             powerRestorePolicyDelay(*delay);
+@@ -929,8 +891,7 @@ static void powerRestorePolicyCheck()
+                 }
+                 catch (std::exception& e)
+                 {
+-                    phosphor::logging::log<phosphor::logging::level::ERR>(
+-                        "Unable to read AC Boot status");
++                    std::cerr << "Unable to read AC Boot status\n";
+                     acBootMatch.reset();
+                     return;
+                 }
+@@ -958,8 +919,7 @@ static void powerRestorePolicyCheck()
+                 std::get_if<std::string>(&acBootProperty);
+             if (acBoot == nullptr)
+             {
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    "Unable to read AC Boot status");
++                std::cerr << "Unable to read AC Boot status\n";
+                 return;
+             }
+             if (*acBoot == "Unknown")
+@@ -988,8 +948,7 @@ static bool requestGPIOEvents(
+     gpioLine = gpiod::find_line(name);
+     if (!gpioLine)
+     {
+-        std::string errMsg = "Failed to find the " + name + " line";
+-        phosphor::logging::log<phosphor::logging::level::ERR>(errMsg.c_str());
++        std::cerr << "Failed to find line: " << name << "\n";
+         return false;
+     }
+ 
+@@ -1000,16 +959,14 @@ static bool requestGPIOEvents(
+     }
+     catch (std::exception&)
+     {
+-        std::string errMsg = "Failed to request events for " + name;
+-        phosphor::logging::log<phosphor::logging::level::ERR>(errMsg.c_str());
++        std::cerr << "Failed to request events for " <<  name << "\n";
+         return false;
+     }
+ 
+     int gpioLineFd = gpioLine.event_get_fd();
+     if (gpioLineFd < 0)
+     {
+-        std::string errMsg = "Failed to name " + name + " fd";
+-        phosphor::logging::log<phosphor::logging::level::ERR>(errMsg.c_str());
++        std::cerr << "Failed to name " << name << " fd\n";
+         return false;
+     }
+ 
+@@ -1020,10 +977,7 @@ static bool requestGPIOEvents(
+         [&name, handler](const boost::system::error_code ec) {
+             if (ec)
+             {
+-                std::string errMsg =
+-                    name + " fd handler error: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << name << " fd handler error: " << ec.message() << "\n";
+                 // TODO: throw here to force power-control to restart?
+                 return;
+             }
+@@ -1039,8 +993,7 @@ static bool setGPIOOutput(const std::string& name, const int value,
+     gpioLine = gpiod::find_line(name);
+     if (!gpioLine)
+     {
+-        std::string errMsg = "Failed to find the " + name + " line";
+-        phosphor::logging::log<phosphor::logging::level::ERR>(errMsg.c_str());
++        std::cerr << "Failed to find the " << name << " line\n";
+         return false;
+     }
+ 
+@@ -1052,13 +1005,11 @@ static bool setGPIOOutput(const std::string& name, const int value,
+     }
+     catch (std::exception&)
+     {
+-        std::string errMsg = "Failed to request " + name + " output";
+-        phosphor::logging::log<phosphor::logging::level::ERR>(errMsg.c_str());
++        std::cerr << "Failed to request " << name << " output\n";
+         return false;
+     }
+ 
+-    std::string logMsg = name + " set to " + std::to_string(value);
+-    phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
++    std::cerr << name << " set to " + std::to_string(value) << "\n";
+     return true;
+ }
+ 
+@@ -1068,25 +1019,20 @@ static int setMaskedGPIOOutputForMs(gpiod::line& maskedGPIOLine,
+ {
+     // Set the masked GPIO line to the specified value
+     maskedGPIOLine.set_value(value);
+-    std::string logMsg = name + " set to " + std::to_string(value);
+-    phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
++    std::cerr << name << " set to " << std::to_string(value) << "\n";
+     gpioAssertTimer.expires_after(std::chrono::milliseconds(durationMs));
+     gpioAssertTimer.async_wait([maskedGPIOLine, value,
+                                 name](const boost::system::error_code ec) {
+         // Set the masked GPIO line back to the opposite value
+         maskedGPIOLine.set_value(!value);
+-        std::string logMsg = name + " released";
+-        phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
++        std::cerr << name + " released\n";
+         if (ec)
+         {
+             // operation_aborted is expected if timer is canceled before
+             // completion.
+             if (ec != boost::asio::error::operation_aborted)
+             {
+-                std::string errMsg =
+-                    name + " async_wait failed: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << name << " async_wait failed: " << ec.message() << "\n";
+             }
+         }
+     });
+@@ -1119,18 +1065,14 @@ static int setGPIOOutputForMs(const std::string& name, const int value,
+                                 name](const boost::system::error_code ec) {
+         // Set the GPIO line back to the opposite value
+         gpioLine.set_value(!value);
+-        std::string logMsg = name + " released";
+-        phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
++        std::cerr << name << " released\n";
+         if (ec)
+         {
+             // operation_aborted is expected if timer is canceled before
+             // completion.
+             if (ec != boost::asio::error::operation_aborted)
+             {
+-                std::string errMsg =
+-                    name + " async_wait failed: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << name << " async_wait failed: " << ec.message() << "\n";
+             }
+         }
+     });
+@@ -1187,17 +1129,13 @@ static void forcePowerOff()
+             // completion.
+             if (ec != boost::asio::error::operation_aborted)
+             {
+-                std::string errMsg =
+-                    "Force power off async_wait failed: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "Force power off async_wait failed: " << ec.message() << "\n";
+             }
+             return;
+         }
+ 
+-        phosphor::logging::log<phosphor::logging::level::INFO>(
+-            "PCH Power-button override failed. Issuing Unconditional Powerdown "
+-            "SMBus command.");
++        // TODO May be exit(1)
++        std::cerr << "PCH Power-button override failed. Issuing Unconditional Powerdown SMBus command.\n";
+         const static constexpr size_t pchDevBusAddress = 3;
+         const static constexpr size_t pchDevSlaveAddress = 0x44;
+         const static constexpr size_t pchCmdReg = 0;
+@@ -1205,9 +1143,7 @@ static void forcePowerOff()
+         if (i2cSet(pchDevBusAddress, pchDevSlaveAddress, pchCmdReg,
+                    pchPowerDownCmd) < 0)
+         {
+-            phosphor::logging::log<phosphor::logging::level::ERR>(
+-                "Unconditional Powerdown command failed! Not sure what to do "
+-                "now.");
++            std::cerr << "Unconditional Powerdown command failed! Not sure what to do now\n";
+         }
+     });
+ }
+@@ -1219,8 +1155,7 @@ static void reset()
+ 
+ static void gracefulPowerOffTimerStart()
+ {
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        "Graceful power-off timer started");
++    std::cerr << "Graceful power-off timer started\n";
+     gracefulPowerOffTimer.expires_after(
+         std::chrono::seconds(gracefulPowerOffTimeS));
+     gracefulPowerOffTimer.async_wait([](const boost::system::error_code ec) {
+@@ -1230,25 +1165,19 @@ static void gracefulPowerOffTimerStart()
+             // completion.
+             if (ec != boost::asio::error::operation_aborted)
+             {
+-                std::string errMsg =
+-                    "Graceful power-off async_wait failed: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "Graceful power-off async_wait failed: " << ec.message() << "\n";
+             }
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "Graceful power-off timer canceled");
++            std::cerr << "Graceful power-off timer canceled\n";
+             return;
+         }
+-        phosphor::logging::log<phosphor::logging::level::INFO>(
+-            "Graceful power-off timer completed");
++        std::cerr << "Graceful power-off timer completed\n";
+         sendPowerControlEvent(Event::gracefulPowerOffTimerExpired);
+     });
+ }
+ 
+ static void powerCycleTimerStart()
+ {
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        "Power-cycle timer started");
++    std::cerr << "Power-cycle timer started\n";
+     powerCycleTimer.expires_after(std::chrono::milliseconds(powerCycleTimeMs));
+     powerCycleTimer.async_wait([](const boost::system::error_code ec) {
+         if (ec)
+@@ -1257,25 +1186,19 @@ static void powerCycleTimerStart()
+             // completion.
+             if (ec != boost::asio::error::operation_aborted)
+             {
+-                std::string errMsg =
+-                    "Power-cycle async_wait failed: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "Power-cycle async_wait failed: " << ec.message() << "\n";
+             }
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "Power-cycle timer canceled");
++            std::cerr << "Power-cycle timer canceled\n";
+             return;
+         }
+-        phosphor::logging::log<phosphor::logging::level::INFO>(
+-            "Power-cycle timer completed");
++        std::cerr << "Power-cycle timer completed\n";
+         sendPowerControlEvent(Event::powerCycleTimerExpired);
+     });
+ }
+ 
+ static void psPowerOKWatchdogTimerStart()
+ {
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        "power supply power OK watchdog timer started");
++    std::cerr << "power supply power OK watchdog timer started\n";
+     psPowerOKWatchdogTimer.expires_after(
+         std::chrono::milliseconds(psPowerOKWatchdogTimeMs));
+     psPowerOKWatchdogTimer.async_wait([](const boost::system::error_code ec) {
+@@ -1285,14 +1208,9 @@ static void psPowerOKWatchdogTimerStart()
+             // completion.
+             if (ec != boost::asio::error::operation_aborted)
+             {
+-                std::string errMsg =
+-                    "power supply power OK watchdog async_wait failed: " +
+-                    ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "power supply power OK watchdog async_wait failed: " << ec.message() << "\n";
+             }
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "power supply power OK watchdog timer canceled");
++            std::cerr << "power supply power OK watchdog timer canceled\n";
+             return;
+         }
+ 
+@@ -1311,8 +1229,7 @@ static void psPowerOKWatchdogTimerStart()
+ 
+ static void warmResetCheckTimerStart()
+ {
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        "Warm reset check timer started");
++    std::cerr << "Warm reset check timer started\n";
+     warmResetCheckTimer.expires_after(
+         std::chrono::milliseconds(warmResetCheckTimeMs));
+     warmResetCheckTimer.async_wait([](const boost::system::error_code ec) {
+@@ -1322,24 +1239,19 @@ static void warmResetCheckTimerStart()
+             // completion.
+             if (ec != boost::asio::error::operation_aborted)
+             {
+-                std::string errMsg =
+-                    "Warm reset check async_wait failed: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "Warm reset check async_wait failed: " << ec.message() << "\n";
+             }
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "Warm reset check timer canceled");
++            std::cerr << "Warm reset check timer canceled\n";
+             return;
+         }
+-        phosphor::logging::log<phosphor::logging::level::INFO>(
+-            "Warm reset check timer completed");
++        std::cerr << "Warm reset check timer completed\n";
+         sendPowerControlEvent(Event::warmResetDetected);
+     });
+ }
+ 
+ static void pohCounterTimerStart()
+ {
+-    phosphor::logging::log<phosphor::logging::level::INFO>("POH timer started");
++    std::cerr << "POH timer started\n";
+     // Set the time-out as 1 hour, to align with POH command in ipmid
+     pohCounterTimer.expires_after(std::chrono::hours(1));
+     pohCounterTimer.async_wait([](const boost::system::error_code& ec) {
+@@ -1349,13 +1261,9 @@ static void pohCounterTimerStart()
+             // completion.
+             if (ec != boost::asio::error::operation_aborted)
+             {
+-                std::string errMsg =
+-                    "POH timer async_wait failed: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "POH timer async_wait failed: " << ec.message() << "\n";
+             }
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "POH timer canceled");
++            std::cerr << "POH timer canceled\n";
+             return;
+         }
+ 
+@@ -1370,16 +1278,14 @@ static void pohCounterTimerStart()
+                const std::variant<uint32_t>& pohCounterProperty) {
+                 if (ec)
+                 {
+-                    phosphor::logging::log<phosphor::logging::level::INFO>(
+-                        "error to get poh counter");
++                    std::cerr << "error to get poh counter\n";
+                     return;
+                 }
+                 const uint32_t* pohCounter =
+                     std::get_if<uint32_t>(&pohCounterProperty);
+                 if (pohCounter == nullptr)
+                 {
+-                    phosphor::logging::log<phosphor::logging::level::INFO>(
+-                        "unable to read poh counter");
++                    std::cerr << "unable to read poh counter\n";
+                     return;
+                 }
+ 
+@@ -1387,9 +1293,7 @@ static void pohCounterTimerStart()
+                     [](boost::system::error_code ec) {
+                         if (ec)
+                         {
+-                            phosphor::logging::log<
+-                                phosphor::logging::level::INFO>(
+-                                "failed to set poh counter");
++                                std::cerr << "failed to set poh counter\n";
+                         }
+                     },
+                     "xyz.openbmc_project.Settings",
+@@ -1438,14 +1342,12 @@ static void currentHostStateMonitor()
+             }
+             catch (std::exception& e)
+             {
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    "Unable to read host state");
++                std::cerr << "Unable to read host state\n";
+                 return;
+             }
+             if (properties.empty())
+             {
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    "ERROR: Empty PropertiesChanged signal received");
++                std::cerr << "ERROR: Empty PropertiesChanged signal received\n";
+                 return;
+             }
+ 
+@@ -1458,10 +1360,7 @@ static void currentHostStateMonitor()
+                 std::get_if<std::string>(&(properties.begin()->second));
+             if (currentHostState == nullptr)
+             {
+-                std::string errMsg =
+-                    properties.begin()->first + " property invalid";
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << properties.begin()->first << " property invalid\n";
+                 return;
+             }
+ 
+@@ -1471,6 +1370,7 @@ static void currentHostStateMonitor()
+                 pohCounterTimerStart();
+                 // Clear the restart cause set for the next restart
+                 clearRestartCause();
++                std::cerr << "Host system DC power is on\n";
+                 sd_journal_send("MESSAGE=Host system DC power is on",
+                                 "PRIORITY=%i", LOG_INFO,
+                                 "REDFISH_MESSAGE_ID=%s",
+@@ -1490,6 +1390,7 @@ static void currentHostStateMonitor()
+                 // Set the restart cause set for this restart
+                 setRestartCause();
+                 resetACBootProperty();
++                std::cerr << "Host system DC power is off\n";
+                 sd_journal_send("MESSAGE=Host system DC power is off",
+                                 "PRIORITY=%i", LOG_INFO,
+                                 "REDFISH_MESSAGE_ID=%s",
+@@ -1500,8 +1401,7 @@ static void currentHostStateMonitor()
+ 
+ static void sioPowerGoodWatchdogTimerStart()
+ {
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        "SIO power good watchdog timer started");
++    std::cerr << "SIO power good watchdog timer started\n";
+     sioPowerGoodWatchdogTimer.expires_after(
+         std::chrono::milliseconds(sioPowerGoodWatchdogTimeMs));
+     sioPowerGoodWatchdogTimer.async_wait(
+@@ -1512,18 +1412,12 @@ static void sioPowerGoodWatchdogTimerStart()
+                 // completion.
+                 if (ec != boost::asio::error::operation_aborted)
+                 {
+-                    std::string errMsg =
+-                        "SIO power good watchdog async_wait failed: " +
+-                        ec.message();
+-                    phosphor::logging::log<phosphor::logging::level::ERR>(
+-                        errMsg.c_str());
++                    std::cerr << "SIO power good watchdog async_wait failed: " << ec.message() << "\n";
+                 }
+-                phosphor::logging::log<phosphor::logging::level::INFO>(
+-                    "SIO power good watchdog timer canceled");
++                std::cerr << "SIO power good watchdog timer canceled\n";
+                 return;
+             }
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "SIO power good watchdog timer completed");
++            std::cerr << "SIO power good watchdog timer completed\n";
+             sendPowerControlEvent(Event::sioPowerGoodWatchdogTimerExpired);
+         });
+ }
+@@ -1575,8 +1469,7 @@ static void powerStateOn(const Event event)
+             reset();
+             break;
+         default:
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++            std::cerr << __FUNCTION__ << " No action taken\n";
+             break;
+     }
+ }
+@@ -1612,8 +1505,7 @@ static void powerStateWaitForPSPowerOK(const Event event)
+             setPowerState(PowerState::on);
+             break;
+         default:
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++            std::cerr << __FUNCTION__ << " No action taken\n";
+             break;
+     }
+ }
+@@ -1632,8 +1524,7 @@ static void powerStateWaitForSIOPowerGood(const Event event)
+             systemPowerGoodFailedLog();
+             break;
+         default:
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++            std::cerr << __FUNCTION__ << " No action taken\n";
+             break;
+     }
+ }
+@@ -1671,8 +1562,7 @@ static void powerStateOff(const Event event)
+             powerOn();
+             break;
+         default:
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++            std::cerr << __FUNCTION__ << " No action taken\n";
+             break;
+     }
+ }
+@@ -1688,8 +1578,7 @@ static void powerStateTransitionToOff(const Event event)
+             setPowerState(PowerState::off);
+             break;
+         default:
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++            std::cerr << __FUNCTION__ << " No action taken\n";
+             break;
+     }
+ }
+@@ -1723,8 +1612,7 @@ static void powerStateGracefulTransitionToOff(const Event event)
+             reset();
+             break;
+         default:
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++            std::cerr << __FUNCTION__ << " No action taken\n";
+             break;
+     }
+ }
+@@ -1762,8 +1650,7 @@ static void powerStateCycleOff(const Event event)
+             powerOn();
+             break;
+         default:
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++            std::cerr << __FUNCTION__ << " No action taken\n";
+             break;
+     }
+ }
+@@ -1780,8 +1667,7 @@ static void powerStateTransitionToCycleOff(const Event event)
+             powerCycleTimerStart();
+             break;
+         default:
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++            std::cerr << __FUNCTION__ << " No action taken\n";
+             break;
+     }
+ }
+@@ -1816,8 +1702,7 @@ static void powerStateGracefulTransitionToCycleOff(const Event event)
+             reset();
+             break;
+         default:
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++            std::cerr << __FUNCTION__ << " No action taken\n";
+             break;
+     }
+ }
+@@ -1839,8 +1724,7 @@ static void powerStateCheckForWarmReset(const Event event)
+             setPowerState(PowerState::off);
+             break;
+         default:
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++            std::cerr << __FUNCTION__ << " No action taken\n";
+             break;
+     }
+ }
+@@ -1860,10 +1744,7 @@ static void psPowerOKHandler()
+         [](const boost::system::error_code ec) {
+             if (ec)
+             {
+-                std::string errMsg =
+-                    "power supply power OK handler error: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "power supply power OK handler error: " << ec.message() <<"\n";
+                 return;
+             }
+             psPowerOKHandler();
+@@ -1885,10 +1766,7 @@ static void sioPowerGoodHandler()
+         [](const boost::system::error_code ec) {
+             if (ec)
+             {
+-                std::string errMsg =
+-                    "SIO power good handler error: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "SIO power good handler error: " << ec.message() << "\n";
+                 return;
+             }
+             sioPowerGoodHandler();
+@@ -1901,18 +1779,13 @@ static void sioOnControlHandler()
+ 
+     bool sioOnControl =
+         gpioLineEvent.event_type == gpiod::line_event::RISING_EDGE;
+-    std::string logMsg =
+-        "SIO_ONCONTROL value changed: " + std::to_string(sioOnControl);
+-    phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
++    std::cerr << "SIO_ONCONTROL value changed: " << std::to_string(sioOnControl) << "\n";
+     sioOnControlEvent.async_wait(
+         boost::asio::posix::stream_descriptor::wait_read,
+         [](const boost::system::error_code ec) {
+             if (ec)
+             {
+-                std::string errMsg =
+-                    "SIO ONCONTROL handler error: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "SIO ONCONTROL handler error: " << ec.message() << "\n";
+                 return;
+             }
+             sioOnControlHandler();
+@@ -1934,9 +1807,7 @@ static void sioS5Handler()
+         [](const boost::system::error_code ec) {
+             if (ec)
+             {
+-                std::string errMsg = "SIO S5 handler error: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "SIO S5 handler error: " << ec.message() << "\n";
+                 return;
+             }
+             sioS5Handler();
+@@ -1958,8 +1829,7 @@ static void powerButtonHandler()
+         }
+         else
+         {
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "power button press masked");
++            std::cerr << "power button press masked\n";
+         }
+     }
+     else if (gpioLineEvent.event_type == gpiod::line_event::RISING_EDGE)
+@@ -1971,10 +1841,7 @@ static void powerButtonHandler()
+         [](const boost::system::error_code ec) {
+             if (ec)
+             {
+-                std::string errMsg =
+-                    "power button handler error: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "power button handler error: " << ec.message() << "\n";
+                 return;
+             }
+             powerButtonHandler();
+@@ -1996,8 +1863,7 @@ static void resetButtonHandler()
+         }
+         else
+         {
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "reset button press masked");
++            std::cerr << "reset button press masked\n";
+         }
+     }
+     else if (gpioLineEvent.event_type == gpiod::line_event::RISING_EDGE)
+@@ -2009,10 +1875,7 @@ static void resetButtonHandler()
+         [](const boost::system::error_code ec) {
+             if (ec)
+             {
+-                std::string errMsg =
+-                    "reset button handler error: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "reset button handler error: " << ec.message() << "\n";
+                 return;
+             }
+             resetButtonHandler();
+@@ -2031,9 +1894,7 @@ void systemReset()
+         [](boost::system::error_code ec) {
+             if (ec)
+             {
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    "Failed to call chassis system reset",
+-                    phosphor::logging::entry("ERR=%s", ec.message().c_str()));
++                std::cerr << "Failed to call chassis system reset " << ec.message() << "\n";
+             }
+         },
+         systemdBusname, systemdPath, systemdInterface, "StartUnit",
+@@ -2047,8 +1908,7 @@ static void nmiSetEnableProperty(bool value)
+         [](boost::system::error_code ec) {
+             if (ec)
+             {
+-                phosphor::logging::log<phosphor::logging::level::INFO>(
+-                    "failed to set NMI source");
++                std::cerr << "failed to set NMI source\n";
+             }
+         },
+         "xyz.openbmc_project.Settings",
+@@ -2068,33 +1928,27 @@ static void nmiReset(void)
+     gpioAssertTimer.async_wait([](const boost::system::error_code ec) {
+         // restore the NMI_OUT GPIO line back to the opposite value
+         nmiOutLine.set_value(power_control::nmiPassive);
+-        std::string logMsg = nmiOutName + " released";
+-        phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
++        std::cerr <<  nmiOutName << " released\n";
+         if (ec)
+         {
+             // operation_aborted is expected if timer is canceled before
+             // completion.
+             if (ec != boost::asio::error::operation_aborted)
+             {
+-                std::string errMsg =
+-                    nmiOutName + " async_wait failed: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << nmiOutName << " async_wait failed: " << ec.message() << "\n";
+             }
+         }
+     });
+     // log to redfish
+     nmiDiagIntLog();
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        "NMI out action completed");
++    std::cerr << "NMI out action completed\n";
+     // reset Enable Property
+     nmiSetEnableProperty(false);
+ }
+ 
+ static void nmiSourcePropertyMonitor(void)
+ {
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        "NMI Source Property Monitor");
++    std::cerr << "NMI Source Property Monitor\n";
+ 
+     static std::unique_ptr<sdbusplus::bus::match::match> nmiSourceMatch =
+         std::make_unique<sdbusplus::bus::match::match>(
+@@ -2117,11 +1971,7 @@ static void nmiSourcePropertyMonitor(void)
+                     {
+                         value =
+                             std::get<bool>(propertiesChanged.begin()->second);
+-                        std::string logMsg =
+-                            " NMI Enabled propertiesChanged value: " +
+-                            std::to_string(value);
+-                        phosphor::logging::log<phosphor::logging::level::INFO>(
+-                            logMsg.c_str());
++                        std::cerr << " NMI Enabled propertiesChanged value: " << std::to_string(value) << "\n";
+                         nmiEnabled = value;
+                         if (nmiEnabled)
+                         {
+@@ -2131,8 +1981,7 @@ static void nmiSourcePropertyMonitor(void)
+                 }
+                 catch (std::exception& e)
+                 {
+-                    phosphor::logging::log<phosphor::logging::level::ERR>(
+-                        "Unable to read NMI source");
++                    std::cerr << "Unable to read NMI source\n";
+                     return;
+                 }
+             });
+@@ -2144,8 +1993,7 @@ static void setNmiSource()
+         [](boost::system::error_code ec) {
+             if (ec)
+             {
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    "failed to set NMI source");
++                std::cerr << "failed to set NMI source\n";
+             }
+         },
+         "xyz.openbmc_project.Settings",
+@@ -2168,8 +2016,7 @@ static void nmiButtonHandler()
+         nmiButtonIface->set_property("ButtonPressed", true);
+         if (nmiButtonMasked)
+         {
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "NMI button press masked");
++            std::cerr << "NMI button press masked\n";
+         }
+         else
+         {
+@@ -2185,10 +2032,7 @@ static void nmiButtonHandler()
+         [](const boost::system::error_code ec) {
+             if (ec)
+             {
+-                std::string errMsg =
+-                    "NMI button handler error: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "NMI button handler error: " << ec.message() << "\n";
+                 return;
+             }
+             nmiButtonHandler();
+@@ -2221,9 +2065,7 @@ static void idButtonHandler()
+         [](const boost::system::error_code& ec) {
+             if (ec)
+             {
+-                std::string errMsg = "ID button handler error: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "ID button handler error: " << ec.message() << "\n";
+                 return;
+             }
+             idButtonHandler();
+@@ -2254,14 +2096,12 @@ static void hostMiscHandler(sdbusplus::message::message& msg)
+     }
+     catch (std::exception& e)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Unable to read Host Misc status");
++        std::cerr << "Unable to read Host Misc status\n";
+         return;
+     }
+     if (propertiesChanged.empty())
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "ERROR: Empty Host.Misc PropertiesChanged signal received");
++        std::cerr << "ERROR: Empty Host.Misc PropertiesChanged signal received\n";
+         return;
+     }
+ 
+@@ -2272,9 +2112,7 @@ static void hostMiscHandler(sdbusplus::message::message& msg)
+             bool* pltRst = std::get_if<bool>(&value);
+             if (pltRst == nullptr)
+             {
+-                std::string errMsg = property + " property invalid";
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << property + " property invalid\n";
+                 return;
+             }
+             pltRstHandler(*pltRst);
+@@ -2298,8 +2136,7 @@ static void lockSwitchHandler()
+                              [](const boost::system::error_code& ec) {
+                                  if (ec)
+                                  {
+-                                     std::cerr << "Lock switch handler error: "
+-                                               << ec.message() << "\n";
++                                     std::cerr << "Lock switch handler error: " << ec.message() << "\n";
+                                      return;
+                                  }
+                                  lockSwitchHandler();
+@@ -2327,10 +2164,7 @@ static void postCompleteHandler()
+         [](const boost::system::error_code ec) {
+             if (ec)
+             {
+-                std::string errMsg =
+-                    "POST complete handler error: " + ec.message();
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    errMsg.c_str());
++                std::cerr << "POST complete handler error: " << ec.message() << "\n";
+                 return;
+             }
+             postCompleteHandler();
+@@ -2345,16 +2179,14 @@ static int loadConfigValues()
+     std::ifstream configFile(configFilePath.c_str());
+     if (!configFile.is_open())
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "loadConfigValues : Cannot open config path");
++        std::cerr << "loadConfigValues : Cannot open config path\n";
+         return -1;
+     }
+     auto data = nlohmann::json::parse(configFile, nullptr);
+ 
+     if (data.is_discarded())
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Power config readings JSON parser failure");
++        std::cerr << "Power config readings JSON parser failure\n";
+         return -1;
+     }
+ 
+@@ -2460,15 +2292,13 @@ static int loadConfigValues()
+ int main(int argc, char* argv[])
+ {
+     using namespace power_control;
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        "Start Chassis power control service...");
++    std::cerr << "Start Chassis power control service...\n";
+     conn = std::make_shared<sdbusplus::asio::connection>(io);
+ 
+     // Load GPIO's through json config file
+     if (loadConfigValues() == -1)
+     {
+-        std::string errMsg = "Host" + node + ": " + "Error in Parsing...";
+-        phosphor::logging::log<phosphor::logging::level::ERR>(errMsg.c_str());
++        std::cerr << "Host " << node << ": Error in Parsing...\n";
+     }
+ 
+     // Request all the dbus names
+@@ -2482,8 +2312,7 @@ int main(int argc, char* argv[])
+     if (sioPwrGoodName.empty() || sioOnControlName.empty() || sioS5Name.empty())
+     {
+         sioEnabled = false;
+-        phosphor::logging::log<phosphor::logging::level::INFO>(
+-            "SIO control GPIOs not defined, disable SIO support.");
++        std::cerr << "SIO control GPIOs not defined, disable SIO support.\n";
+     }
+ 
+     // Request PS_PWROK GPIO events
+@@ -2497,8 +2326,7 @@ int main(int argc, char* argv[])
+     }
+     else
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "PowerOk name should be configured from json config file");
++        std::cerr << "PowerOk name should be configured from json config file\n";
+         return -1;
+     }
+ 
+@@ -2536,8 +2364,7 @@ int main(int argc, char* argv[])
+     }
+     else
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "powerButton name should be configured from json config file");
++        std::cerr << "powerButton name should be configured from json config file\n";
+         return -1;
+     }
+ 
+@@ -2552,8 +2379,7 @@ int main(int argc, char* argv[])
+     }
+     else
+     {
+-        phosphor::logging::log<phosphor::logging::level::INFO>(
+-            "ResetButton not defined...");
++        std::cerr << "ResetButton not defined...\n";
+     }
+ 
+     // Request NMI_BUTTON GPIO events
+@@ -2597,8 +2423,7 @@ int main(int argc, char* argv[])
+     }
+     else
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "postComplete name should be configured from json config file");
++        std::cerr << "postComplete name should be configured from json config file\n";
+         return -1;
+     }
+ 
+@@ -2640,8 +2465,7 @@ int main(int argc, char* argv[])
+     if (nmiOutLine)
+         nmiSourcePropertyMonitor();
+ 
+-    phosphor::logging::log<phosphor::logging::level::INFO>(
+-        "Initializing power state. ");
++    std::cerr << "Initializing power state.\n";
+     logStateTransition(powerState);
+ 
+     // Power Control Service
+@@ -2687,8 +2511,7 @@ int main(int argc, char* argv[])
+             }
+             else
+             {
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    "Unrecognized host state transition request.");
++                std::cerr << "Unrecognized host state transition request\n";
+                 throw std::invalid_argument("Unrecognized Transition Request");
+                 return 0;
+             }
+@@ -2732,8 +2555,7 @@ int main(int argc, char* argv[])
+             }
+             else
+             {
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    "Unrecognized chassis state transition request.");
++                std::cerr << "Unrecognized chassis state transition request\n";
+                 throw std::invalid_argument("Unrecognized Transition Request");
+                 return 0;
+             }
+@@ -2768,8 +2590,7 @@ int main(int argc, char* argv[])
+             }
+             else
+             {
+-                phosphor::logging::log<phosphor::logging::level::ERR>(
+-                    "Unrecognized chassis system state transition request.");
++                std::cerr << "Unrecognized chassis system state transition request\n";
+                 throw std::invalid_argument("Unrecognized Transition Request");
+                 return 0;
+             }
+@@ -2806,8 +2627,7 @@ int main(int argc, char* argv[])
+                     throw std::runtime_error("Failed to request GPIO");
+                     return 0;
+                 }
+-                phosphor::logging::log<phosphor::logging::level::INFO>(
+-                    "Power Button Masked.");
++                std::cerr << "Power Button Masked\n";
+             }
+             else
+             {
+@@ -2815,8 +2635,7 @@ int main(int argc, char* argv[])
+                 {
+                     return 1;
+                 }
+-                phosphor::logging::log<phosphor::logging::level::INFO>(
+-                    "Power Button Un-masked");
++                std::cerr << "Power Button Un-masked\n";
+                 powerButtonMask.reset();
+             }
+             // Update the mask setting
+@@ -2850,8 +2669,7 @@ int main(int argc, char* argv[])
+                         throw std::runtime_error("Failed to request GPIO");
+                         return 0;
+                     }
+-                    phosphor::logging::log<phosphor::logging::level::INFO>(
+-                        "Reset Button Masked.");
++                    std::cerr << "Reset Button Masked\n";
+                 }
+                 else
+                 {
+@@ -2859,8 +2677,7 @@ int main(int argc, char* argv[])
+                     {
+                         return 1;
+                     }
+-                    phosphor::logging::log<phosphor::logging::level::INFO>(
+-                        "Reset Button Un-masked");
++                    std::cerr << "Reset Button Un-masked\n";
+                     resetButtonMask.reset();
+                 }
+                 // Update the mask setting
+@@ -2892,14 +2709,12 @@ int main(int argc, char* argv[])
+                 }
+                 if (requested)
+                 {
+-                    phosphor::logging::log<phosphor::logging::level::INFO>(
+-                        "NMI Button Masked.");
++                    std::cerr << "NMI Button Masked\n";
+                     nmiButtonMasked = true;
+                 }
+                 else
+                 {
+-                    phosphor::logging::log<phosphor::logging::level::INFO>(
+-                        "NMI Button Un-masked.");
++                    std::cerr << "NMI Button Un-masked\n";
+                     nmiButtonMasked = false;
+                 }
+                 // Update the mask setting
+@@ -3011,9 +2826,7 @@ int main(int argc, char* argv[])
+                 return 0;
+             }
+ 
+-            std::string logMsg = "RestartCause requested: " + requested;
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                logMsg.c_str());
++            std::cerr << "RestartCause requested: " << requested << "\n";
+             resp = requested;
+             return 1;
+         });
+-- 
+2.7.4
+

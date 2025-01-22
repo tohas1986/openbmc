@@ -1,0 +1,33 @@
+From 785430049a175dd0334e93d492ac5eecd6f76567 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 30 Oct 2020 15:28:23 +0000
+Subject: [PATCH 1/1] lpc_snoop: Don't enable interrupts; it's done in
+ bmc-ready from user space
+
+---
+ drivers/soc/aspeed/aspeed-lpc-snoop.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/soc/aspeed/aspeed-lpc-snoop.c b/drivers/soc/aspeed/aspeed-lpc-snoop.c
+index 0c654a9..bf98ba0 100644
+--- a/drivers/soc/aspeed/aspeed-lpc-snoop.c
++++ b/drivers/soc/aspeed/aspeed-lpc-snoop.c
+@@ -217,13 +217,13 @@ static int aspeed_lpc_enable_snoop(struct aspeed_lpc_snoop *lpc_snoop,
+ 	/* Enable LPC snoop channel at requested port */
+ 	switch (channel) {
+ 	case 0:
+-		hicr5_en = HICR5_EN_SNP0W | HICR5_ENINT_SNP0W;
++		hicr5_en = HICR5_EN_SNP0W; // HICR5_ENINT_SNP0W will be enabled in user space
+ 		snpwadr_mask = SNPWADR_CH0_MASK;
+ 		snpwadr_shift = SNPWADR_CH0_SHIFT;
+ 		hicrb_en = HICRB_ENSNP0D;
+ 		break;
+ 	case 1:
+-		hicr5_en = HICR5_EN_SNP1W | HICR5_ENINT_SNP1W;
++		hicr5_en = HICR5_EN_SNP1W; // HICR5_ENINT_SNP1W will be enabled in user space
+ 		snpwadr_mask = SNPWADR_CH1_MASK;
+ 		snpwadr_shift = SNPWADR_CH1_SHIFT;
+ 		hicrb_en = HICRB_ENSNP1D;
+-- 
+2.7.4
+

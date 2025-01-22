@@ -37,14 +37,13 @@ inherit siteinfo
 export CONFIG_SITE
 
 acpaths ?= "default"
-EXTRA_AUTORECONF += "--exclude=autopoint"
+EXTRA_AUTORECONF = "--exclude=autopoint --exclude=gtkdocize"
 
 export lt_cv_sys_lib_dlsearch_path_spec = "${libdir} ${base_libdir}"
 
 # When building tools for use at build-time it's recommended for the build
 # system to use these variables when cross-compiling.
-# https://www.gnu.org/software/autoconf-archive/ax_prog_cc_for_build.html
-# https://stackoverflow.com/questions/24201260/autotools-cross-compilation-and-generated-sources/24208587#24208587
+# (http://sources.redhat.com/autobook/autobook/autobook_270.html)
 export CPP_FOR_BUILD = "${BUILD_CPP}"
 export CPPFLAGS_FOR_BUILD = "${BUILD_CPPFLAGS}"
 
@@ -77,7 +76,7 @@ CONFIGUREOPTS = " --build=${BUILD_SYS} \
 		  --localstatedir=${localstatedir} \
 		  --libdir=${libdir} \
 		  --includedir=${includedir} \
-		  --oldincludedir=${includedir} \
+		  --oldincludedir=${oldincludedir} \
 		  --infodir=${infodir} \
 		  --mandir=${mandir} \
 		  --disable-silent-rules \
@@ -158,7 +157,7 @@ python autotools_aclocals () {
 
 do_configure[file-checksums] += "${@' '.join(siteinfo_get_files(d, sysrootcache=False)[1])}"
 
-CONFIGURE_FILES = "${S}/configure.in ${S}/configure.ac ${S}/config.h.in *.m4 Makefile.am"
+CONFIGURE_FILES = "${S}/configure.in ${S}/configure.ac ${S}/config.h.in ${S}/acinclude.m4 Makefile.am"
 
 autotools_do_configure() {
 	# WARNING: gross hack follows:

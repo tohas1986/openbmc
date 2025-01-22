@@ -1,0 +1,73 @@
+From eaf57c7a286ddf7ff9ac745864e7b5c47300a5d6 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 1 Dec 2022 11:12:05 +0000
+Subject: [PATCH] Fix BW log files search and clear
+
+---
+ src/storagecommands.cpp | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)
+
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index db0b6a1..4957f66 100644
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -46,6 +46,9 @@ static const std::string selLogFilename = "ipmi_sel";
+ static const std::filesystem::path redfishLogDir = "/var/lib/ipmi";
+ static const std::string redfishLogFilename = "redfish";
+ 
++static const std::filesystem::path bwLogDir = "/var/lib/ipmi";
++static const std::string bwLogFilename = "bw.txt";
++
+ static int getFileTimestamp(const std::filesystem::path& file)
+ {
+     struct stat st;
+@@ -882,6 +885,28 @@ static bool getRedfishLogFiles(std::vector<std::filesystem::path>& redfishLogFil
+     return !redfishLogFiles.empty();
+ }
+ 
++static bool getBwLogFiles(std::vector<std::filesystem::path>& bwLogFiles)
++{
++    // Loop through the directory looking for log files
++    for (const std::filesystem::directory_entry& dirEnt :
++         std::filesystem::directory_iterator(intel_oem::ipmi::sel::bwLogDir))
++    {
++        std::string filename = dirEnt.path().filename();
++        if (boost::starts_with(filename, intel_oem::ipmi::sel::bwLogFilename))
++        {
++            // If we find an log file, save the path
++            bwLogFiles.emplace_back(intel_oem::ipmi::sel::bwLogDir /
++                                     filename);
++        }
++    }
++    // As the log files rotate, they are appended with a ".#" that is higher for
++    // the older logs. Since we don't expect more than 10 log files, we
++    // can just sort the list to get them in order from newest to oldest
++    std::sort(bwLogFiles.begin(), bwLogFiles.end());
++
++    return !bwLogFiles.empty();
++}
++
+ static int countSELEntries()
+ {
+     // Get the list of ipmi_sel log files
+@@ -1349,6 +1374,17 @@ ipmi::RspType<uint8_t> ipmiStorageClearSEL(ipmi::Context::ptr ctx,
+         }
+     }
+ 
++    // Clear the bw.txt by deleting the log files
++    std::vector<std::filesystem::path> bwLogFiles;
++    if (getBwLogFiles(bwLogFiles))
++    {
++        for (const std::filesystem::path& file : bwLogFiles)
++        {
++            std::error_code ec;
++            std::filesystem::remove(file, ec);
++        }
++    }
++
+     // Reload rsyslog so it knows to start new log files
+     std::shared_ptr<sdbusplus::asio::connection> dbus = getSdBus();
+     sdbusplus::message::message rsyslogReload = dbus->new_method_call(
+-- 
+2.36.1
+

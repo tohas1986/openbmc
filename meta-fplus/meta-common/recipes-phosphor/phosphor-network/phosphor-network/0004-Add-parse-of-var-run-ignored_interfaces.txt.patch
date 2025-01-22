@@ -1,0 +1,158 @@
+From bf5a4378c660168844c9da0a1c0cc6c72f7c48f2 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 2 Mar 2023 17:56:27 +0000
+Subject: [PATCH] Subject: [PATCH] Add parse of /var/run/ignored_interfaces.txt
+
+---
+ src/network_manager.cpp |  2 +-
+ src/util.cpp            | 62 ++++++++++++++++++++---------------------
+ src/util.hpp            | 10 ++-----
+ 3 files changed, 34 insertions(+), 40 deletions(-)
+---
+ src/system_queries.cpp |  2 +-
+ src/util.cpp           | 62 +++++++++++++++++++++---------------------
+ src/util.hpp           | 10 ++-----
+ 3 files changed, 34 insertions(+), 40 deletions(-)
+
+diff --git a/src/system_queries.cpp b/src/system_queries.cpp
+index f0222ec2..5d321759 100644
+--- a/src/system_queries.cpp
++++ b/src/system_queries.cpp
+@@ -217,7 +217,7 @@ bool detail::validateNewInterface(const InterfaceInfo& info)
+         throw std::invalid_argument("Interface Dump missing name");
+     }
+     const auto& ignored = internal::getIgnoredInterfaces();
+-    if (ignored.find(*info.name) != ignored.end())
++    if (std::find(ignored.begin(), ignored.end(), *info.name) != ignored.end())
+     {
+         return false;
+     }
+diff --git a/src/util.cpp b/src/util.cpp
+index 23ab4bf9..93967604 100644
+--- a/src/util.cpp
++++ b/src/util.cpp
+@@ -24,6 +24,7 @@
+ #include <string_view>
+ #include <variant>
+ #include <xyz/openbmc_project/Common/error.hpp>
++#include <fstream>
+ 
+ namespace phosphor
+ {
+@@ -83,54 +84,53 @@ void executeCommandinChildProcess(stdplus::const_zstring path, char** args)
+ }
+ 
+ /** @brief Get ignored interfaces from environment */
+-std::string_view getIgnoredInterfacesEnv()
++std::string getIgnoredInterfacesEnv()
+ {
+     auto r = std::getenv("IGNORED_INTERFACES");
+     if (r == nullptr)
+-    {
+         return "";
+-    }
+     return r;
+ }
+ 
++/** @brief Get ignored interfaces from file */
++std::string getIgnoredInterfacesFile()
++{
++    std::string s;
++    std::ifstream in("/var/run/ignored_interfaces.txt");
++    if ( ! in.is_open())
++        return "";
++    in >> s;
++    in.close();
++    return s;
++}
++
+ /** @brief Parse the comma separated interface names */
+-std::unordered_set<std::string_view>
+-    parseInterfaces(std::string_view interfaces)
++std::vector<std::string> parseInterfaces(std::string s)
+ {
+-    std::unordered_set<std::string_view> result;
+-    while (true)
++    std::vector<std::string> result;
++    s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
++
++    size_t pos = 0;
++    while ((pos = s.find(',')) != std::string::npos)
+     {
+-        auto sep = interfaces.find(',');
+-        auto interface = interfaces.substr(0, sep);
+-        while (!interface.empty() && std::isspace(interface.front()))
+-        {
+-            interface.remove_prefix(1);
+-        }
+-        while (!interface.empty() && std::isspace(interface.back()))
+-        {
+-            interface.remove_suffix(1);
+-        }
+-        if (!interface.empty())
+-        {
+-            result.insert(interface);
+-        }
+-        if (sep == interfaces.npos)
+-        {
+-            break;
+-        }
+-        interfaces = interfaces.substr(sep + 1);
++        std::string iface = s.substr(0, pos);
++        result.push_back(iface);
++        s.erase(0, pos + 1);
+     }
++
++    result.push_back(s);
+     return result;
+ }
+ 
+ /** @brief Get the ignored interfaces */
+-const std::unordered_set<std::string_view>& getIgnoredInterfaces()
++std::vector<std::string> getIgnoredInterfaces()
+ {
+-    static auto ignoredInterfaces = parseInterfaces(getIgnoredInterfacesEnv());
+-    return ignoredInterfaces;
+-}
++    std::string s = getIgnoredInterfacesEnv();
++    s += getIgnoredInterfacesFile();
+ 
+-} // namespace internal
++    return parseInterfaces(s);
++}
++}// namespace internal
+ 
+ constexpr auto familyVisit(auto&& visitor, int family)
+ {
+diff --git a/src/util.hpp b/src/util.hpp
+index ea9d767a..014d884e 100644
+--- a/src/util.hpp
++++ b/src/util.hpp
+@@ -13,6 +13,7 @@
+ #include <string>
+ #include <string_view>
+ #include <unordered_set>
++#include <vector>
+ #include <xyz/openbmc_project/Network/EthernetInterface/server.hpp>
+ 
+ namespace phosphor
+@@ -144,15 +145,8 @@ namespace internal
+  */
+ void executeCommandinChildProcess(stdplus::const_zstring path, char** args);
+ 
+-/** @brief Get ignored interfaces from environment */
+-std::string_view getIgnoredInterfacesEnv();
+-
+-/** @brief Parse the comma separated interface names */
+-std::unordered_set<std::string_view>
+-    parseInterfaces(std::string_view interfaces);
+-
+ /** @brief Get the ignored interfaces */
+-const std::unordered_set<std::string_view>& getIgnoredInterfaces();
++std::vector<std::string> getIgnoredInterfaces();
+ 
+ } // namespace internal
+ 
+-- 
+2.34.1
+

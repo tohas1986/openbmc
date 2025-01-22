@@ -1,0 +1,72 @@
+From 10389aa39380447508bdce663e3dc28261f183d6 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 30 Sep 2022 08:30:48 +0000
+Subject: [PATCH] Fix SEGV; Reduce accumulation interval for SOL
+
+---
+ message_handler.cpp | 8 ++++++--
+ sol/sol_manager.hpp | 4 ++--
+ 2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/message_handler.cpp b/message_handler.cpp
+index b7314b8..3fc94d1 100644
+--- a/message_handler.cpp
++++ b/message_handler.cpp
+@@ -40,6 +40,8 @@ bool Handler::receive()
+ 
+ void Handler::updSessionData(std::shared_ptr<Message>& inMessage)
+ {
++	if (!inMessage)
++		return;
+     session = session::Manager::get().getSession(inMessage->bmcSessionID);
+ 
+     sessionID = inMessage->bmcSessionID;
+@@ -57,7 +59,7 @@ Handler::~Handler()
+     try
+     {
+ #ifdef RMCP_PING
+-        if (ClassOfMsg::ASF == inMessage->rmcpMsgClass)
++        if (inMessage && ClassOfMsg::ASF == inMessage->rmcpMsgClass)
+         {
+             sendASF();
+         }
+@@ -93,7 +95,7 @@ void Handler::processIncoming()
+ 
+ #ifdef RMCP_PING
+     // Execute the Command, possibly asynchronously
+-    if (ClassOfMsg::ASF != inMessage->rmcpMsgClass)
++    if (inMessage && ClassOfMsg::ASF != inMessage->rmcpMsgClass)
+ #endif // RMCP_PING
+     {
+         updSessionData(inMessage);
+@@ -152,6 +154,8 @@ void Handler::writeData(const std::vector<uint8_t>& packet)
+ #ifdef RMCP_PING
+ void Handler::sendASF()
+ {
++    if (!inMessage)
++        return;
+     // Flatten the packet
+     auto packet = asfparser::flatten(inMessage->asfMsgTag);
+ 
+diff --git a/sol/sol_manager.hpp b/sol/sol_manager.hpp
+index 72c13b4..d92e3ce 100644
+--- a/sol/sol_manager.hpp
++++ b/sol/sol_manager.hpp
+@@ -140,7 +140,7 @@ class Manager
+      *  parameter value is accumulateInterval/5. The accumulateInterval
+      *  needs to be a multiple of 5.
+      */
+-    std::chrono::milliseconds accumulateInterval = 100ms;
++    std::chrono::milliseconds accumulateInterval = 10ms;
+ 
+     /** @brief Character Send Threshold
+      *
+@@ -174,7 +174,7 @@ class Manager
+      *  is 10 ms increments, 1-based value. The parameter value is
+      *  retryInterval/10. The retryInterval needs to be a multiple of 10.
+      */
+-    std::chrono::milliseconds retryInterval = 100ms;
++    std::chrono::milliseconds retryInterval = 10ms;
+ 
+     /** @brief Channel Number
+      *

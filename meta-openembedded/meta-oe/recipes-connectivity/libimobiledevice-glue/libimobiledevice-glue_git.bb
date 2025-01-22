@@ -8,9 +8,9 @@ HOMEPAGE = "http://www.libimobiledevice.org/"
 
 DEPENDS = "libplist"
 
-PV = "1.0.0+git"
+PV = "1.0.0+git${SRCPV}"
 
-SRCREV = "114098d30e783fbb3def5c9b49427a86621cfcb1"
+SRCREV = "d2ff7969dcd0a12e4f18f63dab03e6cd03054fcb"
 SRC_URI = "git://github.com/libimobiledevice/libimobiledevice-glue;protocol=https;branch=master"
 
 S = "${WORKDIR}/git"

@@ -20,9 +20,6 @@ do_configure[cleandirs] = "${B}"
 # Where the meson.build build configuration is
 MESON_SOURCEPATH = "${S}"
 
-# The target to build in do_compile. If unset the default targets are built.
-MESON_TARGET ?= ""
-
 def noprefix(var, d):
     return d.getVar(var).replace(d.getVar('prefix') + '/', '', 1)
 
@@ -61,7 +58,7 @@ def rust_tool(d, target_var):
     return "rust = %s" % repr(cmd)
 
 addtask write_config before do_configure
-do_write_config[vardeps] += "CC CXX AR NM STRIP READELF OBJCOPY CFLAGS CXXFLAGS LDFLAGS RUSTC RUSTFLAGS EXEWRAPPER_ENABLED"
+do_write_config[vardeps] += "CC CXX LD AR NM STRIP READELF CFLAGS CXXFLAGS LDFLAGS RUSTC RUSTFLAGS"
 do_write_config() {
     # This needs to be Py to split the args into single-element lists
     cat >${WORKDIR}/meson.cross <<EOF
@@ -74,12 +71,12 @@ nm = ${@meson_array('NM', d)}
 strip = ${@meson_array('STRIP', d)}
 readelf = ${@meson_array('READELF', d)}
 objcopy = ${@meson_array('OBJCOPY', d)}
-pkg-config = 'pkg-config'
-llvm-config = 'llvm-config'
+pkgconfig = 'pkg-config'
+llvm-config = 'llvm-config${LLVMVERSION}'
 cups-config = 'cups-config'
 g-ir-scanner = '${STAGING_BINDIR}/g-ir-scanner-wrapper'
 g-ir-compiler = '${STAGING_BINDIR}/g-ir-compiler-wrapper'
-${@rust_tool(d, "RUST_HOST_SYS")}
+${@rust_tool(d, "HOST_SYS")}
 ${@"exe_wrapper = '${WORKDIR}/meson-qemuwrapper'" if d.getVar('EXEWRAPPER_ENABLED') == 'True' else ""}
 
 [built-in options]
@@ -90,7 +87,6 @@ cpp_link_args = ${@meson_array('LDFLAGS', d)}
 
 [properties]
 needs_exe_wrapper = true
-sys_root = '${STAGING_DIR_HOST}'
 
 [host_machine]
 system = '${@meson_operating_system('HOST_OS', d)}'
@@ -115,9 +111,8 @@ nm = ${@meson_array('BUILD_NM', d)}
 strip = ${@meson_array('BUILD_STRIP', d)}
 readelf = ${@meson_array('BUILD_READELF', d)}
 objcopy = ${@meson_array('BUILD_OBJCOPY', d)}
-llvm-config = '${STAGING_BINDIR_NATIVE}/llvm-config'
-pkg-config = 'pkg-config-native'
-${@rust_tool(d, "RUST_BUILD_SYS")}
+pkgconfig = 'pkg-config-native'
+${@rust_tool(d, "BUILD_SYS")}
 
 [built-in options]
 c_args = ${@meson_array('BUILD_CFLAGS', d)}
@@ -153,8 +148,11 @@ meson_do_configure() {
     # https://github.com/mesonbuild/meson/commit/ef9aeb188ea2bc7353e59916c18901cde90fa2b3
     unset LD
 
+    # Work around "Meson fails if /tmp is mounted with noexec #2972"
+    mkdir -p "${B}/meson-private/tmp"
+    export TMPDIR="${B}/meson-private/tmp"
     bbnote Executing meson ${EXTRA_OEMESON}...
-    if ! meson setup ${MESONOPTS} "${MESON_SOURCEPATH}" "${B}" ${MESON_CROSS_FILE} ${EXTRA_OEMESON}; then
+    if ! meson ${MESONOPTS} "${MESON_SOURCEPATH}" "${B}" ${MESON_CROSS_FILE} ${EXTRA_OEMESON}; then
         bbfatal_log meson failed
     fi
 }
@@ -171,11 +169,11 @@ do_configure[postfuncs] += "meson_do_qa_configure"
 
 do_compile[progress] = "outof:^\[(\d+)/(\d+)\]\s+"
 meson_do_compile() {
-    meson compile -v ${PARALLEL_MAKE} ${MESON_TARGET}
+    ninja -v ${PARALLEL_MAKE}
 }
 
 meson_do_install() {
-    meson install --destdir ${D} --no-rebuild
+    DESTDIR='${D}' ninja -v ${PARALLEL_MAKEINST} install
 }
 
 EXPORT_FUNCTIONS do_configure do_compile do_install

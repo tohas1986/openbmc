@@ -1,0 +1,44 @@
+From 575ea999188851b655ca10fb84695b5315b4b6d3 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Mon, 24 Aug 2020 16:44:04 +0000
+Subject: [PATCH] Reduce-logging
+
+---
+ src/MCUTempSensor.cpp | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index 59423bb..c8f388b 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -122,7 +122,9 @@ int MCUTempSensor::getMCURegsInfoWord(uint8_t regs, int16_t* pu16data)
+ 
+     if (ioctl(fd, I2C_SLAVE_FORCE, mcuAddress) < 0)
+     {
+-        std::cerr << " unable to set device address\n";
++        //std::cerr << " unable to set device address\n";
++        if constexpr (debug)
++            std::cerr << " unable to set device address\n";
+         close(fd);
+         return -1;
+     }
+@@ -147,8 +149,8 @@ int MCUTempSensor::getMCURegsInfoWord(uint8_t regs, int16_t* pu16data)
+ 
+     if (*pu16data < 0)
+     {
+-        std::cerr << " read word data failed at " << static_cast<int>(regs)
+-                  << "\n";
++        if constexpr (debug)
++            std::cerr << " read word data failed at " << static_cast<int>(regs) << "\n";        
+         return -1;
+     }
+ 
+@@ -186,6 +188,8 @@ void MCUTempSensor::read(void)
+         else
+         {
+             std::cerr << "Invalid read getMCURegsInfoWord\n";
++            if constexpr (debug)
++                std::cerr << "Invalid read getMCURegsInfoWord\n";
+             incrementError();
+         }
+         read();

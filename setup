@@ -15,6 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+if [ -z "$ZSH_NAME" ] && [ "$(basename -- "$0")" = "setup" ]; then
+    echo The script must be sourced, not executed
+    exit 1
+fi
 
 # Check if 'column' command is present
 COLUMN_CMD=$(which column || true)
@@ -36,15 +40,15 @@ machine() {
     local cfg name tmpl
     local configs
 
-    # zsh requires wordsplit so that variable expansion behaves like bash
-    if [ -n "$ZSH_NAME" ]; then
-        setopt local_options shwordsplit
-    fi
-    if which find > /dev/null 2>&1; then
+	# zsh requires wordsplit so that variable expansion behaves like bash
+	if [ -n "$ZSH_NAME" ]; then
+		setopt local_options shwordsplit
+	fi
+	if which find > /dev/null 2>&1; then
         configs="$(find meta-* -path "*/conf/machine/*.conf")"
-    else
-        configs=$(ls -1 meta-*/meta-*/conf/machine/*.conf meta-*/conf/machine/*.conf)
-    fi
+	else
+		configs=$(ls -1 meta-*/meta-*/conf/machine/*.conf meta-*/conf/machine/*.conf)
+	fi
     # Add qemu machines.
     configs="$configs $(ls -1 poky/meta/conf/machine/qemu*.conf)"
 
@@ -52,9 +56,6 @@ machine() {
         name=${cfg##*/}
         name=${name%.conf}
         tmpl=${cfg%/machine/*.conf}
-        vendor=${cfg%%/*}
-        vendor=${vendor##meta-}
-        vendor=${vendor%%-openbmc}
 
         if [ "$tmpl" = "poky/meta/conf" ]; then
             # This is a QEMU machine, use phosphor defaults.
@@ -85,7 +86,7 @@ machine() {
                 return
             fi
         else
-            echo "${vendor}/${name}"
+            echo "${name}"
         fi
     done
 
@@ -93,34 +94,14 @@ machine() {
 }
 
 if [ -z "$1" ]; then
-    echo Target machine must be specified. Use one of:
-    echo
-    machine | sed "/qemu[^[:space:]]*/d" | sed "s#.*/##" | sort -h | "${COLUMN[@]}"
-    exit
+	echo Target machine must be specified. Use one of:
+	echo
+	machine | sort | sed "s/qemu[^[:space:]]*//" | "${COLUMN[@]}"
+else
+    bld_dir=$2
+    if [ -z "$2" ]; then
+        bld_dir="build/$1"
+    fi
+    machine "$1" "$bld_dir"
 fi
 
-if [ "$1" == "machines" ]; then
-    vendors=""
-    for m in $(machine | sort -h | sed "/qemu[^[:space:]]*/d"); do
-        vendor=${m%%/*}
-        machine=${m##*/}
-
-        if [[ ! "$vendors" =~ -$vendor- ]]; then
-            vendors="$vendors -$vendor-"
-            echo "* $vendor"
-        fi
-        echo "  * $machine"
-    done
-    exit
-fi
-
-if [ -z "$ZSH_NAME" ] && [ "$(basename -- "$0")" = "setup" ]; then
-    echo The script must be sourced, not executed
-    exit 1
-fi
-
-bld_dir=$2
-if [ -z "$2" ]; then
-    bld_dir="build/$1"
-fi
-machine "$1" "$bld_dir"

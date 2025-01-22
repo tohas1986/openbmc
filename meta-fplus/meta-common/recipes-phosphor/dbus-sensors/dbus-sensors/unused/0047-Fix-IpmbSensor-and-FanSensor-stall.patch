@@ -1,0 +1,224 @@
+From 6298f83b99ab6ed2a76635b1b1f63abf562d1ed0 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 26 Feb 2021 08:35:04 +0000
+Subject: [PATCH 1/1] Fix IpmbSensor and FanSensor stall
+
+---
+ src/FanMain.cpp       |  9 ++-------
+ src/IpmbSensor.cpp    | 49 ++++++++++++++++++++++++++-----------------------
+ src/MCUTempSensor.cpp |  2 +-
+ src/TachSensor.cpp    |  2 +-
+ 4 files changed, 30 insertions(+), 32 deletions(-)
+
+diff --git a/src/FanMain.cpp b/src/FanMain.cpp
+index e7014fb..0c993ba 100644
+--- a/src/FanMain.cpp
++++ b/src/FanMain.cpp
+@@ -515,15 +515,10 @@ int main(int argc, char* argv[])
+             filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+-                if (ec == boost::asio::error::operation_aborted)
+-                {
+-                    /* we were canceled*/
+-                    return;
+-                }
+-                else if (ec)
++                if (ec)
+                 {
+                     std::cerr << "timer error\n";
+-                    return;
++                    exit(-1);
+                 }
+                 createSensors(io, objectServer, tachSensors, pwmSensors,
+                               systemBus, sensorsChanged, 5);
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 1533957..9772a4f 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -351,7 +351,7 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+                 resp = meDataDIMMandCPU[deviceDIMMID + deviceChannelID*4 + 3];
+                 readingMeDIMMDataTime = std::chrono::duration_cast<std::chrono::seconds>(
+                 std::chrono::system_clock::now().time_since_epoch()).count();
+-                
++
+                 return true;
+             }
+             else
+@@ -409,8 +409,9 @@ void IpmbSensor::read(void)
+         waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
+         waitTimer.async_wait([this](const boost::system::error_code& ec) {
+             if (ec == boost::asio::error::operation_aborted)
+-            {   
+-                return; // we're being canceled
++            {
++                std::cerr << "read: Error occured, exiting\n";
++                exit(-1);
+             }
+             if (!readingStateGood())
+             {
+@@ -435,16 +436,16 @@ void IpmbSensor::read(void)
+                         read();
+                         return;
+                     }
+-                    
++
+                     if (DEBUG)
+                     {
+-                        std::cout << "Data from ME to: " << deviceTypeName << " : ";
++                        std::cerr << "Data from ME to: " << deviceTypeName << " : ";
+ 
+                         for (size_t d : data)
+                         {
+-                            std::cout << std::hex << d << " ";
++                            std::cerr << std::hex << d << " ";
+                         }
+-                        std::cout << "\n";
++                        std::cerr << "\n";
+                     }
+ 
+                     double value = 0;
+@@ -487,7 +488,8 @@ void IpmbSensor::read(void)
+         waitTimer.async_wait([this](const boost::system::error_code& ec) {
+             if (ec == boost::asio::error::operation_aborted)
+             {
+-                return; // we're being canceled
++                std::cerr << "read: Error occured, exiting\n";
++                exit(-1);
+             }
+ 
+             if (!readingStateGood())
+@@ -500,7 +502,7 @@ void IpmbSensor::read(void)
+             if (requestCnt > 2)
+             {
+                 double value = 0;
+-                
++
+                 if (!processReading(meDataDIMMandCPU, value))
+                 {
+                     incrementError();
+@@ -523,7 +525,7 @@ void IpmbSensor::read(void)
+                 }
+                 requestCnt++;
+                 read();
+-                return; 
++                return;
+             }
+ 
+             dbusConnection->async_method_call(
+@@ -547,13 +549,13 @@ void IpmbSensor::read(void)
+ 
+                     if (DEBUG)
+                     {
+-                        std::cout << "First bunch of Data from ME to: " << deviceTypeName << " : ";
++                        std::cerr << "First bunch of Data from ME to: " << deviceTypeName << " : ";
+ 
+                         for (size_t d : data)
+                         {
+-                            std::cout << std::hex << d << " ";
++                            std::cerr << std::hex << d << " ";
+                         }
+-                        std::cout << "\n";
++                        std::cerr << "\n";
+                     }
+ 
+                     meDataDIMMandCPU.clear();
+@@ -566,9 +568,9 @@ void IpmbSensor::read(void)
+                     dbusConnection->async_method_call(
+                         [this](boost::system::error_code ec,
+                             const IpmbMethodType& response) {
+-                            
++
+                             const int& status = std::get<0>(response);
+-                                
++
+                                 if (ec || status)
+                                 {
+                                     incrementError();
+@@ -584,16 +586,16 @@ void IpmbSensor::read(void)
+                                     read();
+                                     return;
+                                 }
+-                                
++
+                                 if (DEBUG)
+                                 {
+-                                    std::cout << "Second bunch of Data from ME to: " << deviceTypeName << " : ";
++                                    std::cerr << "Second bunch of Data from ME to: " << deviceTypeName << " : ";
+ 
+                                     for (size_t d : data)
+                                     {
+-                                        std::cout << std::hex << d << " ";
++                                        std::cerr << std::hex << d << " ";
+                                     }
+-                                    std::cout << "\n";
++                                    std::cerr << "\n";
+                                 }
+ 
+                                 for (int i=3; i < data.size(); i++)
+@@ -610,7 +612,7 @@ void IpmbSensor::read(void)
+                                     return;
+                                 }
+                                 value = (value * scaleVal) + offsetVal;
+-                                
++
+                                 if (value >= 161 && value <= 255)
+                                 {
+                                     updateValue(std::numeric_limits<double>::quiet_NaN());
+@@ -732,7 +734,7 @@ void createSensors(
+                     {
+                         deviceTypeName =
+                             loadVariant<std::string>(entry.second, "TypeName");
+-                        //std::cout << deviceTypeName << "\n";
++                        //std::cerr << deviceTypeName << "\n";
+                     }
+                     catch(...)
+                     {
+@@ -891,7 +893,8 @@ void reinitSensors(sdbusplus::message::message& message)
+             initCmdTimer->async_wait([](const boost::system::error_code ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+                 {
+-                    return; // we're being canceled
++                    std::cerr << "read: Error occured, exiting\n";
++                    exit(-1);
+                 }
+ 
+                 for (const auto& sensor : sensors)
+@@ -935,7 +938,7 @@ int main(int argc, char* argv[])
+                 createSensors(io, objectServer, sensors, systemBus);
+                 if (sensors.empty())
+                 {
+-                    std::cout << "Configuration not detected\n";
++                    std::cerr << "Configuration not detected\n";
+                 }
+             });
+         };
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index 9ed43e9..ae97554 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -150,7 +150,7 @@ int MCUTempSensor::getMCURegsInfoWord(uint8_t regs, int16_t* pu16data)
+     if (*pu16data < 0)
+     {
+         if constexpr (debug)
+-            std::cerr << " read word data failed at " << static_cast<int>(regs) << "\n";        
++            std::cerr << " read word data failed at " << static_cast<int>(regs) << "\n";
+         return -1;
+     }
+ 
+diff --git a/src/TachSensor.cpp b/src/TachSensor.cpp
+index c4180b1..e9b7d1e 100644
+--- a/src/TachSensor.cpp
++++ b/src/TachSensor.cpp
+@@ -63,7 +63,7 @@ TachSensor::TachSensor(const std::string& path, const std::string& objectType,
+ {
+ 
+     if (DEBUG)
+-    {   
++    {
+         std::cerr << "Constructed sensor: path " << path << " type "
+                   << objectType << " config " << sensorConfiguration
+                   << " name \"" << fanName << "\n";
+-- 
+2.7.4
+

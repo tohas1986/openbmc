@@ -1,0 +1,22 @@
+From 9b6ad76eb96dd35a1a7270074b3b6bdad95092bd Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 9 Apr 2021 08:49:42 +0000
+Subject: [PATCH] Wrap getACFailedStatus to return always false as we don't
+ have AC power
+
+---
+ src/chassiscommands.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/chassiscommands.cpp b/src/chassiscommands.cpp
+index 201e006..f1be21c 100644
+--- a/src/chassiscommands.cpp
++++ b/src/chassiscommands.cpp
+@@ -305,6 +305,7 @@ std::optional<bool> getPowerStatus()
+  */
+ bool getACFailStatus()
+ {
++    return false;
+     constexpr const char* acBootObj =
+         "/xyz/openbmc_project/control/host0/ac_boot";
+     constexpr const char* acBootIntf = "xyz.openbmc_project.Common.ACBoot";

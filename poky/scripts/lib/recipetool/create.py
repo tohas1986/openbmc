@@ -423,36 +423,6 @@ def create_recipe(args):
     storeTagName = ''
     pv_srcpv = False
 
-    handled = []
-    classes = []
-
-    # Find all plugins that want to register handlers
-    logger.debug('Loading recipe handlers')
-    raw_handlers = []
-    for plugin in plugins:
-        if hasattr(plugin, 'register_recipe_handlers'):
-            plugin.register_recipe_handlers(raw_handlers)
-    # Sort handlers by priority
-    handlers = []
-    for i, handler in enumerate(raw_handlers):
-        if isinstance(handler, tuple):
-            handlers.append((handler[0], handler[1], i))
-        else:
-            handlers.append((handler, 0, i))
-    handlers.sort(key=lambda item: (item[1], -item[2]), reverse=True)
-    for handler, priority, _ in handlers:
-        logger.debug('Handler: %s (priority %d)' % (handler.__class__.__name__, priority))
-        setattr(handler, '_devtool', args.devtool)
-    handlers = [item[0] for item in handlers]
-
-    fetchuri = None
-    for handler in handlers:
-        if hasattr(handler, 'process_url'):
-            ret = handler.process_url(args, classes, handled, extravalues)
-            if 'url' in handled and ret:
-                fetchuri = ret
-                break
-
     if os.path.isfile(source):
         source = 'file://%s' % os.path.abspath(source)
 
@@ -461,8 +431,7 @@ def create_recipe(args):
         if re.match(r'https?://github.com/[^/]+/[^/]+/archive/.+(\.tar\..*|\.zip)$', source):
             logger.warning('github archive files are not guaranteed to be stable and may be re-generated over time. If the latter occurs, the checksums will likely change and the recipe will fail at do_fetch. It is recommended that you point to an actual commit or tag in the repository instead (using the repository URL in conjunction with the -S/--srcrev option).')
         # Fetch a URL
-        if not fetchuri:
-            fetchuri = reformat_git_uri(urldefrag(source)[0])
+        fetchuri = reformat_git_uri(urldefrag(source)[0])
         if args.binary:
             # Assume the archive contains the directory structure verbatim
             # so we need to extract to a subdirectory
@@ -669,6 +638,8 @@ def create_recipe(args):
     # We'll come back and replace this later in handle_license_vars()
     lines_before.append('##LICENSE_PLACEHOLDER##')
 
+    handled = []
+    classes = []
 
     # FIXME This is kind of a hack, we probably ought to be using bitbake to do this
     pn = None
@@ -706,10 +677,8 @@ def create_recipe(args):
     if not srcuri:
         lines_before.append('# No information for SRC_URI yet (only an external source tree was specified)')
     lines_before.append('SRC_URI = "%s"' % srcuri)
-    shown_checksums = ["%ssum" % s for s in bb.fetch2.SHOWN_CHECKSUM_LIST]
     for key, value in sorted(checksums.items()):
-        if key in shown_checksums:
-            lines_before.append('SRC_URI[%s] = "%s"' % (key, value))
+        lines_before.append('SRC_URI[%s] = "%s"' % (key, value))
     if srcuri and supports_srcrev(srcuri):
         lines_before.append('')
         lines_before.append('# Modify these as desired')
@@ -721,7 +690,7 @@ def create_recipe(args):
             srcpvprefix = 'svnr'
         else:
             srcpvprefix = scheme
-        lines_before.append('PV = "%s+%s"' % (realpv or '1.0', srcpvprefix))
+        lines_before.append('PV = "%s+%s${SRCPV}"' % (realpv or '1.0', srcpvprefix))
         pv_srcpv = True
         if not args.autorev and srcrev == '${AUTOREV}':
             if os.path.exists(os.path.join(srctree, '.git')):
@@ -749,6 +718,25 @@ def create_recipe(args):
     if args.npm_dev:
         extravalues['NPM_INSTALL_DEV'] = 1
 
+    # Find all plugins that want to register handlers
+    logger.debug('Loading recipe handlers')
+    raw_handlers = []
+    for plugin in plugins:
+        if hasattr(plugin, 'register_recipe_handlers'):
+            plugin.register_recipe_handlers(raw_handlers)
+    # Sort handlers by priority
+    handlers = []
+    for i, handler in enumerate(raw_handlers):
+        if isinstance(handler, tuple):
+            handlers.append((handler[0], handler[1], i))
+        else:
+            handlers.append((handler, 0, i))
+    handlers.sort(key=lambda item: (item[1], -item[2]), reverse=True)
+    for handler, priority, _ in handlers:
+        logger.debug('Handler: %s (priority %d)' % (handler.__class__.__name__, priority))
+        setattr(handler, '_devtool', args.devtool)
+    handlers = [item[0] for item in handlers]
+
     # Apply the handlers
     if args.binary:
         classes.append('bin_package')
@@ -756,10 +744,6 @@ def create_recipe(args):
 
     for handler in handlers:
         handler.process(srctree_use, classes, lines_before, lines_after, handled, extravalues)
-
-    # native and nativesdk classes are special and must be inherited last
-    # If present, put them at the end of the classes list
-    classes.sort(key=lambda c: c in ("native", "nativesdk"))
 
     extrafiles = extravalues.pop('extrafiles', {})
     extra_pn = extravalues.pop('PN', None)
@@ -885,10 +869,8 @@ def create_recipe(args):
         outlines.append('')
     outlines.extend(lines_after)
 
-    outlines = [ line.rstrip('\n') +"\n" for line in outlines]
-
     if extravalues:
-        _, outlines = oe.recipeutils.patch_recipe_lines(outlines, extravalues, trailing_newline=True)
+        _, outlines = oe.recipeutils.patch_recipe_lines(outlines, extravalues, trailing_newline=False)
 
     if args.extract_to:
         scriptutils.git_convert_standalone_clone(srctree)
@@ -904,7 +886,7 @@ def create_recipe(args):
         log_info_cond('Source extracted to %s' % args.extract_to, args.devtool)
 
     if outfile == '-':
-        sys.stdout.write(''.join(outlines) + '\n')
+        sys.stdout.write('\n'.join(outlines) + '\n')
     else:
         with open(outfile, 'w') as f:
             lastline = None
@@ -912,10 +894,9 @@ def create_recipe(args):
                 if not lastline and not line:
                     # Skip extra blank lines
                     continue
-                f.write('%s' % line)
+                f.write('%s\n' % line)
                 lastline = line
         log_info_cond('Recipe %s has been created; further editing may be required to make it fully functional' % outfile, args.devtool)
-        tinfoil.modified_files()
 
     if tempsrc:
         if args.keep_temp:
@@ -1073,18 +1054,54 @@ def get_license_md5sums(d, static_only=False, linenumbers=False):
 
     return md5sums
 
-def crunch_known_licenses(d):
+def crunch_license(licfile):
     '''
-    Calculate the MD5 checksums for the crunched versions of all common
-    licenses. Also add additional known checksums.
+    Remove non-material text from a license file and then check
+    its md5sum against a known list. This works well for licenses
+    which contain a copyright statement, but is also a useful way
+    to handle people's insistence upon reformatting the license text
+    slightly (with no material difference to the text of the
+    license).
     '''
-    
+
+    import oe.utils
+
+    # Note: these are carefully constructed!
+    license_title_re = re.compile(r'^#*\(? *(This is )?([Tt]he )?.{0,15} ?[Ll]icen[sc]e( \(.{1,10}\))?\)?[:\.]? ?#*$')
+    license_statement_re = re.compile(r'^((This (project|software)|.{1,10}) is( free software)? (released|licen[sc]ed)|(Released|Licen[cs]ed)) under the .{1,10} [Ll]icen[sc]e:?$')
+    copyright_re = re.compile('^ *[#\*]* *(Modified work |MIT LICENSED )?Copyright ?(\([cC]\))? .*$')
+    disclaimer_re = re.compile('^ *\*? ?All [Rr]ights [Rr]eserved\.$')
+    email_re = re.compile('^.*<[\w\.-]*@[\w\.\-]*>$')
+    header_re = re.compile('^(\/\**!?)? ?[\-=\*]* ?(\*\/)?$')
+    tag_re = re.compile('^ *@?\(?([Ll]icense|MIT)\)?$')
+    url_re = re.compile('^ *[#\*]* *https?:\/\/[\w\.\/\-]+$')
+
     crunched_md5sums = {}
 
     # common licenses
-    crunched_md5sums['ad4e9d34a2e966dfe9837f18de03266d'] = 'GFDL-1.1-only'
-    crunched_md5sums['d014fb11a34eb67dc717fdcfc97e60ed'] = 'GFDL-1.2-only'
-    crunched_md5sums['e020ca655b06c112def28e597ab844f1'] = 'GFDL-1.3-only'
+    crunched_md5sums['89f3bf322f30a1dcfe952e09945842f0'] = 'Apache-2.0'
+    crunched_md5sums['13b6fe3075f8f42f2270a748965bf3a1'] = '0BSD'
+    crunched_md5sums['ba87a7d7c20719c8df4b8beed9b78c43'] = 'BSD-2-Clause'
+    crunched_md5sums['7f8892c03b72de419c27be4ebfa253f8'] = 'BSD-3-Clause'
+    crunched_md5sums['21128c0790b23a8a9f9e260d5f6b3619'] = 'BSL-1.0'
+    crunched_md5sums['975742a59ae1b8abdea63a97121f49f4'] = 'EDL-1.0'
+    crunched_md5sums['5322cee4433d84fb3aafc9e253116447'] = 'EPL-1.0'
+    crunched_md5sums['6922352e87de080f42419bed93063754'] = 'EPL-2.0'
+    crunched_md5sums['793475baa22295cae1d3d4046a3a0ceb'] = 'GPL-2.0-only'
+    crunched_md5sums['ff9047f969b02c20f0559470df5cb433'] = 'GPL-2.0-or-later'
+    crunched_md5sums['ea6de5453fcadf534df246e6cdafadcd'] = 'GPL-3.0-only'
+    crunched_md5sums['b419257d4d153a6fde92ddf96acf5b67'] = 'GPL-3.0-or-later'
+    crunched_md5sums['228737f4c49d3ee75b8fb3706b090b84'] = 'ISC'
+    crunched_md5sums['c6a782e826ca4e85bf7f8b89435a677d'] = 'LGPL-2.0-only'
+    crunched_md5sums['32d8f758a066752f0db09bd7624b8090'] = 'LGPL-2.0-or-later'
+    crunched_md5sums['4820937eb198b4f84c52217ed230be33'] = 'LGPL-2.1-only'
+    crunched_md5sums['db13fe9f3a13af7adab2dc7a76f9e44a'] = 'LGPL-2.1-or-later'
+    crunched_md5sums['d7a0f2e4e0950e837ac3eabf5bd1d246'] = 'LGPL-3.0-only'
+    crunched_md5sums['abbf328e2b434f9153351f06b9f79d02'] = 'LGPL-3.0-or-later'
+    crunched_md5sums['eecf6429523cbc9693547cf2db790b5c'] = 'MIT'
+    crunched_md5sums['b218b0e94290b9b818c4be67c8e1cc82'] = 'MIT-0'
+    crunched_md5sums['ddc18131d6748374f0f35a621c245b49'] = 'Unlicense'
+    crunched_md5sums['51f9570ff32571fc0a443102285c5e33'] = 'WTFPL'
 
     # The following two were gleaned from the "forever" npm package
     crunched_md5sums['0a97f8e4cbaf889d6fa51f84b89a79f6'] = 'ISC'
@@ -1140,39 +1157,6 @@ def crunch_known_licenses(d):
     # https://raw.githubusercontent.com/stackgl/gl-mat3/v2.0.0/LICENSE.md
     crunched_md5sums['75512892d6f59dddb6d1c7e191957e9c'] = 'Zlib'
 
-    commonlicdir = d.getVar('COMMON_LICENSE_DIR')
-    for fn in sorted(os.listdir(commonlicdir)):
-        md5value, lictext = crunch_license(os.path.join(commonlicdir, fn))
-        if md5value not in crunched_md5sums:
-            crunched_md5sums[md5value] = fn
-        elif fn != crunched_md5sums[md5value]:
-            bb.debug(2, "crunched_md5sums['%s'] is already set to '%s' rather than '%s'" % (md5value, crunched_md5sums[md5value], fn))
-        else:
-            bb.debug(2, "crunched_md5sums['%s'] is already set to '%s'" % (md5value, crunched_md5sums[md5value]))
-
-    return crunched_md5sums
-
-def crunch_license(licfile):
-    '''
-    Remove non-material text from a license file and then calculate its
-    md5sum. This works well for licenses that contain a copyright statement,
-    but is also a useful way to handle people's insistence upon reformatting
-    the license text slightly (with no material difference to the text of the
-    license).
-    '''
-
-    import oe.utils
-
-    # Note: these are carefully constructed!
-    license_title_re = re.compile(r'^#*\(? *(This is )?([Tt]he )?.{0,15} ?[Ll]icen[sc]e( \(.{1,10}\))?\)?[:\.]? ?#*$')
-    license_statement_re = re.compile(r'^((This (project|software)|.{1,10}) is( free software)? (released|licen[sc]ed)|(Released|Licen[cs]ed)) under the .{1,10} [Ll]icen[sc]e:?$')
-    copyright_re = re.compile(r'^ *[#\*]* *(Modified work |MIT LICENSED )?Copyright ?(\([cC]\))? .*$')
-    disclaimer_re = re.compile(r'^ *\*? ?All [Rr]ights [Rr]eserved\.$')
-    email_re = re.compile(r'^.*<[\w\.-]*@[\w\.\-]*>$')
-    header_re = re.compile(r'^(\/\**!?)? ?[\-=\*]* ?(\*\/)?$')
-    tag_re = re.compile(r'^ *@?\(?([Ll]icense|MIT)\)?$')
-    url_re = re.compile(r'^ *[#\*]* *https?:\/\/[\w\.\/\-]+$')
-
     lictext = []
     with open(licfile, 'r', errors='surrogateescape') as f:
         for line in f:
@@ -1214,17 +1198,16 @@ def crunch_license(licfile):
     except UnicodeEncodeError:
         md5val = None
         lictext = ''
-    return md5val, lictext
+    license = crunched_md5sums.get(md5val, None)
+    return license, md5val, lictext
 
 def guess_license(srctree, d):
     import bb
     md5sums = get_license_md5sums(d)
 
-    crunched_md5sums = crunch_known_licenses(d)
-
     licenses = []
     licspecs = ['*LICEN[CS]E*', 'COPYING*', '*[Ll]icense*', 'LEGAL*', '[Ll]egal*', '*GPL*', 'README.lic*', 'COPYRIGHT*', '[Cc]opyright*', 'e[dp]l-v10']
-    skip_extensions = (".html", ".js", ".json", ".svg", ".ts", ".go")
+    skip_extensions = (".html", ".js", ".json", ".svg", ".ts")
     licfiles = []
     for root, dirs, files in os.walk(srctree):
         for fn in files:
@@ -1239,8 +1222,7 @@ def guess_license(srctree, d):
         md5value = bb.utils.md5_file(licfile)
         license = md5sums.get(md5value, None)
         if not license:
-            crunched_md5, lictext = crunch_license(licfile)
-            license = crunched_md5sums.get(crunched_md5, None)
+            license, crunched_md5, lictext = crunch_license(licfile)
             if lictext and not license:
                 license = 'Unknown'
                 logger.info("Please add the following line for '%s' to a 'lib/recipetool/licenses.csv' " \
@@ -1414,7 +1396,6 @@ def register_commands(subparsers):
     parser_create.add_argument('-B', '--srcbranch', help='Branch in source repository if fetching from an SCM such as git (default master)')
     parser_create.add_argument('--keep-temp', action="store_true", help='Keep temporary directory (for debugging)')
     parser_create.add_argument('--npm-dev', action="store_true", help='For npm, also fetch devDependencies')
-    parser_create.add_argument('--no-pypi', action="store_true", help='Do not inherit pypi class')
     parser_create.add_argument('--devtool', action="store_true", help=argparse.SUPPRESS)
     parser_create.add_argument('--mirrors', action="store_true", help='Enable PREMIRRORS and MIRRORS for source tree fetching (disabled by default).')
     parser_create.set_defaults(func=create_recipe)

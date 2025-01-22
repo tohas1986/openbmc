@@ -1,0 +1,22 @@
+From fd9013e18e8a58f8eafebe500cb287bfe6fe72bb Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 29 Apr 2020 09:38:34 +0300
+Subject: [PATCH] Get rid of Failed to GetAll error message
+
+---
+ include/sdrutils.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/sdrutils.hpp b/include/sdrutils.hpp
+index 206f6af..f63e52b 100644
+--- a/include/sdrutils.hpp
++++ b/include/sdrutils.hpp
+@@ -307,7 +307,7 @@ static inline std::map<std::string, DbusVariant>
+     }
+     catch (const std::exception& e)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
++        phosphor::logging::log<phosphor::logging::level::DEBUG>(
+             "Failed to GetAll", phosphor::logging::entry("PATH=%s", path),
+             phosphor::logging::entry("INTF=%s", interface),
+             phosphor::logging::entry("WHAT=%s", e.what()));

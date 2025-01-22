@@ -6,7 +6,7 @@ Wants=obmc-power-start@%i.target
 Before=obmc-power-start@%i.target
 Wants=mapper-wait@-org-openbmc-control-power%i.service
 After=mapper-wait@-org-openbmc-control-power%i.service
-After=obmc-power-start@%i.service
+After=op-power-start@%i.service
 Conflicts=obmc-chassis-poweroff@%i.target
 ConditionPathExists=!/run/openbmc/chassis@%i-on
 
@@ -18,6 +18,4 @@ SyslogIdentifier=pgood_wait
 TimeoutSec=30
 
 [Install]
-# Installation of templated services occur in bitbake recipes
-# Leave it commented out here for documentation purposes
-#WantedBy=obmc-host-start@%i.target
+WantedBy=obmc-host-start@%i.target

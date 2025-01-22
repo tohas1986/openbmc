@@ -1,7 +1,8 @@
 SUMMARY = "Architecture-dependent configuration for opkg"
-HOMEPAGE = "https://git.yoctoproject.org/opkg/"
+HOMEPAGE = "http://code.google.com/p/opkg/"
 LICENSE = "MIT"
 PACKAGE_ARCH = "${MACHINE_ARCH}"
+PR = "r1"
 
 S = "${WORKDIR}"
 

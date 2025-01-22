@@ -1,0 +1,161 @@
+From 0133b56a2e65d3c285b41395c109812f0bce52bf Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 12:35:20 +0000
+Subject: [PATCH 1/1] Introduce GUID into DBus
+
+---
+ src/FruUtils.cpp | 91 ++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 58 insertions(+), 33 deletions(-)
+
+diff --git a/src/FruUtils.cpp b/src/FruUtils.cpp
+index 7a62e24..05a6291 100644
+--- a/src/FruUtils.cpp
++++ b/src/FruUtils.cpp
+@@ -261,6 +261,7 @@ bool verifyOffset(const std::vector<uint8_t>& fruBytes, fruAreas currentArea,
+ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+                    boost::container::flat_map<std::string, std::string>& result)
+ {
++    if (DEBUG) std::cerr << __FUNCTION__ << " size:" << fruBytes.size() << "\n";
+     resCodes ret = resCodes::resOK;
+     if (fruBytes.size() <= fruBlockSize)
+     {
+@@ -272,9 +273,9 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+ 
+     const std::vector<std::string>* fruAreaFieldNames;
+ 
+-    // Don't parse Internal and Multirecord areas
++    // Do parse Internal and Multirecord areas
+     for (fruAreas area = fruAreas::fruAreaChassis;
+-         area <= fruAreas::fruAreaProduct; ++area)
++         area <= fruAreas::fruAreaMultirecord; ++area)
+     {
+ 
+         size_t offset = *(fruBytes.begin() + getHeaderAreaFieldOffset(area));
+@@ -283,6 +284,8 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+             continue;
+         }
+         offset *= fruBlockSize;
++        if (DEBUG) std::cerr << __FUNCTION__ << " Area offset:" << +offset
++                             << " area:" << std::to_string(static_cast<int>(area)) << "\n";
+         std::vector<uint8_t>::const_iterator fruBytesIter =
+             fruBytes.begin() + offset;
+         if (fruBytesIter + fruBlockSize >= fruBytes.end())
+@@ -290,40 +293,27 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+             if (DEBUG) std::cerr << "Not enough data to parse \n";
+             return resCodes::resErr;
+         }
+-        // check for format version 1
+-        if (*fruBytesIter != 0x01)
+-        {
+-            if (DEBUG) std::cerr << "Unexpected version " << *fruBytesIter << "\n";
+-            return resCodes::resErr;
+-        }
+-        ++fruBytesIter;
+ 
+-        /* Verify other area offset for overlap with current area by passing
+-         * length of current area offset pointed by *fruBytesIter
+-         */
+-        if (!verifyOffset(fruBytes, area, *fruBytesIter))
++        uint8_t fruAreaSize;
++        std::vector<uint8_t>::const_iterator fruBytesIterEndArea;
++        if (area != fruAreas::fruAreaMultirecord)
+         {
+-            return resCodes::resErr;
++            // check for format version 1
++            if (*fruBytesIter != 0x01)
++            {
++                std::cerr << "Unexpected version " << +(*fruBytesIter) << "\n";
++                return resCodes::resErr;
++            }
++            // At this point fruBytesIter points to Version. Next byte is length
++            ++fruBytesIter;
++            fruAreaSize = *fruBytesIter * fruBlockSize;
++            fruBytesIterEndArea = fruBytes.begin() + offset + fruAreaSize - 1;
++            ++fruBytesIter;
++            // Now fruBytesIter points to the actual data of the area
+         }
+-
+-        uint8_t fruAreaSize = *fruBytesIter * fruBlockSize;
+-        std::vector<uint8_t>::const_iterator fruBytesIterEndArea =
+-            fruBytes.begin() + offset + fruAreaSize - 1;
+-        ++fruBytesIter;
+-
+-        uint8_t fruComputedChecksum =
+-            calculateChecksum(fruBytes.begin() + offset, fruBytesIterEndArea);
+-        if (fruComputedChecksum != *fruBytesIterEndArea)
++        else
+         {
+-            std::stringstream ss;
+-            ss << std::hex << std::setfill('0');
+-            ss << "Checksum error in FRU area " << getFruAreaName(area) << "\n";
+-            ss << "\tComputed checksum: 0x" << std::setw(2)
+-               << static_cast<int>(fruComputedChecksum) << "\n";
+-            ss << "\tThe read checksum: 0x" << std::setw(2)
+-               << static_cast<int>(*fruBytesIterEndArea) << "\n";
+-            if (DEBUG) std::cerr << ss.str();
+-            ret = resCodes::resWarn;
++            fruBytesIterEndArea = fruBytes.end();
+         }
+ 
+         /* Set default language flag to true as Chassis Fru area are always
+@@ -382,6 +372,40 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+                 fruAreaFieldNames = &PRODUCT_FRU_AREAS;
+                 break;
+             }
++            case fruAreas::fruAreaMultirecord:
++            {
++                uint8_t record_length = *(fruBytesIter + 2);
++                uint8_t record_type = *fruBytesIter;
++                if (DEBUG) std::cerr << __FUNCTION__ << " MultiRecord type:"
++                                     << +record_type << " Length:" << +record_length
++                                     << " @" << static_cast<int>(fruBytesIter - fruBytes.begin())
++                                     << "\n";
++
++                // Move pointer to the beginning of the actual record
++                fruBytesIter += 5;
++
++                // Here the actual parser is.
++                // On exit fruBytesIter must be at the same position
++                if (record_type == 0x03 && *fruBytesIter == 0x07)
++                {
++                    if (DEBUG) std::cerr << __FUNCTION__ << " GUID found\n";
++                    std::stringstream ss_guid;
++                    for(auto i=0; i<16; i++)
++                    {
++                        ss_guid << std::hex << std::setfill('0') << std::setw(2) << +(*(fruBytesIter + 1 +i));
++                        if (i == 3 || i == 5 || i == 7 || i == 9)
++                            ss_guid << "-";
++                    }
++                    if (DEBUG) std::cerr << __FUNCTION__ << " GUID:" << ss_guid.str() << "\n";
++                    result["GUID"] = ss_guid.str();
++                }
++
++                fruBytesIter += record_length;
++
++                if (DEBUG) std::cerr << __FUNCTION__ << " fruBytesIter:"
++                                     << static_cast<int>(fruBytesIter - fruBytes.begin()) << "\n";
++                break;
++            }
+             default:
+             {
+                 if (DEBUG) std::cerr << "Internal error: unexpected FRU area index: "
+@@ -391,7 +415,7 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+         }
+         size_t fieldIndex = 0;
+         DecodeState state;
+-        do
++        if (area != fruAreas::fruAreaMultirecord) do
+         {
+             auto res =
+                 decodeFRUData(fruBytesIter, fruBytesIterEndArea, isLangEng);
+@@ -669,6 +693,7 @@ std::vector<uint8_t> readFRUContents(int flag, int file, uint16_t address,
+ 
+     if (hasMultiRecords)
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << " Multi-record detected\n";
+         // device[area count] is the index to the last area because the 0th
+         // entry is not an offset in the common header.
+         unsigned int areaOffset =
+-- 
+2.7.4
+

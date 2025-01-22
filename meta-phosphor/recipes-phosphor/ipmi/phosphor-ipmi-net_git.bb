@@ -15,13 +15,14 @@ HOMEPAGE = "https://github.com/openbmc/phosphor-net-ipmid"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=e3fc50a88d0a364313df4b21ef20c29e"
 DEPENDS += "cli11"
+DEPENDS += "libmapper"
 DEPENDS += "systemd"
 DEPENDS += "phosphor-ipmi-host"
-SRCREV = "8425624a9046f5a853e8596cc74441e622028494"
+SRCREV = "02d13a26b6f60dbb41ac38aed3d12a99555fc302"
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
-SRC_URI = "git://github.com/openbmc/phosphor-net-ipmid;branch=master;protocol=https"
+SRC_URI += "git://github.com/openbmc/phosphor-net-ipmid;branch=master;protocol=https"
 
 S = "${WORKDIR}/git"
 # install parameterized service and socket files
@@ -33,15 +34,10 @@ SYSTEMD_SERVICE:${PN} = " \
 inherit meson pkgconfig
 inherit systemd
 
-PACKAGECONFIG ??= "pam-authenticate rmcp-ping"
-PACKAGECONFIG[rmcp-ping] = "-Drmcp_ping=enabled,-Drmcp_ping=disabled"
-PACKAGECONFIG[pam-authenticate] = "-Dpam_authenticate=enabled,-Dpam_authenticate=disabled"
-
 EXTRA_OEMESON = " \
         -Dtests=disabled \
         "
 
-RDEPENDS:${PN} += "srvcfg-manager"
 RRECOMMENDS:${PN} = "pam-ipmi"
 
 FILES:${PN} += " \

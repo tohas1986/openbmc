@@ -14,10 +14,6 @@ def get_recipe_spdxid(d):
     return "SPDXRef-%s-%s" % ("Recipe", d.getVar("PN"))
 
 
-def get_download_spdxid(d, idx):
-    return "SPDXRef-Download-%s-%d" % (d.getVar("PN"), idx)
-
-
 def get_package_spdxid(pkg):
     return "SPDXRef-Package-%s" % pkg
 
@@ -38,54 +34,18 @@ def get_sdk_spdxid(sdk):
     return "SPDXRef-SDK-%s" % sdk
 
 
-def _doc_path_by_namespace(spdx_deploy, arch, doc_namespace):
-    return spdx_deploy / "by-namespace" / arch / doc_namespace.replace("/", "_")
-
-
-def doc_find_by_namespace(spdx_deploy, search_arches, doc_namespace):
-    for pkgarch in search_arches:
-        p = _doc_path_by_namespace(spdx_deploy, pkgarch, doc_namespace)
-        if os.path.exists(p):
-            return p
-    return None
-
-
-def _doc_path_by_hashfn(spdx_deploy, arch, doc_name, hashfn):
-    return (
-        spdx_deploy / "by-hash" / arch / hashfn.split()[1] / (doc_name + ".spdx.json")
-    )
-
-
-def doc_find_by_hashfn(spdx_deploy, search_arches, doc_name, hashfn):
-    for pkgarch in search_arches:
-        p = _doc_path_by_hashfn(spdx_deploy, pkgarch, doc_name, hashfn)
-        if os.path.exists(p):
-            return p
-    return None
-
-
-def doc_path(spdx_deploy, doc_name, arch, subdir):
-    return spdx_deploy / arch / subdir / (doc_name + ".spdx.json")
-
-
-def write_doc(d, spdx_doc, arch, subdir, spdx_deploy=None, indent=None):
+def write_doc(d, spdx_doc, subdir, spdx_deploy=None, indent=None):
     from pathlib import Path
 
     if spdx_deploy is None:
         spdx_deploy = Path(d.getVar("SPDXDEPLOY"))
 
-    dest = doc_path(spdx_deploy, spdx_doc.name, arch, subdir)
+    dest = spdx_deploy / subdir / (spdx_doc.name + ".spdx.json")
     dest.parent.mkdir(exist_ok=True, parents=True)
     with dest.open("wb") as f:
         doc_sha1 = spdx_doc.to_json(f, sort_keys=True, indent=indent)
 
-    l = _doc_path_by_namespace(spdx_deploy, arch, spdx_doc.documentNamespace)
-    l.parent.mkdir(exist_ok=True, parents=True)
-    l.symlink_to(os.path.relpath(dest, l.parent))
-
-    l = _doc_path_by_hashfn(
-        spdx_deploy, arch, spdx_doc.name, d.getVar("BB_HASHFILENAME")
-    )
+    l = spdx_deploy / "by-namespace" / spdx_doc.documentNamespace.replace("/", "_")
     l.parent.mkdir(exist_ok=True, parents=True)
     l.symlink_to(os.path.relpath(dest, l.parent))
 

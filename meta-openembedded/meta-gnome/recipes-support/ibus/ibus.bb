@@ -8,7 +8,7 @@ DEPENDS += " \
     iso-codes \
 "
 
-inherit gtk-icon-cache bash-completion features_check
+inherit gtk-icon-cache bash-completion
 
 # for unicode-ucd
 EXTRA_OECONF += "--with-ucd-dir=${STAGING_DATADIR}/unicode/ucd"
@@ -18,8 +18,6 @@ PACKAGECONFIG ??= " \
     ${@bb.utils.contains_any('DISTRO_FEATURES', [ 'wayland', 'x11' ], 'gtk3 gtk4', '', d)} \
     ${@bb.utils.filter('DISTRO_FEATURES', 'systemd wayland x11', d)} \
 "
-
-REQUIRED_DISTRO_FEATURES = "${@bb.utils.contains('PACKAGECONFIG', 'gtk4', 'opengl', '', d)}"
 
 do_configure:prepend() {
     # run native unicode-parser
@@ -38,4 +36,4 @@ FILES:${PN} += " \
 FILES:${PN}-dev += " \
     ${datadir}/gettext \
 "
-RDEPENDS:${PN} += "python3-core"
+

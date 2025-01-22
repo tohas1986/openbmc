@@ -15,7 +15,7 @@ IPKGCONF_SDK_TARGET = "${WORKDIR}/opkg-sdk-target.conf"
 PKGWRITEDIRIPK = "${WORKDIR}/deploy-ipks"
 
 # Program to be used to build opkg packages
-OPKGBUILDCMD ??= 'opkg-build -Z zstd -a "${ZSTD_DEFAULTS}"'
+OPKGBUILDCMD ??= 'opkg-build -Z xz -a "${XZ_DEFAULTS}"'
 
 OPKG_ARGS += "--force_postinstall --prefer-arch-to-version"
 OPKG_ARGS += "${@['', '--no-install-recommends'][d.getVar("NO_RECOMMENDATIONS") == "1"]}"
@@ -47,10 +47,6 @@ python do_package_ipk () {
 do_package_ipk[vardeps] += "ipk_write_pkg"
 do_package_ipk[vardepsexclude] = "BB_NUMBER_THREADS"
 
-# FILE isn't included by default but we want the recipe to change if basename() changes
-IPK_RECIPE_FILE = "${@os.path.basename(d.getVar('FILE'))}"
-IPK_RECIPE_FILE[vardepvalue] = "${IPK_RECIPE_FILE}"
-
 def ipk_write_pkg(pkg, d):
     import re, copy
     import subprocess
@@ -66,7 +62,7 @@ def ipk_write_pkg(pkg, d):
 
     outdir = d.getVar('PKGWRITEDIRIPK')
     pkgdest = d.getVar('PKGDEST')
-    recipesource = d.getVar('IPK_RECIPE_FILE')
+    recipesource = os.path.basename(d.getVar('FILE'))
 
     localdata = bb.data.createCopy(d)
     root = "%s/%s" % (pkgdest, pkg)
@@ -166,12 +162,12 @@ def ipk_write_pkg(pkg, d):
             else:
                 ctrlfile.write(c % tuple(pullData(fs, localdata)))
 
-        custom_fields_chunk = oe.packagedata.get_package_additional_metadata("ipk", localdata)
+        custom_fields_chunk = get_package_additional_metadata("ipk", localdata)
         if custom_fields_chunk is not None:
             ctrlfile.write(custom_fields_chunk)
             ctrlfile.write("\n")
 
-        oe.packagedata.mapping_rename_hook(localdata)
+        mapping_rename_hook(localdata)
 
         def debian_cmp_remap(var):
             # In debian '>' and '<' do not mean what it appears they mean
@@ -230,7 +226,7 @@ def ipk_write_pkg(pkg, d):
             scriptfile.close()
             os.chmod(os.path.join(controldir, script), 0o755)
 
-        conffiles_str = ' '.join(oe.package.get_conffiles(pkg, d))
+        conffiles_str = ' '.join(get_conffiles(pkg, d))
         if conffiles_str:
             conffiles = open(os.path.join(controldir, 'conffiles'), 'w')
             for f in conffiles_str.split():
@@ -277,13 +273,9 @@ addtask do_package_write_ipk_setscene
 
 python () {
     if d.getVar('PACKAGES') != '':
-        deps = ' opkg-utils-native:do_populate_sysroot virtual/fakeroot-native:do_populate_sysroot zstd-native:do_populate_sysroot'
+        deps = ' opkg-utils-native:do_populate_sysroot virtual/fakeroot-native:do_populate_sysroot xz-native:do_populate_sysroot'
         d.appendVarFlag('do_package_write_ipk', 'depends', deps)
         d.setVarFlag('do_package_write_ipk', 'fakeroot', "1")
-
-        # Needed to ensure PKG_xxx renaming of dependency packages works
-        d.setVarFlag('do_package_write_ipk', 'deptask', "do_packagedata")
-        d.setVarFlag('do_package_write_ipk', 'rdeptask', "do_packagedata")
 }
 
 python do_package_write_ipk () {

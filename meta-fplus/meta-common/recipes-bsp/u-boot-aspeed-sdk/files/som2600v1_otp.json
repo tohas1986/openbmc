@@ -1,0 +1,53 @@
+{
+    "name": "som2600v1",
+    "version": "A3",
+    "data_region": {
+        "ecc_region": false,
+		"rsa_key_order": "big",
+        "key": [
+            {
+                "types": "rsa_pub_oem",
+                "key_pem": "rsa_pub_oem_dss_key.pem",
+                "offset": "0x40",
+                "number_id": 1,
+                "sha_mode": "SHA512"
+            }
+        ]
+    },
+    "config_region": {
+        "Enable Secure Boot":                           false,
+        "User region ECC enable":                       false,
+        "Secure Region ECC enable":                     false,
+        "Disable low security key":                     false,
+        "Ignore Secure Boot hardware strap":            false,
+        "Secure Boot Mode":                             "Mode_2",
+        "Disable Uart Message of ROM code":             false,
+        "Secure crypto RSA length":                     "RSA4096",
+        "Hash mode":                                    "SHA512",
+        "Disable Boot from Uart":                       false,
+        "Secure Region size":                           "0x0",
+        "Copy Boot Image to Internal SRAM":             true,
+        "Enable image encryption":                      false,
+        "Enable write Protect of OTP key retire bits":  false,
+        "Disable Auto Boot from UART or VUART":         false,
+        "OTP memory lock enable":                       false,
+        "Key Revision":                                 "0x0",
+        "Secure boot header offset":                    "0x0",
+        "Boot From UART Port Selection":                "UART5",
+        "Disable Auto Boot from UART":                  false,
+        "Rollback prevention shift bit number":         "0x0",
+        "Extra Data Write Protection Region Size":      "0x0",
+        "Erase signature data after secure boot check": false,
+        "Erase RSA public key after secure boot check": false,
+        "User define data: random number low":          "0x0",
+        "User define data: random number high":         "0x0",
+        "Manifest ID":                                  "0x0",
+        "Patch code location":                          "0x0",
+        "Patch code size":                              "0x0",
+        "Disable Auto Boot from VUART2 over PCIE":		true,
+        "Disable Auto Boot from VUART2 over LPC":		true
+    },
+    "otp_strap": {
+        "Enable secure boot":                           { "value": false }
+    }
+}

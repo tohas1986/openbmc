@@ -1,0 +1,53 @@
+From 9fa68abee27430e196df922d5d0348946864ca50 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 2 Jul 2020 10:16:06 +0000
+Subject: [PATCH] Return -C3 cryptocipher
+
+---
+ auth_algo.hpp      | 3 ++-
+ crypt_algo.hpp     | 3 ++-
+ integrity_algo.hpp | 3 ++-
+ 3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/auth_algo.hpp b/auth_algo.hpp
+index f940370..6be1c42 100644
+--- a/auth_algo.hpp
++++ b/auth_algo.hpp
+@@ -106,7 +106,8 @@ class Interface
+      */
+     static bool isAlgorithmSupported(Algorithms algo)
+     {
+-        if (algo == Algorithms::RAKP_HMAC_SHA256)
++        //return true;
++        if (algo == Algorithms::RAKP_HMAC_SHA256 || algo == Algorithms::RAKP_HMAC_SHA1 || algo == Algorithms::RAKP_NONE)
+         {
+             return true;
+         }
+diff --git a/crypt_algo.hpp b/crypt_algo.hpp
+index 1064772..692bb4e 100644
+--- a/crypt_algo.hpp
++++ b/crypt_algo.hpp
+@@ -88,7 +88,8 @@ class Interface
+      */
+     static bool isAlgorithmSupported(Algorithms algo)
+     {
+-        if (algo == Algorithms::AES_CBC_128)
++        //return true;
++        if (algo == Algorithms::AES_CBC_128 || algo == Algorithms::NONE)
+         {
+             return true;
+         }
+diff --git a/integrity_algo.hpp b/integrity_algo.hpp
+index d451d0e..ed9567c 100644
+--- a/integrity_algo.hpp
++++ b/integrity_algo.hpp
+@@ -95,7 +95,8 @@ class Interface
+      */
+     static bool isAlgorithmSupported(Algorithms algo)
+     {
+-        if (algo == Algorithms::HMAC_SHA256_128)
++        //return true;
++        if (algo == Algorithms::HMAC_SHA256_128 || algo == Algorithms::NONE || algo == Algorithms::HMAC_SHA1_96)
+         {
+             return true;
+         }

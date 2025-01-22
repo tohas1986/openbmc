@@ -1,0 +1,37 @@
+From a5eed08b39ce8625cb4bbacde2d0b25227ceb408 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 13 Apr 2021 08:29:16 +0000
+Subject: [PATCH] Remove non-informative harmless error message
+
+---
+ include/sdrutils.hpp | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/include/sdrutils.hpp b/include/sdrutils.hpp
+index b7a8ecb..f5a6f7e 100644
+--- a/include/sdrutils.hpp
++++ b/include/sdrutils.hpp
+@@ -31,6 +31,7 @@
+ #include <string>
+ #include <string_view>
+ #include <vector>
++#include <iostream>
+ 
+ #pragma once
+ 
+@@ -413,7 +414,6 @@ inline static uint16_t getSensorNumberFromPath(const std::string& path)
+     }
+     catch (const std::out_of_range& e)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(e.what());
+         return invalidSensorNumber;
+     }
+ }
+@@ -439,7 +439,6 @@ inline static std::string getPathFromSensorNumber(uint16_t sensorNum)
+     }
+     catch (const std::out_of_range& e)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(e.what());
+         return std::string();
+     }
+ }

@@ -1,0 +1,286 @@
+From 614f5d66822eb8ae596f051e109d95c156180c48 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 1 Feb 2022 07:42:28 +0000
+Subject: [PATCH] Add OEM NIC parser
+
+---
+ CMakeLists.txt           |  2 +-
+ include/mdrv2.hpp        |  2 +
+ include/nic.hpp          | 91 ++++++++++++++++++++++++++++++++++++++++
+ include/smbios_mdrv2.hpp |  4 ++
+ src/mdrv2.cpp            | 12 ++++++
+ src/nic.cpp              | 89 +++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 199 insertions(+), 1 deletion(-)
+ create mode 100644 include/nic.hpp
+ create mode 100644 src/nic.cpp
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2cc888b..1021d1a 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -40,7 +40,7 @@ add_definitions (-DBOOST_NO_TYPEID)
+ add_definitions (-DBOOST_ASIO_DISABLE_THREADS)
+ 
+ set (SRC_FILES src/mdrv2.cpp src/mdrv2_main.cpp src/cpu.cpp src/dimm.cpp
+-     src/system.cpp src/pcieslot.cpp)
++     src/system.cpp src/pcieslot.cpp src/nic.cpp)
+ 
+ include_directories (${CMAKE_CURRENT_BINARY_DIR})
+ 
+diff --git a/include/mdrv2.hpp b/include/mdrv2.hpp
+index ddde0ef..b9b4ba1 100644
+--- a/include/mdrv2.hpp
++++ b/include/mdrv2.hpp
+@@ -20,6 +20,7 @@
+ #include "pcieslot.hpp"
+ #include "smbios_mdrv2.hpp"
+ #include "system.hpp"
++#include "nic.hpp"
+ 
+ #include <sys/stat.h>
+ #include <sys/types.h>
+@@ -143,6 +144,7 @@ class MDR_V2 :
+     std::vector<std::unique_ptr<Dimm>> dimms;
+     std::vector<std::unique_ptr<Pcie>> pcies;
+     std::unique_ptr<System> system;
++    std::vector<std::unique_ptr<NIC>> nics;
+     std::shared_ptr<sdbusplus::asio::dbus_interface> smbiosInterface;
+ };
+ 
+diff --git a/include/nic.hpp b/include/nic.hpp
+new file mode 100644
+index 0000000..c658769
+--- /dev/null
++++ b/include/nic.hpp
+@@ -0,0 +1,91 @@
++/*
++// Copyright (c) 2018 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#pragma once
++#include <iostream>
++
++#include "smbios_mdrv2.hpp"
++
++#include <xyz/openbmc_project/Inventory/Item/Ethernet/server.hpp>
++
++namespace phosphor
++{
++
++namespace smbios
++{
++
++class NIC:
++    sdbusplus::server::object::object<
++        sdbusplus::xyz::openbmc_project::Inventory::Item::server::Ethernet>
++{
++  public:
++    NIC() = delete;
++    ~NIC() = default;
++    NIC(const NIC&) = delete;
++    NIC& operator=(const NIC&) = delete;
++    NIC(NIC&&) = default;
++    NIC& operator=(NIC&&) = default;
++
++    NIC(sdbusplus::bus::bus& bus, const std::string& objPath,
++         const uint8_t& nicId, uint8_t* smbiosTableStorage) :
++        sdbusplus::server::object::object<
++            sdbusplus::xyz::openbmc_project::Inventory::Item::server::Ethernet>(
++            bus, objPath.c_str()),
++        nicNum(nicId), storage(smbiosTableStorage)
++    {
++        nicInfoUpdate();
++    }
++
++    void nicInfoUpdate(void);
++
++    std::string nicMACAddress(std::string value) override;
++    std::string nicManufacturerID(std::string value) override;
++    std::string nicVendorID(std::string value) override;
++    std::string nicProductID(std::string value) override;
++
++  private:
++    uint8_t nicNum;
++
++    uint8_t* storage;
++
++    struct NICInfo
++    {
++        uint8_t type;
++        uint8_t length;
++        uint16_t handle;
++
++        uint16_t deviceID;
++        uint16_t vendorID;
++        uint8_t  strManufacturer;
++        uint8_t  macAddress[6];
++        uint8_t  ipv4Address[4];
++        uint8_t  ipv6Address[16];
++        uint8_t  strFwVersion;
++        uint8_t  linkStatus;
++        uint16_t slotNumber;
++        uint16_t portNumber;
++        uint8_t  ipv4Gateway[4];
++        uint8_t  ipv4Mask[4];
++        uint8_t  ipv6Gateway[16];
++        uint8_t  ipv6Mask[16];
++        uint8_t  linkSpeed;
++        uint16_t onboardIndex;
++    } __attribute__((packed));
++};
++
++} // namespace smbios
++
++} // namespace phosphor
+diff --git a/include/smbios_mdrv2.hpp b/include/smbios_mdrv2.hpp
+index 0ac77b9..306e54a 100644
+--- a/include/smbios_mdrv2.hpp
++++ b/include/smbios_mdrv2.hpp
+@@ -170,6 +170,9 @@ static constexpr const char* systemPath =
+ constexpr std::array<SMBIOSVersion, 3> supportedSMBIOSVersions{
+     SMBIOSVersion{3, 2}, SMBIOSVersion{3, 3}, SMBIOSVersion{3, 5}};
+ 
++static constexpr const char* nicPath =
++    "/xyz/openbmc_project/inventory/system/chassis/motherboard/nic";
++
+ typedef enum
+ {
+     biosType = 0,
+@@ -190,6 +193,7 @@ typedef enum
+     systemEventLogType = 15,
+     physicalMemoryArrayType = 16,
+     memoryDeviceType = 17,
++    oemNICType = 131,
+ } SmbiosType;
+ 
+ static constexpr uint8_t separateLen = 2;
+diff --git a/src/mdrv2.cpp b/src/mdrv2.cpp
+index 3949630..7bdacb3 100644
+--- a/src/mdrv2.cpp
++++ b/src/mdrv2.cpp
+@@ -470,6 +470,18 @@ void MDR_V2::systemInfoUpdate()
+     system.reset();
+     system = std::make_unique<System>(
+         bus, systemPath, smbiosDir.dir[smbiosDirIndex].dataStorage);
++
++    nics.clear();
++    uint8_t index = 0;
++    while(true)
++    {
++        std::string path = nicPath + std::to_string(index);
++        /* Here is the thing: */
++        /* There may be more than one NIC, and each NIC may have more than one port */
++        nics.emplace_back(std::make_unique<phosphor::smbios::NIC>(
++            bus, path, index, smbiosDir.dir[smbiosDirIndex].dataStorage));
++        break;
++    }
+ }
+ 
+ int MDR_V2::getTotalCpuSlot()
+diff --git a/src/nic.cpp b/src/nic.cpp
+new file mode 100644
+index 0000000..87b3785
+--- /dev/null
++++ b/src/nic.cpp
+@@ -0,0 +1,89 @@
++/*
++// Copyright (c) 2018 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#include "nic.hpp"
++
++#include <map>
++#include <sstream>
++#include <iostream>
++#include <iomanip>
++
++namespace phosphor
++{
++namespace smbios
++{
++
++std::string NIC::nicMACAddress(std::string value)
++{
++    return sdbusplus::xyz::openbmc_project::Inventory::Item::server::Ethernet::nicMACAddress(value);
++}
++
++std::string NIC::nicManufacturerID(std::string value)
++{
++    return sdbusplus::xyz::openbmc_project::Inventory::Item::server::Ethernet::nicManufacturerID(value);
++}
++
++std::string NIC::nicVendorID(std::string value)
++{
++    return sdbusplus::xyz::openbmc_project::Inventory::Item::server::Ethernet::nicVendorID(value);
++}
++
++std::string NIC::nicProductID(std::string value)
++{
++    return sdbusplus::xyz::openbmc_project::Inventory::Item::server::Ethernet::nicProductID(value);
++}
++
++
++void NIC::nicInfoUpdate(void)
++{
++    uint8_t* dataIn = storage;
++
++    dataIn = getSMBIOSTypePtr(dataIn, oemNICType);
++    if (dataIn == nullptr)
++    {
++        return;
++    }
++
++    auto nicInfo = reinterpret_cast<struct NICInfo*>(dataIn);
++
++    std::string manufacturer = positionToString(nicInfo->strManufacturer, nicInfo->length, dataIn);
++    std::string fwVersion = positionToString(nicInfo->strFwVersion, nicInfo->length, dataIn);
++
++    std::stringstream ss_mac;
++    for(int i=0;i<6;i++)
++    {
++        ss_mac << std::hex << std::setfill('0') << std::setw(2) << +nicInfo->macAddress[i];
++        if (i !=5)
++          ss_mac << ":";
++    }
++    std::string macAddress = ss_mac.str();
++
++    std::stringstream ss_vid;
++    ss_vid << "0x" << std::hex << std::setfill('0') << std::setw(4) << +nicInfo->vendorID;
++    std::string vendorId = ss_vid.str();
++
++    std::stringstream ss_pid;
++    ss_pid << "0x" << std::hex << std::setfill('0') << std::setw(4) << +nicInfo->deviceID;
++    std::string productId = ss_pid.str();
++
++    nicMACAddress(macAddress);
++    nicManufacturerID(manufacturer);
++    nicVendorID(vendorId);
++    nicProductID(productId);
++}
++
++} // namespace smbios
++} // namespace phosphor

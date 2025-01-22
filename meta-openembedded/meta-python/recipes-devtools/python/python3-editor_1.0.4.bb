@@ -10,8 +10,3 @@ PYPI_PACKAGE = "python-editor"
 inherit pypi setuptools3
 
 BBCLASSEXTEND = "native nativesdk"
-
-RDEPENDS:${PN} += " \
-    python3-io \
-    python3-setuptools \
-"

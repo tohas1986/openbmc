@@ -1,0 +1,25 @@
+From 64d65d599daa9b6622b8dcae2ef029d036ac3705 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 31 Jan 2020 17:40:38 +0300
+Subject: [PATCH 1/1] Increase ring buffer size
+
+---
+ console-server.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/console-server.c b/console-server.c
+index d814dff..02feef5 100644
+--- a/console-server.c
++++ b/console-server.c
+@@ -82,7 +82,7 @@ enum internal_pollfds {
+ };
+ 
+ /* size of the shared backlog ringbuffer */
+-const size_t buffer_size = 128 * 1024;
++const size_t buffer_size = 1024 * 1024;
+ 
+ /* state shared with the signal handler */
+ static bool sigint;
+-- 
+1.9.1
+

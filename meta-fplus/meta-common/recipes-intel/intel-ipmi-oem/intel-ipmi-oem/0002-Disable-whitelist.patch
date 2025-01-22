@@ -1,0 +1,21 @@
+From b41c5abd1b1bcbf16b697a951239abf9149c0dd7 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 15 Dec 2022 13:56:38 +0000
+Subject: [PATCH] Disable whitelist
+
+---
+ src/allowlist-filter.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/allowlist-filter.cpp b/src/allowlist-filter.cpp
+index fa9eb26..ff27c6b 100644
+--- a/src/allowlist-filter.cpp
++++ b/src/allowlist-filter.cpp
+@@ -390,6 +390,7 @@ void AllowlistFilter::postInit()
+ 
+ ipmi::Cc AllowlistFilter::filterMessage(ipmi::message::Request::ptr request)
+ {
++    return ipmi::ccSuccess;
+     auto channelMask = static_cast<unsigned short>(1 << request->ctx->channel);
+     bool Allowlisted = std::binary_search(
+         allowlist.cbegin(), allowlist.cend(),

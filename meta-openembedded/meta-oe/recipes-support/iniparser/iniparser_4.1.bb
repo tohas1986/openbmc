@@ -6,13 +6,11 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=e02baf71c76e0650e667d7da133379ac"
 
 DEPENDS = "doxygen-native"
 
-PV .= "+git"
+PV .= "+git${SRCPV}"
 
 SRC_URI = "git://github.com/ndevilla/iniparser.git;protocol=https;branch=master \
            file://0001-iniparser.pc-Make-libpath-a-variable.patch \
-	   file://Add-CMake-support.patch \
-           file://CVE-2023-33461.patch \
-"
+	   file://Add-CMake-support.patch"
 
 SRCREV= "deb85ad4936d4ca32cc2260ce43323d47936410d"
 

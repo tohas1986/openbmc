@@ -1,0 +1,24 @@
+From 9eb36a7eb229ff8d9e2c299afea92b75ebcb8246 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 28 May 2021 11:16:02 +0000
+Subject: [PATCH] Add restart if Failed to queue buffer
+
+---
+ ikvm_video.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ikvm_video.cpp b/ikvm_video.cpp
+index 7bd4b4e..0a01b73 100644
+--- a/ikvm_video.cpp
++++ b/ikvm_video.cpp
+@@ -125,6 +125,7 @@ void Video::getFrame()
+             {
+                 log<level::ERR>("Failed to queue buffer",
+                                 entry("ERROR=%s", strerror(errno)));
++                restart();
+             }
+             else
+             {
+-- 
+2.7.4
+

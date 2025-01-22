@@ -1,0 +1,13 @@
+[Unit]
+Description=Runs cauth-updater every 15 minutes
+
+[Timer]
+# Run after booting
+OnBootSec=3min
+# Run every
+OnUnitActiveSec=30min
+RandomizedDelaySec=15min
+Unit=cauth-updater.service
+
+[Install]
+WantedBy=multi-user.target

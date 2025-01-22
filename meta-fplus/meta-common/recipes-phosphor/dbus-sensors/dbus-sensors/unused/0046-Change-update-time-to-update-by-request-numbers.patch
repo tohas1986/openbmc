@@ -1,0 +1,119 @@
+From 826c290ac6e63c807f82412d4a9867f165de0873 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 25 Feb 2021 21:11:34 +0000
+Subject: [PATCH] Change update time to update by request numbers
+
+---
+ src/IpmbSensor.cpp | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 52 insertions(+), 3 deletions(-)
+
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 73a4416..1533957 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -58,6 +58,7 @@ std::vector<uint8_t> meDataDIMMandCPU;
+ static uint64_t globalTime = 0;
+ static uint64_t readingMeDIMMDataTime = 0;
+ double TjmaxValue = 100;
++int requestCnt = 0;
+ 
+ using IpmbMethodType =
+     std::tuple<int, uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
+@@ -341,7 +342,10 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+             {
+                 return false;
+             }
+-
++            if(requestCnt > 24)
++            {
++                requestCnt = 0;
++            }
+             if(meDataDIMMandCPU.size() >= (deviceDIMMID + deviceChannelID*4 + 3))
+             {
+                 resp = meDataDIMMandCPU[deviceDIMMID + deviceChannelID*4 + 3];
+@@ -453,7 +457,20 @@ void IpmbSensor::read(void)
+                     }
+ 
+                     value = (value * scaleVal) + offsetVal;
+-                    updateValue(value);
++
++                    if (value >= 161 && value <= 255)
++                    {
++                        updateValue(std::numeric_limits<double>::quiet_NaN());
++                    }
++                    else if (value <= 0)
++                    {
++                        updateValue(std::numeric_limits<double>::quiet_NaN());
++                    }
++                    else
++                    {
++                        updateValue(value);
++                    }
++
+                     read();
+                 },
+                 "xyz.openbmc_project.Ipmi.Channel.Ipmb",
+@@ -464,7 +481,7 @@ void IpmbSensor::read(void)
+ 
+     if(deviceTypeName == "DIMM")
+     {
+-        static constexpr size_t pollTime = 6; // in seconds
++        static constexpr size_t pollTime = 3; // in seconds
+ 
+         waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
+         waitTimer.async_wait([this](const boost::system::error_code& ec) {
+@@ -472,12 +489,43 @@ void IpmbSensor::read(void)
+             {
+                 return; // we're being canceled
+             }
++
+             if (!readingStateGood())
+             {
+                 updateValue(std::numeric_limits<double>::quiet_NaN());
+                 read();
+                 return;
+             }
++
++            if (requestCnt > 2)
++            {
++                double value = 0;
++                
++                if (!processReading(meDataDIMMandCPU, value))
++                {
++                    incrementError();
++                    read();
++                    return;
++                }
++                value = (value * scaleVal) + offsetVal;
++
++                if (value >= 161 && value <= 255)
++                {
++                    updateValue(std::numeric_limits<double>::quiet_NaN());
++                }
++                else if (value <= 0)
++                {
++                    updateValue(std::numeric_limits<double>::quiet_NaN());
++                }
++                else
++                {
++                    updateValue(value);
++                }
++                requestCnt++;
++                read();
++                return; 
++            }
++
+             dbusConnection->async_method_call(
+                 [this](boost::system::error_code ec,
+                        const IpmbMethodType& response) {
+@@ -575,6 +623,7 @@ void IpmbSensor::read(void)
+                                 {
+                                     updateValue(value);
+                                 }
++                                requestCnt++;
+                                 read();
+                         },
+                         "xyz.openbmc_project.Ipmi.Channel.Ipmb",
+-- 
+2.7.4
+

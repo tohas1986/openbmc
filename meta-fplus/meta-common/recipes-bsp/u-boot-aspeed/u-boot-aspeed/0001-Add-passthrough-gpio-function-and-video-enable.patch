@@ -1,0 +1,87 @@
+From 2c256225d3fa8f0dfcf071e076e984c6839301bf Mon Sep 17 00:00:00 2001
+From: vedenena <vedenena@yandex-team.ru>
+Date: Fri, 17 Jan 2020 18:13:09 +0300
+Subject: [PATCH] Add passthrough gpio function and video enable
+
+---
+ arch/arm/include/asm/arch-aspeed/platform.h |  1 +
+ arch/arm/mach-aspeed/ast-scu.c              | 37 +++++++++++++++++++++++++++++
+ board/aspeed/ast-g5/ast-g5.c                | 11 +++++++++
+ 3 files changed, 49 insertions(+)
+
+diff --git a/arch/arm/include/asm/arch-aspeed/platform.h b/arch/arm/include/asm/arch-aspeed/platform.h
+index 1c02914..5d2a9d0 100644
+--- a/arch/arm/include/asm/arch-aspeed/platform.h
++++ b/arch/arm/include/asm/arch-aspeed/platform.h
+@@ -22,6 +22,7 @@
+ #define AST_PLL_25MHZ			25000000
+ #define AST_PLL_24MHZ			24000000
+ #define AST_PLL_12MHZ			12000000
++#define CONFIG_BOARD_EARLY_INIT_F   1       /* Call board_early_init_f */
+ 
+ #if defined(CONFIG_ARCH_AST2400)
+ #include <asm/arch/ast2400_platform.h>
+diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
+index 12de9b8..2ab9711 100644
+--- a/arch/arm/mach-aspeed/ast-scu.c
++++ b/arch/arm/mach-aspeed/ast-scu.c
+@@ -538,3 +538,40 @@ void ast_scu_get_who_init_dram(void)
+ 		break;
+ 	}
+ }
++
++void ast_enable_pass_through(void)
++{
++	//Enable GPIOE pin mode, SCU80[16:23] = 00 */
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL1) & (~0x00FF0000),
++		AST_SCU_FUN_PIN_CTRL1);
++
++	//Enable all pass through pins by setting SCU8C[15:12] = 0x3.
++	//Pass-through pins set:
++	//GPIOE0 -> GPIOE1
++	//GPIOE2 -> GPIOE3
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL4) | (0x3000),
++		AST_SCU_FUN_PIN_CTRL4);
++
++	//Disable HWStrap for GPIOE pass-through mode
++	//The write operation to SCU70(0x1e6e2070) only can set to '1'.
++	//To clear to '0', it must write '1' to 0x1e6e207c
++	if (ast_scu_read(AST_SCU_HW_STRAP1) & (0x1 << 22)){
++		ast_scu_write((0x1 << 22), AST_SCU_REVISION_ID);
++	}
++}
++
++void ast_enable_video_regs(void)
++{
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL6) & (~0x00000002),
++                AST_SCU_FUN_PIN_CTRL6);
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL6) | (0x00000001),
++                AST_SCU_FUN_PIN_CTRL6);
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL4) | (0x000000ff),
++                AST_SCU_FUN_PIN_CTRL4);
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL8) | (0xffff0000),
++                AST_SCU_FUN_PIN_CTRL8);
++	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL9) | (0x0000000f),
++                AST_SCU_FUN_PIN_CTRL9);
++	ast_scu_write(ast_scu_read(AST_SCU_RESET) & (0xfffffffb),
++                AST_SCU_RESET);
++}
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index e67a4bf..c712f32 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -55,3 +55,14 @@ void hw_watchdog_reset(void)
+ 	writel(0x4755, AST_WDT2_BASE + 0x08);
+ }
+ #endif /* CONFIG_WATCHDOG */
++
++int board_early_init_f(void)
++{
++	/* make sure uart5 is using 24MHz clock */
++	/*ast_config_uart5_clk(); - just for intel platform
++	enable pass through*/
++	ast_enable_pass_through();
++	ast_enable_video_regs();
++
++	return 0;
++}

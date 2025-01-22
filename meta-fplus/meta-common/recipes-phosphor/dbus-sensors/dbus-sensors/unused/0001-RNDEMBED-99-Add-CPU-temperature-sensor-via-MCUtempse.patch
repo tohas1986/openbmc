@@ -1,0 +1,40 @@
+From 7c22c3a9f7787278ec619b3afe29afc5f895c6ec Mon Sep 17 00:00:00 2001
+From: vedenena <vedenena@yandex-team.ru>
+Date: Tue, 31 Mar 2020 15:59:56 +0300
+Subject: [PATCH] Add CPU temperature sensor via MCUtempsensor
+
+---
+ src/MCUTempSensor.cpp | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index 6d94bd2..59423bb 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -62,7 +62,7 @@ MCUTempSensor::MCUTempSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+                              uint8_t tempReg) :
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(thresholdData), sensorConfiguration,
+-           "xyz.openbmc_project.Configuration.ExitAirTemp", mcuTempMaxReading,
++           "xyz.openbmc_project.Configuration.MCUTempSensor", mcuTempMaxReading,
+            mcuTempMinReading, conn),
+     busId(busId), mcuAddress(mcuAddress), tempReg(tempReg),
+     objectServer(objectServer), waitTimer(io)
+@@ -142,7 +142,7 @@ int MCUTempSensor::getMCURegsInfoWord(uint8_t regs, int16_t* pu16data)
+         return -1;
+     }
+ 
+-    *pu16data = i2c_smbus_read_word_data(fd, regs);
++    *pu16data = i2c_smbus_read_byte_data(fd, regs);
+     close(fd);
+ 
+     if (*pu16data < 0)
+@@ -175,7 +175,7 @@ void MCUTempSensor::read(void)
+         int ret = getMCURegsInfoWord(tempReg, &temp);
+         if (ret >= 0)
+         {
+-            double v = static_cast<double>(temp) / 1000;
++            double v = static_cast<double>(temp);
+             if constexpr (debug)
+             {
+                 std::cerr << "Value update to " << v << "raw reading "

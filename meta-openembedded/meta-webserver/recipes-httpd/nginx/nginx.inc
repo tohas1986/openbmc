@@ -22,7 +22,6 @@ SRC_URI = " \
     file://nginx-volatile.conf \
     file://nginx.service \
     file://nginx-fix-pidfile.patch \
-    file://0001-configure-libxslt-conf.patch \
 "
 
 inherit siteinfo update-rc.d useradd systemd
@@ -45,11 +44,6 @@ PACKAGECONFIG[http2] = "--with-http_v2_module,,"
 PACKAGECONFIG[ssl] = "--with-http_ssl_module,,openssl"
 PACKAGECONFIG[http-auth-request] = "--with-http_auth_request_module,,"
 PACKAGECONFIG[ipv6] = "--with-ipv6,,"
-PACKAGECONFIG[webdav] = "--with-http_dav_module,,"
-PACKAGECONFIG[stream] = "--with-stream,,"
-PACKAGECONFIG[http-sub-module] = "--with-http_sub_module,,"
-
-PACKAGECONFIG[xslt] = "--with-http_xslt_module,,libxslt"
 
 do_configure () {
     if [ "${SITEINFO_BITS}" = "64" ]; then
@@ -153,7 +147,7 @@ do_install () {
 
 pkg_postinst:${PN} () {
     if [ -z "$D" ]; then
-        if type systemd-tmpfiles >/dev/null 2>&1; then
+        if type systemd-tmpfiles >/dev/null; then
             systemd-tmpfiles --create
         elif [ -e ${sysconfdir}/init.d/populate-volatile.sh ]; then
             ${sysconfdir}/init.d/populate-volatile.sh update
@@ -186,5 +180,4 @@ USERADD_PARAM:${PN} = " \
     --system --no-create-home \
     --home ${NGINX_WWWDIR} \
     --groups www-data \
-    --shell ${base_sbindir}/nologin \
     --user-group ${NGINX_USER}"

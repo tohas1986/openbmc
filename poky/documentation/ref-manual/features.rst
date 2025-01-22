@@ -6,7 +6,7 @@ Features
 
 This chapter provides a reference of shipped machine and distro features
 you can include as part of your image, a reference on image features you
-can select, and a reference on :ref:`ref-features-backfill`.
+can select, and a reference on feature backfilling.
 
 Features provide a mechanism for working out which packages should be
 included in the generated images. Distributions can select which
@@ -51,6 +51,8 @@ Project metadata:
 -  *acpi:* Hardware has ACPI (x86/x86_64 only)
 
 -  *alsa:* Hardware has ALSA audio drivers
+
+-  *apm:* Hardware uses APM (or APM emulation)
 
 -  *bluetooth:* Hardware has integrated BT
 
@@ -141,7 +143,7 @@ metadata, as extra layers can define their own:
 -  *cramfs:* Include CramFS support.
 
 -  *debuginfod:* Include support for getting ELF debugging information through
-   a :ref:`debuginfod <dev-manual/debugging:using the debuginfod server method>`
+   a :ref:`debuginfod <dev-manual/common-tasks:using the debuginfod server method>`
    server.
 
 -  *directfb:* Include DirectFB support.
@@ -160,9 +162,6 @@ metadata, as extra layers can define their own:
 
 -  *keyboard:* Include keyboard support (e.g. keymaps will be loaded
    during boot).
-
--  *minidebuginfo:* Add minimal debug symbols :ref:`(minidebuginfo)<dev-manual/debugging:enabling minidebuginfo>`
-   to binary files containing, allowing ``coredumpctl`` and ``gdb`` to show symbolicated stack traces.
 
 -  *multiarch:* Enable building applications with multiple architecture
    support.
@@ -203,7 +202,7 @@ metadata, as extra layers can define their own:
 
 -  *ptest:* Enables building the package tests where supported by
    individual recipes. For more information on package tests, see the
-   ":ref:`dev-manual/packages:testing packages with ptest`" section
+   ":ref:`dev-manual/common-tasks:testing packages with ptest`" section
    in the Yocto Project Development Tasks Manual.
 
 -  *pulseaudio:* Include support for
@@ -225,10 +224,6 @@ metadata, as extra layers can define their own:
    replacement of for ``init`` with parallel starting of services,
    reduced shell overhead, and other features. This ``init`` manager is
    used by many distributions.
-
--  *systemd-resolved:* Include support and use ``systemd-resolved`` as the
-   main DNS name resolver in ``glibc`` Name Service Switch. This is a DNS
-   resolver daemon from ``systemd``.
 
 -  *usbgadget:* Include USB Gadget Device support (for USB
    networking/serial/storage).
@@ -271,7 +266,7 @@ you can add several different predefined packages such as development
 utilities or packages with debug information needed to investigate
 application problems or profile applications.
 
-The image features available for all images are:
+Here are the image features available for all images:
 
 -  *allow-empty-password:* Allows Dropbear and OpenSSH to accept
    logins from accounts having an empty password string.
@@ -299,11 +294,11 @@ The image features available for all images are:
    forced in ``/etc/passwd`` and ``/etc/shadow`` if such files exist.
 
    .. note::
-       ``empty-root-password`` doesn't set an empty root password by itself.
+       ``empty-root-passwd`` doesn't set an empty root password by itself.
        You get an initial empty root password thanks to the
        :oe_git:`base-passwd </openembedded-core/tree/meta/recipes-core/base-passwd/>`
        and :oe_git:`shadow </openembedded-core/tree/meta/recipes-extended/shadow/>`
-       recipes, and the presence of ``empty-root-password`` or ``debug-tweaks``
+       recipes, and the presence of ``empty-root-passwd`` or ``debug-tweaks``
        just disables the mechanism which forces an non-empty password for the
        root user.
 
@@ -330,7 +325,7 @@ The image features available for all images are:
 
 -  *read-only-rootfs:* Creates an image whose root filesystem is
    read-only. See the
-   ":ref:`dev-manual/read-only-rootfs:creating a read-only root filesystem`"
+   ":ref:`dev-manual/common-tasks:creating a read-only root filesystem`"
    section in the Yocto Project Development Tasks Manual for more
    information.
 
@@ -349,7 +344,7 @@ The image features available for all images are:
 -  *splash:* Enables showing a splash screen during boot. By default,
    this screen is provided by ``psplash``, which does allow
    customization. If you prefer to use an alternative splash screen
-   package, you can do so by setting the :term:`SPLASH` variable to a
+   package, you can do so by setting the ``SPLASH`` variable to a
    different package name (or names) within the image recipe or at the
    distro configuration level.
 
@@ -363,7 +358,7 @@ The image features available for all images are:
    a given image.
 
 Some image features are available only when you inherit the
-:ref:`ref-classes-core-image` class. The current list of
+:ref:`core-image <ref-classes-core-image>` class. The current list of
 these valid features is as follows:
 
 -  *hwcodecs:* Installs hardware acceleration codecs.
@@ -399,7 +394,7 @@ these valid features is as follows:
 
 -  *tools-debug:* Installs debugging tools such as ``strace`` and
    ``gdb``. For information on GDB, see the
-   ":ref:`dev-manual/debugging:debugging with the gnu project debugger (gdb) remotely`" section
+   ":ref:`dev-manual/common-tasks:debugging with the gnu project debugger (gdb) remotely`" section
    in the Yocto Project Development Tasks Manual. For information on
    tracing and profiling, see the :doc:`/profile-manual/index`.
 
@@ -421,50 +416,58 @@ these valid features is as follows:
 Feature Backfilling
 ===================
 
-Sometimes it is necessary in the OpenEmbedded build system to
-add new functionality to :term:`MACHINE_FEATURES` or
-:term:`DISTRO_FEATURES`, but at the same time, allow existing
-distributions or machine definitions to opt out of such new
-features, to retain the same overall level of functionality.
-
-To make this possible, the OpenEmbedded build system has a mechanism to
-automatically "backfill" features into existing distro or machine
+Sometimes it is necessary in the OpenEmbedded build system to extend
+:term:`MACHINE_FEATURES` or
+:term:`DISTRO_FEATURES` to control functionality
+that was previously enabled and not able to be disabled. For these
+cases, we need to add an additional feature item to appear in one of
+these variables, but we do not want to force developers who have
+existing values of the variables in their configuration to add the new
+feature in order to retain the same overall level of functionality.
+Thus, the OpenEmbedded build system has a mechanism to automatically
+"backfill" these added features into existing distro or machine
 configurations. You can see the list of features for which this is done
-by checking the :term:`DISTRO_FEATURES_BACKFILL` and
-:term:`MACHINE_FEATURES_BACKFILL` variables in the
-``meta/conf/bitbake.conf`` file.
+by finding the
+:term:`DISTRO_FEATURES_BACKFILL` and
+:term:`MACHINE_FEATURES_BACKFILL`
+variables in the ``meta/conf/bitbake.conf`` file.
 
-These two variables are paired with the
+Because such features are backfilled by default into all configurations
+as described in the previous paragraph, developers who wish to disable
+the new features need to be able to selectively prevent the backfilling
+from occurring. They can do this by adding the undesired feature or
+features to the
 :term:`DISTRO_FEATURES_BACKFILL_CONSIDERED`
-and :term:`MACHINE_FEATURES_BACKFILL_CONSIDERED` variables
-which allow distro or machine configuration maintainers to `consider` any
-added feature, and decide when they wish to keep or exclude such feature,
-thus preventing the backfilling from happening.
+or
+:term:`MACHINE_FEATURES_BACKFILL_CONSIDERED`
+variables for distro features and machine features respectively.
 
-Here are two examples to illustrate feature backfilling:
+Here are two examples to help illustrate feature backfilling:
 
--  *The "pulseaudio" distro feature option*: Previously, PulseAudio support was
-   enabled within the Qt and GStreamer frameworks. Because of this, the feature
-   is now backfilled and thus enabled for all distros through the
-   :term:`DISTRO_FEATURES_BACKFILL` variable in the ``meta/conf/bitbake.conf``
-   file. However, if your distro needs to disable the feature, you can do so
-   without affecting other existing distro configurations that need PulseAudio
-   support. You do this by adding "pulseaudio" to
-   :term:`DISTRO_FEATURES_BACKFILL_CONSIDERED` in your distro's ``.conf``
-   file. So, adding the feature to this variable when it also exists in the
-   :term:`DISTRO_FEATURES_BACKFILL` variable prevents the build system from
-   adding the feature to your configuration's :term:`DISTRO_FEATURES`,
-   effectively disabling the feature for that particular distro.
+-  *The "pulseaudio" distro feature option*: Previously, PulseAudio
+   support was enabled within the Qt and GStreamer frameworks. Because
+   of this, the feature is backfilled and thus enabled for all distros
+   through the :term:`DISTRO_FEATURES_BACKFILL` variable in the
+   ``meta/conf/bitbake.conf`` file. However, your distro needs to
+   disable the feature. You can disable the feature without affecting
+   other existing distro configurations that need PulseAudio support by
+   adding "pulseaudio" to :term:`DISTRO_FEATURES_BACKFILL_CONSIDERED` in
+   your distro's ``.conf`` file. Adding the feature to this variable
+   when it also exists in the :term:`DISTRO_FEATURES_BACKFILL` variable
+   prevents the build system from adding the feature to your
+   configuration's :term:`DISTRO_FEATURES`, effectively disabling the
+   feature for that particular distro.
 
 -  *The "rtc" machine feature option*: Previously, real time clock (RTC)
    support was enabled for all target devices. Because of this, the
    feature is backfilled and thus enabled for all machines through the
-   :term:`MACHINE_FEATURES_BACKFILL` variable in the ``meta/conf/bitbake.conf``
-   file. However, if your target device does not have this capability, you can
-   disable RTC support for your device without affecting other machines
-   that need RTC support. You do this by adding the "rtc" feature to the
-   :term:`MACHINE_FEATURES_BACKFILL_CONSIDERED` list in your machine's ``.conf``
-   file. So, adding the feature to this variable when it also exists in the
-   :term:`MACHINE_FEATURES_BACKFILL` variable prevents the build system from
-   adding the feature to your configuration's :term:`MACHINE_FEATURES`,
-   effectively disabling RTC support for that particular machine.
+   :term:`MACHINE_FEATURES_BACKFILL` variable in the
+   ``meta/conf/bitbake.conf`` file. However, your target device does not
+   have this capability. You can disable RTC support for your device
+   without affecting other machines that need RTC support by adding the
+   feature to your machine's :term:`MACHINE_FEATURES_BACKFILL_CONSIDERED`
+   list in the machine's ``.conf`` file. Adding the feature to this
+   variable when it also exists in the :term:`MACHINE_FEATURES_BACKFILL`
+   variable prevents the build system from adding the feature to your
+   configuration's :term:`MACHINE_FEATURES`, effectively disabling RTC
+   support for that particular machine.

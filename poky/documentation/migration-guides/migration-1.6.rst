@@ -1,5 +1,3 @@
-.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
-
 Release 1.6 (daisy)
 ===================
 
@@ -11,9 +9,10 @@ Project 1.6 Release (codename "daisy") from the prior release.
 ``archiver`` Class
 ------------------
 
-The :ref:`ref-classes-archiver` class has been rewritten and its configuration
-has been simplified. For more details on the source archiver, see the
-":ref:`dev-manual/licenses:maintaining open source license compliance during your product's lifecycle`"
+The :ref:`archiver <ref-classes-archiver>` class has been rewritten
+and its configuration has been simplified. For more details on the
+source archiver, see the
+":ref:`dev-manual/common-tasks:maintaining open source license compliance during your product's lifecycle`"
 section in the Yocto Project Development Tasks Manual.
 
 .. _migration-1.6-packaging-changes:
@@ -148,7 +147,7 @@ NFS mount, an error occurs.
 The ``PRINC`` variable has been deprecated and triggers a warning if
 detected during a build. For :term:`PR` increments on changes,
 use the PR service instead. You can find out more about this service in
-the ":ref:`dev-manual/packages:working with a pr service`"
+the ":ref:`dev-manual/common-tasks:working with a pr service`"
 section in the Yocto Project Development Tasks Manual.
 
 .. _migration-1.6-variable-changes-IMAGE_TYPES:
@@ -221,9 +220,9 @@ Package Test (ptest)
 
 Package Tests (ptest) are built but not installed by default. For
 information on using Package Tests, see the
-":ref:`dev-manual/packages:testing packages with ptest`" section in the
-Yocto Project Development Tasks Manual. See also the ":ref:`ref-classes-ptest`"
-section.
+":ref:`dev-manual/common-tasks:testing packages with ptest`"
+section in the Yocto Project Development Tasks Manual. For information on the
+``ptest`` class, see the ":ref:`ref-classes-ptest`" section.
 
 .. _migration-1.6-build-changes:
 
@@ -232,13 +231,13 @@ Build Changes
 
 Separate build and source directories have been enabled by default for
 selected recipes where it is known to work and for all
-recipes that inherit the :ref:`ref-classes-cmake` class. In
-future releases the :ref:`ref-classes-autotools` class
+recipes that inherit the :ref:`cmake <ref-classes-cmake>` class. In
+future releases the :ref:`autotools <ref-classes-autotools>` class
 will enable a separate :term:`Build Directory` by default as well. Recipes
 building Autotools-based software that fails to build with a separate
 :term:`Build Directory` should be changed to inherit from the
 :ref:`autotools-brokensep <ref-classes-autotools>` class instead of
-the :ref:`ref-classes-autotools` or ``autotools_stage`` classes.
+the ``autotools`` or ``autotools_stage``\ classes.
 
 .. _migration-1.6-building-qemu-native:
 

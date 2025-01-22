@@ -1,0 +1,178 @@
+From 3e5a351b43e84f50f1ecdf3462c3ff1ba781c479 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 2 Apr 2021 12:51:20 +0000
+Subject: [PATCH] psusensor-fix-bug-with-read-of-hwmons-on-switched-of
+
+---
+ include/PSUSensor.hpp |  2 +-
+ src/PSUSensor.cpp     | 40 +++++++++++++++++++++++++++++++---------
+ 2 files changed, 32 insertions(+), 10 deletions(-)
+
+diff --git a/include/PSUSensor.hpp b/include/PSUSensor.hpp
+index 63f29b7..123629c 100644
+--- a/include/PSUSensor.hpp
++++ b/include/PSUSensor.hpp
+@@ -142,7 +142,7 @@ class PSUSensor : public Sensor, public std::enable_shared_from_this<PSUSensor>
+     void checkThresholds(void) override;
+     void updateMinMaxValues(void);
+     PowerState powerState;
+-    std::string _sensorName;
++    std::string sensorName;
+ 
+     int fd;
+ 
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index bdca038..89ac04e 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -50,9 +50,9 @@ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+            conn, powerState),
+     std::enable_shared_from_this<PSUSensor>(), objServer(objectServer),
+     inputDev(io), waitTimer(io), path(path), pathRatedMax(""), pathRatedMin(""),
+-    sensorFactor(factor), minMaxReadCounter(0), bridgeGpio(std::move(bridgeGpio))
++    sensorFactor(factor), minMaxReadCounter(0), bridgeGpio(std::move(bridgeGpio)),
++    sensorName(sensorName)
+ {
+-    _sensorName = sensorName;
+     if (DEBUG)
+     {
+         std::cerr << "Constructed sensor: path " << path << " type "
+@@ -63,10 +63,13 @@ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+     }
+ 
+     fd = open(path.c_str(), O_RDONLY);
+-    if (fd < 0)
++    if (fd > 0)
+     {
+         //std::cerr << "PSU sensor failed to open file\n";
+-        return;
++        //return;
++        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " file opened:"
++                             << path << "\n";
++        inputDev.assign(fd);
+     }
+     inputDev.assign(fd);
+ 
+@@ -132,15 +135,20 @@ PSUSensor::~PSUSensor()
+ 
+ void PSUSensor::setupRead(void)
+ {
++    if (DEBUG)
++        std::cerr << __FUNCTION__ << " " << sensorName << "\n";
+     if (readState == PowerState::on && !isPowerOn())
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName
++                    << " Power is off and PowerState is on, re-scheduling SetupRead\n";
+         updateValue(std::numeric_limits<double>::quiet_NaN());
+         waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollPowerOffMs));
+         std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+         /* Check inputDev and open it if needed */
+         if (! inputDev.is_open())
+         {
+-            std::cerr << __FUNCTION__ << " inputDev is not open, opening\n";
++            //std::cerr << __FUNCTION__ << " inputDev is not open, opening\n";
++            std::cerr << __FUNCTION__ << " " << sensorName << " inputDev is not open, opening\n";
+             fd = open(path.c_str(), O_RDONLY);
+             if (fd > 0)
+             {
+@@ -148,6 +156,7 @@ void PSUSensor::setupRead(void)
+             }
+             else
+             {
++                std::cerr << __FUNCTION__ << " " << sensorName << " Failed to open " << path << ", re-scheduling SetupRead\n";
+                 updateValue(std::numeric_limits<double>::quiet_NaN());
+                 waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollMs));
+                 std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+@@ -156,7 +165,8 @@ void PSUSensor::setupRead(void)
+                     if (ec == boost::asio::error::operation_aborted)
+                     {
+                         // TODO FIXME Silent exit
+-                        return; // we're being canceled
++                        //return; // we're being canceled
++                        exit(-1);
+                     }
+                     if (self)
+                     {
+@@ -171,7 +181,9 @@ void PSUSensor::setupRead(void)
+             std::shared_ptr<PSUSensor> self = weakRef.lock();
+             if (ec == boost::asio::error::operation_aborted)
+             {
+-                return; // we're being canceled
++                // TODO FIXME Silent exit
++                exit(-1);
++                return;
+             }
+             if (self)
+             {
+@@ -181,6 +193,7 @@ void PSUSensor::setupRead(void)
+         return;
+     }
+ 
++    if (DEBUG) std::cerr << __FUNCTION__ << " Going to read from file\n";
+     std::shared_ptr<boost::asio::streambuf> buffer =
+         std::make_shared<boost::asio::streambuf>();
+     std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+@@ -200,6 +213,8 @@ void PSUSensor::setupRead(void)
+                 if (ec == boost::asio::error::operation_aborted)
+                 {
+                     // TODO FIXME Silent exit
++                    exit(-1);
++                    exit(-1);
+                     return; // we're being canceled
+                 }
+ 
+@@ -221,6 +236,7 @@ void PSUSensor::setupRead(void)
+     }
+     else
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " Scheduling async read \n";
+         boost::asio::async_read_until(
+             inputDev, *buffer, '\n',
+             [weakRef, buffer](const boost::system::error_code& ec,
+@@ -250,8 +266,12 @@ void PSUSensor::updateMinMaxValues(void)
+ 
+ void PSUSensor::handleResponse(const boost::system::error_code& err)
+ {
++    if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << "\n";
+     if (readState == PowerState::on && !isPowerOn())
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName
++                    << " Power is off and PowerState is on, re-scheduling SetupRead\n";
++
+         errCount = 0;
+         updateValue(std::numeric_limits<double>::quiet_NaN());
+ 
+@@ -262,14 +282,15 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+             if (ec == boost::asio::error::operation_aborted)
+             {
+                 // TODO FIXME Silent exit
++                exit(-1);
+                 return;
+             }
+             if (self)
+             {
+                 self->setupRead();
+-                return;
+             }
+         });
++        return;
+     }
+ 
+     if ((err == boost::system::errc::bad_file_descriptor) ||
+@@ -279,7 +300,7 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+         /* Dilemma here:
+          * We can detect error and re-open device, but what to do if
+          * open fails? */
+-        if (DEBUG) std::cerr << __FUNCTION__ << "Reading error occured " << err << "\n";
++        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << "Reading error occured " << err << "\n";
+         inputDev.close();
+     }
+     else
+@@ -291,6 +312,7 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+             try
+             {
+                 std::getline(responseStream, response);
++                if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " Got read:" << response << "\n";
+                 rawValue = std::stod(response);
+                 responseStream.clear();
+                 double nvalue = rawValue / sensorFactor;

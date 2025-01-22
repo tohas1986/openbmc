@@ -1,0 +1,21 @@
+From db789a131bbf2433f592b687a963e095e38e5bed Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 24 Jun 2020 09:11:01 +0000
+Subject: [PATCH] psusensor: Fix CMakeLists
+
+---
+ CMakeLists.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 1ebafdd..8f90575 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -195,6 +195,7 @@ target_link_libraries (mcutempsensor i2c)
+ add_executable (psusensor src/PSUSensorMain.cpp ${PSU_SRC_FILES})
+ add_dependencies (psusensor sdbusplus-project)
+ target_link_libraries (psusensor ${SENSOR_LINK_LIBS})
++target_link_libraries (psusensor gpiodcxx)
+ 
+ if (NOT DISABLE_NVME)
+     add_executable (nvmesensor ${NVME_SRC_FILES})

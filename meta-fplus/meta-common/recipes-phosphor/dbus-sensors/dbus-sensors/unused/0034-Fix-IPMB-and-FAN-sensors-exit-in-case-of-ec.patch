@@ -1,0 +1,51 @@
+From 07e810a4eeefeb264f85b2fc4e4dde481535bf65 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Mon, 5 Apr 2021 12:54:39 +0000
+Subject: [PATCH] Fix IPMB and FAN sensors exit in case of ec
+
+---
+ src/FanMain.cpp    | 11 ++++++-----
+ src/IpmbSensor.cpp |  4 +++-
+ 2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/FanMain.cpp b/src/FanMain.cpp
+index cec2230..4d0cb15 100644
+--- a/src/FanMain.cpp
++++ b/src/FanMain.cpp
+@@ -481,15 +481,16 @@ int main(int argc, char* argv[])
+             filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+-                if (ec == boost::asio::error::operation_aborted)
+-                {
++                //if (ec == boost::asio::error::operation_aborted)
++                //{
+                     /* we were canceled*/
+-                    return;
+-                }
++                //    return;
++                //}
+                 if (ec)
+                 {
+                     std::cerr << "timer error\n";
+-                    return;
++                    //return;
++                    exit(-1);
+                 }
+                 createSensors(io, objectServer, tachSensors, pwmSensors,
+                               systemBus, sensorsChanged, 5);
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 84a5341..a3aba09 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -920,7 +920,9 @@ void reinitSensors(sdbusplus::message::message& message)
+             initCmdTimer->async_wait([](const boost::system::error_code ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+                 {
+-                    return; // we're being canceled
++                    //return; // we're being canceled
++                    std::cerr << "read: Error occured, exiting\n";
++                    exit(-1);
+                 }
+ 
+                 for (const auto& sensor : sensors)

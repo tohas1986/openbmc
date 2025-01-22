@@ -1,0 +1,106 @@
+From f63649769ead3f8a8895d4dc9c35a6a3bd19140f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 30 Sep 2022 12:34:24 +0000
+Subject: [PATCH] Persistent configuration
+
+---
+ redfish-core/include/redfish.hpp              |  1 +
+ redfish-core/lib/managers.hpp                 | 49 +++++++++++++++++++
+ .../v1/JsonSchemas/Manager/Manager.json       |  5 ++
+ 3 files changed, 55 insertions(+)
+
+diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
+index 223ad964..fa313a84 100644
+--- a/redfish-core/include/redfish.hpp
++++ b/redfish-core/include/redfish.hpp
+@@ -92,6 +92,7 @@ class RedfishService
+         requestRoutesManagerResetActionInfo(app);
+         requestRoutesManagerResetToDefaultsAction(app);
+         requestRoutesManagerDiagnosticData(app);
++        requestRoutesManagerSaveConfigAction(app);
+         requestRoutesChassisCollection(app);
+         requestRoutesChassis(app);
+         requestRoutesChassisResetAction(app);
+diff --git a/redfish-core/lib/managers.hpp b/redfish-core/lib/managers.hpp
+index 4e502d07..16a99a86 100644
+--- a/redfish-core/lib/managers.hpp
++++ b/redfish-core/lib/managers.hpp
+@@ -268,6 +268,48 @@ inline void requestRoutesManagerResetActionInfo(App& app)
+         });
+ }
+ 
++/**
++ * ManagerSaveConfigAction class supports the POST method for the Save Config
++ * action.
++ */
++inline void requestRoutesManagerSaveConfigAction(App& app)
++{
++    /**
++     * Function handles POST method request.
++     * Analyzes POST body before sending Reset (Reboot) request data to D-Bus.
++     * OpenBMC supports ResetType "GracefulRestart" and "ForceRestart".
++     */
++
++    BMCWEB_ROUTE(app, "/redfish/v1/Managers/bmc/Actions/Manager.SaveConfig/")
++        .privileges(redfish::privileges::postManager)
++        .methods(boost::beast::http::verb::post)(
++            [](const crow::Request& req,
++               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
++                BMCWEB_LOG_DEBUG << "Post Manager SaveConfig.";
++
++                char command[100];
++                std::stringstream cmd;
++                std::string cmd_str;
++                cmd << "/usr/sbin/config-saver &";
++                cmd_str = cmd.str();
++
++                try
++                {
++                    memset(command,0,sizeof(command));
++                    std::copy(cmd_str.begin(), cmd_str.end(), command);
++                    system(command);
++                    messages::success(asyncResp->res);
++                    return;
++                }
++                catch (std::system_error&)
++                {
++                    std::cerr << "Unable to save config to persistent storage.\n";
++                    return;
++                }
++
++                return;
++            });
++}
+ static constexpr const char* objectManagerIface =
+     "org.freedesktop.DBus.ObjectManager";
+ static constexpr const char* pidConfigurationIface =
+@@ -2021,6 +2063,13 @@ inline void requestRoutesManager(App& app)
+         asyncResp->res.jsonValue["DateTimeLocalOffset"] =
+             redfishDateTimeOffset.second;
+ 
++        // Manager.Reset (an action) can be many values, OpenBMC only
++        // supports BMC reboot.
++        nlohmann::json& managerSaveConfig =
++            asyncResp->res.jsonValue["Actions"]["#Manager.SaveConfig"];
++        managerSaveConfig["target"] =
++         "/redfish/v1/Managers/bmc/Actions/Manager.SaveConfig";
++
+         // TODO (Gunnar): Remove these one day since moved to ComputerSystem
+         // Still used by OCP profiles
+         // https://github.com/opencomputeproject/OCP-Profiles/issues/23
+diff --git a/static/redfish/v1/JsonSchemas/Manager/Manager.json b/static/redfish/v1/JsonSchemas/Manager/Manager.json
+index 370112e8..1d550157 100644
+--- a/static/redfish/v1/JsonSchemas/Manager/Manager.json
++++ b/static/redfish/v1/JsonSchemas/Manager/Manager.json
+@@ -39,6 +39,11 @@
+                     "$ref": "#/definitions/OemActions",
+                     "description": "The available OEM-specific actions for this resource.",
+                     "longDescription": "This property shall contain the available OEM-specific actions for this resource."
++                },
++                "#Manager.SaveConfig": {
++                    "$ref": "#/definitions/SaveConfig",
++                    "description": "Save configuration to persistent storage.",
++                    "longDescription": "Save configuration to persistent storage."
+                 }
+             },
+             "type": "object"

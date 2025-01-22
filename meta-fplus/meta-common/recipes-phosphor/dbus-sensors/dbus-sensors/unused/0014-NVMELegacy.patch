@@ -1,0 +1,537 @@
+From 054cb061044d518a548e9326fed3d8173035212e Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 1 Apr 2021 16:44:53 +0000
+Subject: [PATCH] NVMELegacy
+
+---
+ include/NVMELegacySensor.hpp                       |  43 +++
+ meson_options.txt                                  |   1 +
+ service_files/ls                                   |   0
+ service_files/meson.build                          |   1 +
+ .../xyz.openbmc_project.nvmelegacysensor.service   |  13 +
+ src/NVMELegacySensor.cpp                           | 387 +++++++++++++++++++++
+ src/meson.build                                    |  19 +
+ 7 files changed, 464 insertions(+)
+ create mode 100644 include/NVMELegacySensor.hpp
+ create mode 100644 service_files/ls
+ create mode 100644 service_files/xyz.openbmc_project.nvmelegacysensor.service
+ create mode 100644 src/NVMELegacySensor.cpp
+
+diff --git a/include/NVMELegacySensor.hpp b/include/NVMELegacySensor.hpp
+new file mode 100644
+index 0000000..ac3f62f
+--- /dev/null
++++ b/include/NVMELegacySensor.hpp
+@@ -0,0 +1,43 @@
++#pragma once
++#include "sensor.hpp"
++
++#include <boost/asio/deadline_timer.hpp>
++#include <boost/container/flat_map.hpp>
++
++#include <chrono>
++#include <limits>
++#include <memory>
++#include <string>
++#include <vector>
++
++enum class SensorTypes
++{
++    temp,
++    pdlu
++};
++
++struct NVMELegacySensor : public Sensor
++{
++    NVMELegacySensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
++                  boost::asio::io_service& io, const std::string& name,
++                  const std::string& sensorConfiguration,
++                  sdbusplus::asio::object_server& objectServer,
++                  std::vector<thresholds::Threshold>&& thresholds,
++                  uint8_t busId,
++                  const PowerState powerState, std::string &sensorTypeName,
++                  uint8_t slaveAddr);
++    ~NVMELegacySensor();
++
++    void checkThresholds(void) override;
++    void readSensor(void);
++    void init(void);
++
++    uint8_t busId;
++    uint8_t slaveAddr;
++    SensorTypes type;
++
++  private:
++    int getRegister(uint8_t idx, int8_t* temp);
++    sdbusplus::asio::object_server& objectServer;
++    boost::asio::deadline_timer waitTimer;
++};
+diff --git a/meson_options.txt b/meson_options.txt
+index 6a614de..4d38729 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -7,6 +7,7 @@ option('intrusion', type: 'feature', value: 'enabled', description: 'Enable intr
+ option('ipmb', type: 'feature', value: 'enabled', description: 'Enable IPMB sensor.',)
+ option('mcu', type: 'feature', value: 'enabled', description: 'Enable MCU sensor.',)
+ option('nvme', type: 'feature', value: 'enabled', description: 'Enable NVMe sensor.',)
++option('nvmelegacy', type: 'feature', value: 'enabled', description: 'Enable NVMe legacy sensor.',)
+ option('psu', type: 'feature', value: 'enabled', description: 'Enable PSU sensor.',)
+ option('external', type: 'feature', value: 'enabled', description: 'Enable External sensor.',)
+ option('tests', type: 'feature', description: 'Build tests.',)
+diff --git a/service_files/ls b/service_files/ls
+new file mode 100644
+index 0000000..e69de29
+diff --git a/service_files/meson.build b/service_files/meson.build
+index 37bb261..0b74e4b 100644
+--- a/service_files/meson.build
++++ b/service_files/meson.build
+@@ -8,6 +8,7 @@ unit_files = [
+     ['intrusion', 'xyz.openbmc_project.intrusionsensor.service'],
+     ['mcu', 'xyz.openbmc_project.mcutempsensor.service'],
+     ['nvme', 'xyz.openbmc_project.nvmesensor.service'],
++    ['nvmelegacy', 'xyz.openbmc_project.nvmelegacysensor.service'],
+     ['psu', 'xyz.openbmc_project.psusensor.service'],
+     ['external', 'xyz.openbmc_project.externalsensor.service'],
+ ]
+diff --git a/service_files/xyz.openbmc_project.nvmelegacysensor.service b/service_files/xyz.openbmc_project.nvmelegacysensor.service
+new file mode 100644
+index 0000000..91accd1
+--- /dev/null
++++ b/service_files/xyz.openbmc_project.nvmelegacysensor.service
+@@ -0,0 +1,13 @@
++[Unit]
++Description=Legacy interface NVMe Temp Sensor
++StopWhenUnneeded=false
++Requires=xyz.openbmc_project.EntityManager.service
++After=xyz.openbmc_project.EntityManager.service
++
++[Service]
++Restart=always
++RestartSec=5
++ExecStart=/usr/bin/nvmelegacysensor
++
++[Install]
++WantedBy=multi-user.target
+diff --git a/src/NVMELegacySensor.cpp b/src/NVMELegacySensor.cpp
+new file mode 100644
+index 0000000..a0e20a2
+--- /dev/null
++++ b/src/NVMELegacySensor.cpp
+@@ -0,0 +1,387 @@
++/*
++// Copyright (c) 2019 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++#include "NVMELegacySensor.hpp"
++
++#include "Utils.hpp"
++#include "VariantVisitors.hpp"
++
++#include <math.h>
++
++#include <CLI/CLI.hpp>
++#include <boost/algorithm/string.hpp>
++#include <boost/algorithm/string/predicate.hpp>
++#include <boost/algorithm/string/replace.hpp>
++#include <boost/container/flat_map.hpp>
++#include <sdbusplus/asio/connection.hpp>
++#include <sdbusplus/asio/object_server.hpp>
++#include <sdbusplus/bus/match.hpp>
++
++#include <chrono>
++#include <functional>
++#include <iostream>
++#include <limits>
++#include <memory>
++#include <numeric>
++#include <string>
++#include <vector>
++
++extern "C"
++{
++#include <i2c/smbus.h>
++#include <linux/i2c-dev.h>
++}
++
++bool DEBUG = false;
++
++constexpr const char* configInterface =
++    "xyz.openbmc_project.Configuration.NVMELegacySensor";
++static constexpr double mcuTempMaxReading = 0xFF;
++static constexpr double mcuTempMinReading = 0;
++
++boost::container::flat_map<std::string, std::unique_ptr<NVMELegacySensor>> sensors;
++
++NVMELegacySensor::NVMELegacySensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
++                             boost::asio::io_service& io,
++                             const std::string& sensorName,
++                             const std::string& sensorConfiguration,
++                             sdbusplus::asio::object_server& objectServer,
++                             std::vector<thresholds::Threshold>&& thresholdData,
++                             uint8_t busId,
++                             const PowerState powerState, std::string& sensorTypeName,
++                             uint8_t slaveAddr) :
++    Sensor(boost::replace_all_copy(sensorName, " ", "_"),
++           std::move(thresholdData), sensorConfiguration,
++           "xyz.openbmc_project.Configuration.NVMELegacySensor", mcuTempMaxReading,
++           mcuTempMinReading, conn, powerState),
++    busId(busId), objectServer(objectServer), waitTimer(io), slaveAddr(slaveAddr)
++{
++
++    if (DEBUG) {
++        std::cerr << "__FUNCTION__ Construct sensor sensorTypeName:" << sensorTypeName << "\n";
++    }
++
++    type = SensorTypes::temp;
++    if (sensorTypeName == "PDLU")
++        type = SensorTypes::pdlu;
++
++    std::string objPath = "/xyz/openbmc_project/sensors/";
++    if (type == SensorTypes::pdlu)
++        objPath += "utilization/";
++    else
++        objPath += "temperature/";
++
++    objPath += name;
++
++    if (DEBUG)
++        std::cerr <<  "type=" << sensorTypeName << " objPath:" << objPath << "\n";
++
++    sensorInterface = objectServer.add_interface(
++        objPath, "xyz.openbmc_project.Sensor.Value");
++
++    if (thresholds::hasWarningInterface(thresholds))
++    {
++        thresholdInterfaceWarning = objectServer.add_interface(
++            objPath, "xyz.openbmc_project.Sensor.Threshold.Warning");
++    }
++    if (thresholds::hasCriticalInterface(thresholds))
++    {
++        thresholdInterfaceCritical = objectServer.add_interface(
++            objPath, "xyz.openbmc_project.Sensor.Threshold.Critical");
++    }
++    association = objectServer.add_interface(
++        objPath, association::interface);
++}
++
++NVMELegacySensor::~NVMELegacySensor()
++{
++    waitTimer.cancel();
++    objectServer.remove_interface(thresholdInterfaceWarning);
++    objectServer.remove_interface(thresholdInterfaceCritical);
++    objectServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(association);
++}
++
++void NVMELegacySensor::init(void)
++{
++    setInitialProperties(dbusConnection);
++    readSensor();
++}
++
++void NVMELegacySensor::checkThresholds(void)
++{
++    thresholds::checkThresholds(this);
++}
++
++int NVMELegacySensor::getRegister(uint8_t idx, int8_t* value)
++{
++    std::string i2cBus = "/dev/i2c-" + std::to_string(busId);
++    int fd = open(i2cBus.c_str(), O_RDWR);
++
++    if (fd < 0)
++    {
++        std::cerr << " unable to open i2c device" << i2cBus << "  err=" << fd
++                  << "\n";
++        return -1;
++    }
++
++    if (ioctl(fd, I2C_SLAVE_FORCE, slaveAddr) < 0)
++    {
++        if (DEBUG)
++            std::cerr << " unable to set device address\n";
++        close(fd);
++        return -1;
++    }
++
++    unsigned long funcs = 0;
++    if (ioctl(fd, I2C_FUNCS, &funcs) < 0)
++    {
++        std::cerr << " not support I2C_FUNCS\n";
++        close(fd);
++        return -1;
++    }
++
++    if (!(funcs & I2C_FUNC_SMBUS_READ_WORD_DATA))
++    {
++        std::cerr << " not support I2C_FUNC_SMBUS_READ_WORD_DATA\n";
++        close(fd);
++        return -1;
++    }
++
++
++    uint8_t response[16];
++    int rc = i2c_smbus_read_i2c_block_data(fd, 0x00, 6, response);
++    close(fd);
++
++    std::ios oldState(nullptr);
++    oldState.copyfmt(std::cerr);
++    if (DEBUG) {
++        std::cerr << __FUNCTION__ << ": bus:" << +busId << " smbus read: rc=" << rc << " raw=0x";
++        for(int i=0;i<6; i++) {
++            std::cerr << std::hex << std::setfill('0') << std::setw(2) << +response[i] << " ";
++        }
++        std::cerr << "\n";
++        std::cerr.copyfmt(oldState);
++    }
++
++    if (rc < 6)
++    {
++        return -1;
++    }
++
++    if (idx > 5)
++        idx = 5;
++    *value = response[idx];
++
++    return 0;
++}
++
++void NVMELegacySensor::readSensor(void)
++{
++    static constexpr size_t pollTime = 5; // in seconds
++
++    waitTimer.expires_from_now(boost::posix_time::seconds(pollTime));
++    waitTimer.async_wait([this](const boost::system::error_code& ec) {
++        if (ec == boost::asio::error::operation_aborted)
++        {
++            return; // we're being cancelled
++        }
++        // read timer error
++        else if (ec)
++        {
++            std::cerr << "timer error\n";
++            return;
++        }
++        int8_t value;
++        int ret;
++        /* Don't read anything if power is off */
++        if (isPowerOn())
++        {
++            if (type == SensorTypes::temp)
++            {
++                /* According to Technical Note: NVMe Basic Management Command */
++                /* 00h‐7Eh Temperature is measured in degrees Celsius (0 to 126C) */
++                /* 7Fh 127C or higher */
++                /* 80h No temperature data or temperature data is more the 5 seconds old. */
++                /* 81h Temperature sensor failure */
++                /* 82h‐C3h Reserved */
++                /* C4 Temperature is ‐60C or lower*/
++                /* C5‐FFh Temperature measured in degrees Celsius is represented in twos */
++                /*        complement (‐1 to ‐59C) */
++                ret = getRegister(3, &value);
++                if (ret >= 0)
++                {
++                    if (value >= 0x80 && value < 0xc4) { ret = -1; }
++                }
++            }
++            else if (type == SensorTypes::pdlu)
++            {
++                ret = getRegister(4, &value);
++            }
++        }
++        else
++        {
++            ret = -1;
++        }
++
++        if (ret >= 0)
++        {
++            updateValue(static_cast<double>(value));
++        }
++        else
++        {
++            updateValue(std::numeric_limits<double>::quiet_NaN());
++        }
++        readSensor();
++    });
++}
++
++void createSensors(
++    boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,
++    boost::container::flat_map<std::string, std::unique_ptr<NVMELegacySensor>>&
++        sensors,
++    std::shared_ptr<sdbusplus::asio::connection>& dbusConnection)
++{
++    if (!dbusConnection)
++    {
++        std::cerr << "Connection not created\n";
++        exit(-1);
++    }
++
++    dbusConnection->async_method_call(
++        [&io, &objectServer, &dbusConnection, &sensors](
++            boost::system::error_code ec, const ManagedObjectType& resp) {
++            if (ec)
++            {
++                std::cerr << "Error contacting entity manager\n";
++                exit(-1);
++            }
++            for (const auto& pathPair : resp)
++            {
++                for (const auto& entry : pathPair.second)
++                {
++                    if (entry.first != configInterface)
++                    {
++                        continue;
++                    }
++                    std::string name =
++                        loadVariant<std::string>(entry.second, "Name");
++
++                    std::vector<thresholds::Threshold> sensorThresholds;
++                    if (!parseThresholdsFromConfig(pathPair.second,
++                                                   sensorThresholds))
++                    {
++                        std::cerr << "error populating thresholds for " << name
++                                  << "\n";
++                    }
++
++                    uint8_t busId = loadVariant<uint8_t>(entry.second, "Bus");
++
++                    std::string sensorClass =
++                        loadVariant<std::string>(entry.second, "Class");
++
++                    uint8_t slaveAddr = 0x6a;
++                    try
++                    {
++                        slaveAddr = loadVariant<uint8_t>(entry.second, "SlaveAddr");
++                    }
++                    catch(...)
++                    {
++                        std::cerr << "Unable to get SlaveAddr, setting to default\n";
++                    }
++
++                    if (DEBUG)
++                    {
++                        std::ios oldState(nullptr);
++                        oldState.copyfmt(std::cerr);
++                        std::cerr
++                            << "Configuration parsed for \n\t" << entry.first
++                            << "\n"
++                            << "with\n"
++                            << "\tName: " << name << "\n"
++                            << "\tBus: " << static_cast<int>(busId) << "\n"
++                            << "\tSlaveAddr: 0x" << std::hex << std::setfill('0') << std::setw(2) << +slaveAddr << "\n"
++                            << "\tClass: " << sensorClass
++                            << "\n";
++                        std::cerr.copyfmt(oldState);
++                    }
++
++                    PowerState powerState = PowerState::on;
++                    auto& sensor = sensors[name];
++
++                    sensor = std::make_unique<NVMELegacySensor>(
++                        dbusConnection, io, name, pathPair.first, objectServer,
++                        std::move(sensorThresholds), busId,
++                        powerState, sensorClass, slaveAddr);
++
++                    sensor->init();
++                }
++            }
++        },
++        entityManagerName, "/", "org.freedesktop.DBus.ObjectManager",
++        "GetManagedObjects");
++}
++
++int main(int argc, char* argv[])
++{
++
++    CLI::App app("Legacy interface NVMe sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
++    boost::asio::io_service io;
++    auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
++    systemBus->request_name("xyz.openbmc_project.NVMELegacySensor");
++    sdbusplus::asio::object_server objectServer(systemBus);
++
++    io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
++
++    boost::asio::deadline_timer configTimer(io);
++
++    std::function<void(sdbusplus::message::message&)> eventHandler =
++        [&](sdbusplus::message::message&) {
++            configTimer.expires_from_now(boost::posix_time::seconds(1));
++            // create a timer because normally multiple properties change
++            configTimer.async_wait([&](const boost::system::error_code& ec) {
++                if (ec == boost::asio::error::operation_aborted)
++                {
++                    return; // we're being canceled
++                }
++                // config timer error
++                else if (ec)
++                {
++                    std::cerr << "timer error\n";
++                    return;
++                }
++                createSensors(io, objectServer, sensors, systemBus);
++                if (sensors.empty())
++                {
++                    std::cout << "Configuration not detected\n";
++                }
++            });
++        };
++
++    sdbusplus::bus::match::match configMatch(
++        static_cast<sdbusplus::bus::bus&>(*systemBus),
++        "type='signal',member='PropertiesChanged',"
++        "path_namespace='" +
++            std::string(inventoryPath) +
++            "',"
++            "arg0namespace='" +
++            configInterface + "'",
++        eventHandler);
++
++    io.run();
++}
+diff --git a/src/meson.build b/src/meson.build
+index 42d6c1e..540931f 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -172,6 +172,25 @@ if get_option('nvme').enabled()
+     )
+ endif
+ 
++if get_option('nvmelegacy').enabled()
++    executable(
++        'nvmelegacysensor',
++        'NVMELegacySensor.cpp',
++        dependencies: [
++            i2c,
++            sdbusplus,
++            mctp,
++    ],
++        implicit_include_directories: false,
++        include_directories: '../include',
++        install: true,
++        link_with: [
++            utils_a,
++            thresholds_a,
++        ],
++    )
++endif
++
+ if get_option('psu').enabled()
+     executable(
+         'psusensor',

@@ -1,0 +1,58 @@
+From 3ae087b519720c8e13f7286b44664e04e5f69144 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 24 Feb 2021 06:06:10 +0000
+Subject: [PATCH] Don't restart ntp
+
+---
+ storagehandler.cpp | 31 -------------------------------
+ 1 file changed, 31 deletions(-)
+
+diff --git a/storagehandler.cpp b/storagehandler.cpp
+index f37059e..2f5fc22 100644
+--- a/storagehandler.cpp
++++ b/storagehandler.cpp
+@@ -599,25 +599,6 @@ ipmi::RspType<> ipmiStorageSetSelTime(uint32_t selDeviceTime)
+     using namespace std::chrono;
+     microseconds usec{seconds(selDeviceTime)};
+     
+-    char command[100];
+-
+-    std::stringstream cmd_on;
+-    std::stringstream cmd_off;
+-    std::string cmd_str;
+-    int systemRet;
+-
+-    cmd_on << "timedatectl set-ntp 0";
+-    cmd_str = cmd_on.str();
+-    memset(command,0,sizeof(command));
+-    std::copy(cmd_str.begin(), cmd_str.end(), command);
+-    systemRet = system(command);
+-    phosphor::logging::log<phosphor::logging::level::INFO>("Setting ntp to 0 in order to change time");
+-
+-    if(systemRet == -1){
+-    // The system method failed
+-       phosphor::logging::log<phosphor::logging::level::ERR>("Setting ntp failed");
+-    }
+-
+     try
+     {
+         sdbusplus::bus_t bus{ipmid_get_sd_bus_connection()};
+@@ -657,18 +638,6 @@ ipmi::RspType<> ipmiStorageSetSelTime(uint32_t selDeviceTime)
+         return ipmi::responseUnspecifiedError();
+     }
+     
+-    cmd_off << "timedatectl set-ntp 1";
+-    cmd_str = cmd_off.str();
+-    memset(command,0,sizeof(command));
+-    std::copy(cmd_str.begin(), cmd_str.end(), command);
+-    systemRet = system(command);
+-    phosphor::logging::log<phosphor::logging::level::INFO>("Setting ntp to 1 in order to change time");
+-
+-    if(systemRet == -1){
+-    // The system method failed
+-       phosphor::logging::log<phosphor::logging::level::ERR>("Setting ntp failed");
+-    }
+-
+     return ipmi::responseSuccess();
+ }
+ 

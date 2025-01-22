@@ -9,22 +9,24 @@ LICENSE = "MIT"
 
 inherit meson pkgconfig
 
-SRCREV = "31ec677ca24e7ed86e35f367f40a29d3d9f51c06"
-PV = "1.28"
+SRCREV = "203def046b466fb2da67f9f15552d84e1c0b41f2"
+PV = "1.26"
 
-SRC_URI = "git://gitlab.freedesktop.org/drm/igt-gpu-tools.git;protocol=https;branch=master"
+SRC_URI = "git://gitlab.freedesktop.org/drm/igt-gpu-tools.git;protocol=https;branch=master \
+           file://0001-lib-meson.build-fix-meson-0.60-compatibility.patch \
+           "
 
 S = "${WORKDIR}/git"
 
 DEPENDS += "libdrm libpciaccess cairo udev glib-2.0 procps libunwind kmod openssl elfutils alsa-lib json-c bison-native"
-RDEPENDS:${PN} += "bash perl"
+RDEPENDS:${PN} += "bash"
 RDEPENDS:${PN}-tests += "bash"
 
 PACKAGE_BEFORE_PN = "${PN}-benchmarks ${PN}-tests"
 
 PACKAGECONFIG[chamelium] = "-Dchamelium=enabled,-Dchamelium=disabled,gsl xmlrpc-c"
 
-EXTRA_OEMESON = "-Ddocs=disabled -Drunner=enabled -Dsrcdir=${TARGET_DBGSRC_DIR}/git/ -Dversion_hash=${PV}"
+EXTRA_OEMESON = "-Ddocs=disabled -Drunner=enabled -Dsrcdir=/usr/src/debug/${PN}/${PV}-${PR}/git/"
 COMPATIBLE_HOST = "(x86_64.*|i.86.*|arm.*|aarch64).*-linux"
 COMPATIBLE_HOST:libc-musl:class-target = "null"
 SECURITY_LDFLAGS = "${SECURITY_X_LDFLAGS}"

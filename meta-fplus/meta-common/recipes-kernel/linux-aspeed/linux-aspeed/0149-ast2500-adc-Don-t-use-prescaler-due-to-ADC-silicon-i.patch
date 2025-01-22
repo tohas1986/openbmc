@@ -1,0 +1,24 @@
+From 4218c46e997824cf1b8f788827c90475f61ba5f9 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 15 Feb 2022 09:05:15 +0000
+Subject: [PATCH] ast2500-adc: Don't use prescaler due to ADC silicon issue
+
+---
+ drivers/iio/adc/aspeed_adc.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/drivers/iio/adc/aspeed_adc.c b/drivers/iio/adc/aspeed_adc.c
+index a957cad1bfab..33eba1e28fe9 100644
+--- a/drivers/iio/adc/aspeed_adc.c
++++ b/drivers/iio/adc/aspeed_adc.c
+@@ -674,7 +674,6 @@ static const struct aspeed_adc_model_data ast2500_model_data = {
+ 	.min_sampling_rate = 1,
+ 	.max_sampling_rate = 1000000,
+ 	.wait_init_sequence = true,
+-	.need_prescaler = true,
+ 	.scaler_bit_width = 10,
+ 	.num_channels = 16,
+ 	.trim_locate = &ast2500_adc_trim,
+-- 
+2.33.1
+

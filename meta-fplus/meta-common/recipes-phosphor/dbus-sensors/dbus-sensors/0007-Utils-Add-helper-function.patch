@@ -1,0 +1,34 @@
+From 537e4d6c179c02d8fa15500140c8c33bba376746 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 16 Jun 2021 15:36:34 +0000
+Subject: [PATCH] Utils: Add helper function
+
+---
+ include/Utils.hpp | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/include/Utils.hpp b/include/Utils.hpp
+index b39492e..518ce1b 100644
+--- a/include/Utils.hpp
++++ b/include/Utils.hpp
+@@ -210,6 +210,20 @@ inline void setLed(const std::shared_ptr<sdbusplus::asio::connection>& conn,
+         std::variant<bool>(on));
+ }
+ 
++inline std::string getPowerState(PowerState val)
++{
++    std::string rc;
++    if (val == PowerState::on)
++        rc = "On";
++    else if (val == PowerState::biosPost)
++        rc = "BiosPost";
++    else if (val == PowerState::always)
++        rc = "Always";
++    else
++        rc = "Unknown";
++    return rc;
++}
++
+ void createInventoryAssoc(
+     const std::shared_ptr<sdbusplus::asio::connection>& conn,
+     const std::shared_ptr<sdbusplus::asio::dbus_interface>& association,

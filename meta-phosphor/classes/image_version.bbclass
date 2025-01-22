@@ -14,7 +14,7 @@ def do_get_os_release_value(d, key):
         with open(path, 'r') as fd:
             buf = '[root]\n' + fd.read()
             fd = io.StringIO(buf)
-            parser.read_file(fd)
+            parser.readfp(fd)
             value = parser['root'][key]
     except:
         pass

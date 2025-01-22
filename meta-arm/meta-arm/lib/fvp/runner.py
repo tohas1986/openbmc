@@ -6,7 +6,7 @@ import shutil
 import sys
 
 from .terminal import terminals
-from .conffile import load
+
 
 def cli_from_config(config, terminal_choice):
     cli = []
@@ -70,45 +70,29 @@ class ConsolePortParser:
                 pass
 
 
-# This function is backported from Python 3.8. Remove it and replace call sites
-# with shlex.join once OE-core support for earlier Python versions is dropped.
-def shlex_join(split_command):
-    """Return a shell-escaped string from *split_command*."""
-    return ' '.join(shlex.quote(arg) for arg in split_command)
-
-
 class FVPRunner:
     def __init__(self, logger):
         self._logger = logger
         self._fvp_process = None
         self._telnets = []
         self._pexpects = []
-        self._config = None
 
-    def start(self, fvpconf, extra_args=[], terminal_choice="none", stdout=subprocess.PIPE):
-        self._logger.debug(f"Loading {fvpconf}")
-        self._config = load(fvpconf)
-
-        cli = cli_from_config(self._config, terminal_choice)
+    def start(self, config, extra_args=[], terminal_choice="none", stdout=subprocess.PIPE):
+        cli = cli_from_config(config, terminal_choice)
         cli += extra_args
 
         # Pass through environment variables needed for GUI applications, such
         # as xterm, to work.
-        env = self._config['env']
-        for name in ('DISPLAY', 'PATH', 'WAYLAND_DISPLAY', 'XAUTHORITY'):
+        env = config['env']
+        for name in ('DISPLAY', 'WAYLAND_DISPLAY'):
             if name in os.environ:
                 env[name] = os.environ[name]
 
-        # Allow filepath to be relative to fvp configuration file
-        cwd = os.path.dirname(fvpconf) or None
-        self._logger.debug(f"FVP call will be executed in working directory: {cwd}")
-
-        self._logger.debug(f"Constructed FVP call: {shlex_join(cli)}")
+        self._logger.debug(f"Constructed FVP call: {shlex.join(cli)}")
         self._fvp_process = subprocess.Popen(
             cli,
             stdin=subprocess.DEVNULL, stdout=stdout, stderr=subprocess.STDOUT,
-            env=env,
-            cwd=cwd)
+            env=env)
 
     def stop(self):
         if self._fvp_process:
@@ -148,9 +132,6 @@ class FVPRunner:
 
     def wait(self, timeout):
         self._fvp_process.wait(timeout)
-
-    def getConfig(self):
-        return self._config
 
     @property
     def stdout(self):

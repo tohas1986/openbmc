@@ -1,0 +1,22 @@
+From ee09b16dee08d0f87a9d0f63083ba228e6d1be22 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 29 Mar 2022 08:16:10 +0000
+Subject: [PATCH] Use /etc/nbd-proxy/state-yandex instead of delivered state
+
+---
+ nbd-proxy.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/nbd-proxy.c b/nbd-proxy.c
+index fb843cf..f69e104 100644
+--- a/nbd-proxy.c
++++ b/nbd-proxy.c
+@@ -91,7 +91,7 @@ static const media_type_opt_t media_type_table[] = {
+ };
+ 
+ static const char *conf_path = SYSCONFDIR "/nbd-proxy/config.json";
+-static const char *state_hook_path = SYSCONFDIR "/nbd-proxy/state";
++static const char *state_hook_path = SYSCONFDIR "/nbd-proxy/state-yandex";
+ static const char *sockpath_tmpl = RUNSTATEDIR "/nbd.%d.sock";
+ 
+ static const size_t bufsize = 0x20000;

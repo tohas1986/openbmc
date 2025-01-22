@@ -1,0 +1,27 @@
+From 298b32857205aca13c183d01754a26c2963b59e2 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 08:53:14 +0000
+Subject: [PATCH 1/1] Fixup logging in nmiReset()
+
+---
+ power-control-x86/src/power_control.cpp | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index e56ce6d..20053d5 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -2062,10 +2062,8 @@ static void nmiReset(void)
+ {
+     const static constexpr int nmiOutPulseTimeMs = 200;
+ 
+-    phosphor::logging::log<phosphor::logging::level::INFO>("NMI out action");
+     nmiOutLine.set_value(!power_control::nmiPassive);
+     std::cerr << nmiOutName << " set to " << std::to_string(!power_control::nmiPassive) << "\n";
+-    phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
+     gpioAssertTimer.expires_after(std::chrono::milliseconds(nmiOutPulseTimeMs));
+     gpioAssertTimer.async_wait([](const boost::system::error_code ec) {
+         // restore the NMI_OUT GPIO line back to the opposite value
+-- 
+2.7.4
+

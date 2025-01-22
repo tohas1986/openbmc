@@ -1,0 +1,22 @@
+From 897c210987d156375cb8b9dc5f52fd988b765aa4 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 31 Mar 2021 13:14:20 +0000
+Subject: [PATCH] Initialize variable to avoid compiler error
+
+---
+ stdlib/canonicalize.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/stdlib/canonicalize.c b/stdlib/canonicalize.c
+index 698f9ed..cac1f73 100644
+--- a/stdlib/canonicalize.c
++++ b/stdlib/canonicalize.c
+@@ -198,7 +198,7 @@ static char *
+ realpath_stk (const char *name, char *resolved,
+               struct scratch_buffer *rname_buf)
+ {
+-  char *dest;
++  char *dest = NULL;
+   char const *start;
+   char const *end;
+   int num_links = 0;

@@ -1,0 +1,58 @@
+From e2eb7e33af5c55c9f83e97bdace09904988dfb1a Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 24 Oct 2022 13:28:10 +0000
+Subject: [PATCH] Update version string parser
+
+---
+ src/appcommands.cpp | 32 ++++++++++++++++++--------------
+ 1 file changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/appcommands.cpp b/src/appcommands.cpp
+index 722c471..d29e42b 100644
+--- a/src/appcommands.cpp
++++ b/src/appcommands.cpp
+@@ -210,26 +210,30 @@ std::optional<MetaRevision> convertIntelVersion(std::string& s)
+     std::smatch results;
+     MetaRevision rev;
+     std::regex pattern1("(\\d+?).(\\d+?).\\d+?-\\w*?-(\\d+?)-g(\\w+?)-(\\w+?)");
++    std::regex pattern1_5("(\\d+?).(\\d+?).\\d+?-\\w*?-(\\d+?)-g(\\w+?)");
+     constexpr size_t matchedPhosphor = 6;
+-    if (std::regex_match(s, results, pattern1))
++    if (std::regex_match(s, results, pattern1) || std::regex_match(s, results, pattern1_5))
+     {
++        rev.platform = "whtref";
++        rev.major = static_cast<uint8_t>(std::stoi(results[1]));
++        rev.minor = static_cast<uint8_t>(std::stoi(results[2]));
++        rev.buildNo = static_cast<uint32_t>(std::stoi(results[3]));
++        rev.openbmcHash = results[4];
+         if (results.size() == matchedPhosphor)
+         {
+-            rev.platform = "whtref";
+-            rev.major = static_cast<uint8_t>(std::stoi(results[1]));
+-            rev.minor = static_cast<uint8_t>(std::stoi(results[2]));
+-            rev.buildNo = static_cast<uint32_t>(std::stoi(results[3]));
+-            rev.openbmcHash = results[4];
+             rev.metaHash = results[5];
+-            std::string versionString =
+-                rev.platform + ":" + std::to_string(rev.major) + ":" +
+-                std::to_string(rev.minor) + ":" + std::to_string(rev.buildNo) +
+-                ":" + rev.openbmcHash + ":" + rev.metaHash;
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "Get BMC version",
+-                phosphor::logging::entry("VERSION=%s", versionString.c_str()));
+-            return rev;
++        } else if (results.size() == (matchedPhosphor - 1))
++        {
++            rev.metaHash = "000000";
+         }
++        std::string versionString =
++            rev.platform + ":" + std::to_string(rev.major) + ":" +
++            std::to_string(rev.minor) + ":" + std::to_string(rev.buildNo) +
++            ":" + rev.openbmcHash + ":" + rev.metaHash;
++        phosphor::logging::log<phosphor::logging::level::INFO>(
++            "Get BMC version",
++             phosphor::logging::entry("VERSION=%s", versionString.c_str()));
++        return rev;
+     }
+     constexpr size_t matchedIntel = 7;
+     std::regex pattern2("(\\w+?)-(\\d+?).(\\d+?)-(\\d+?)-g(\\w+?)-(\\w+?)");

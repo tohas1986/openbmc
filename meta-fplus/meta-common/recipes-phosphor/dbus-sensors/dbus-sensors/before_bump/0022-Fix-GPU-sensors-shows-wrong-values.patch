@@ -1,0 +1,54 @@
+From d9400cfc07908acb1a90ae08239aa1dcb37ccbd6 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Tue, 7 Sep 2021 15:15:25 +0000
+Subject: [PATCH] Fix-GPU-sensors-shows-wrong-values
+
+---
+ src/GPUSensor.cpp | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/GPUSensor.cpp b/src/GPUSensor.cpp
+index a4f068b..094e623 100644
+--- a/src/GPUSensor.cpp
++++ b/src/GPUSensor.cpp
+@@ -358,7 +358,7 @@ int GPUSensor::getRegister(uint8_t idx, uint32_t* value)
+ 
+ void GPUSensor::readSensor(void)
+ {
+-    static constexpr size_t pollTime = 5; // in seconds
++    static constexpr size_t pollTime = 1; // in seconds
+ 
+     int cntError = 0;
+ 
+@@ -386,8 +386,26 @@ void GPUSensor::readSensor(void)
+ 
+         if (ret >= 0)
+         {
+-            updateValue(static_cast<double>(value));
+-            if(DEBUG)std::cerr << "Value after all: " << +value << "\n";
++            if((subType == SensorSubTypes::GPUTEMP) || (subType == SensorSubTypes::HBMTEMP))
++            {
++                if (value >= 120 && value <= 255)
++                {
++                    updateValue(std::numeric_limits<double>::quiet_NaN());
++                }
++                else if (value <= 0)
++                {
++                    updateValue(std::numeric_limits<double>::quiet_NaN());
++                }
++                else
++                {
++                    updateValue(static_cast<double>(value));
++                }
++            }
++            else
++            {
++                updateValue(static_cast<double>(value));
++                if(DEBUG)std::cerr << "Value after all: " << +value << "\n";
++            }
+         }
+         else
+         {
+-- 
+2.7.4
+

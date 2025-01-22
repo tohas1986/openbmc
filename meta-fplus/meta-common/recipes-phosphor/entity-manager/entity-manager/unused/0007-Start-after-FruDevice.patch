@@ -1,0 +1,23 @@
+From 0eccc8255c6fd9c2e5dda7f18cccc389a8908c0a Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 10:34:22 +0000
+Subject: [PATCH 1/1] Start after FruDevice
+
+---
+ service_files/xyz.openbmc_project.EntityManager.service | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/service_files/xyz.openbmc_project.EntityManager.service b/service_files/xyz.openbmc_project.EntityManager.service
+index 99452e2..04d7e2b 100644
+--- a/service_files/xyz.openbmc_project.EntityManager.service
++++ b/service_files/xyz.openbmc_project.EntityManager.service
+@@ -1,5 +1,6 @@
+ [Unit]
+ Description=Entity Manager
++After=dbus.service xyz.openbmc_project.FruDevice.service
+ 
+ [Service]
+ ExecStartPre=/bin/mkdir -p /var/configuration
+-- 
+2.7.4
+

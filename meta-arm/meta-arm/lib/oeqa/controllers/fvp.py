@@ -1,26 +1,16 @@
-import contextlib
-import enum
 import pathlib
 import pexpect
 import os
 
 from oeqa.core.target.ssh import OESSHTarget
-from fvp import runner
-
-class OEFVPTargetState(str, enum.Enum):
-    OFF = "off"
-    ON = "on"
-    LINUX = "linux"
+from fvp import conffile, runner
 
 
-class OEFVPTarget(OESSHTarget):
+class OEFVPSSHTarget(OESSHTarget):
     """
-    For compatibility with OE-core test cases, this target's start() method
-    waits for a Linux shell before returning to ensure that SSH commands work
-    with the default test dependencies.
+    Base class for meta-arm FVP targets.
+    Contains common logic to start and stop an FVP.
     """
-    DEFAULT_CONSOLE = "default"
-
     def __init__(self, logger, target_ip, server_ip, timeout=300, user='root',
                  port=None, dir_image=None, rootfs=None, bootlog=None, **kwargs):
         super().__init__(logger, target_ip, server_ip, timeout, user, port)
@@ -29,76 +19,27 @@ class OEFVPTarget(OESSHTarget):
         basename = pathlib.Path(rootfs)
         basename = basename.name.replace("".join(basename.suffixes), "")
         self.fvpconf = image_dir / (basename + ".fvpconf")
+        self.config = conffile.load(self.fvpconf)
+        self.bootlog = bootlog
+
         if not self.fvpconf.exists():
             raise FileNotFoundError(f"Cannot find {self.fvpconf}")
 
-        self.bootlog = bootlog
-        self.terminals = {}
-        self.stack = None
-        self.state = OEFVPTargetState.OFF
-
-    def transition(self, state, timeout=10*60):
-        if state == self.state:
-            return
-
-        if state == OEFVPTargetState.OFF:
-            returncode = self.fvp.stop()
-            self.logger.debug(f"Stopped FVP with return code {returncode}")
-            self.stack.close()
-        elif state == OEFVPTargetState.ON:
-            self.transition(OEFVPTargetState.OFF, timeout)
-            self.stack = contextlib.ExitStack()
-            self.fvp = runner.FVPRunner(self.logger)
-            self.fvp_log = self._create_logfile("fvp", "wb")
-            self.fvp.start(self.fvpconf, stdout=self.fvp_log)
-            self.logger.debug(f"Started FVP PID {self.fvp.pid()}")
-            self._setup_consoles()
-        elif state == OEFVPTargetState.LINUX:
-            self.transition(OEFVPTargetState.ON, timeout)
-            try:
-                self.expect(OEFVPTarget.DEFAULT_CONSOLE, "login\\:", timeout=timeout)
-                self.logger.debug("Found login prompt")
-                self.state = OEFVPTargetState.LINUX
-            except pexpect.TIMEOUT:
-                self.logger.info("Timed out waiting for login prompt.")
-                self.logger.info("Boot log follows:")
-                self.logger.info(b"\n".join(self.before(OEFVPTarget.DEFAULT_CONSOLE).splitlines()[-200:]).decode("utf-8", errors="replace"))
-                raise RuntimeError("Failed to start FVP.")
-
-        self.logger.info(f"Transitioned to {state}")
-        self.state = state
-
-    def start(self, **kwargs):
-        # No-op - put the FVP in the required state lazily
+    def _after_start(self):
         pass
 
+    def start(self, **kwargs):
+        self.fvp_log = self._create_logfile("fvp")
+        self.fvp = runner.FVPRunner(self.logger)
+        self.fvp.start(self.config, stdout=self.fvp_log)
+        self.logger.debug(f"Started FVP PID {self.fvp.pid()}")
+        self._after_start()
+
     def stop(self, **kwargs):
-        self.transition(OEFVPTargetState.OFF)
+        returncode = self.fvp.stop()
+        self.logger.debug(f"Stopped FVP with return code {returncode}")
 
-    def run(self, cmd, timeout=None):
-        # Running a command implies the LINUX state
-        self.transition(OEFVPTargetState.LINUX)
-        return super().run(cmd, timeout)
-
-    def _setup_consoles(self):
-        with open(self.fvp_log.name, 'rb') as logfile:
-            parser = runner.ConsolePortParser(logfile)
-            config = self.fvp.getConfig()
-            for name, console in config["consoles"].items():
-                logfile = self._create_logfile(name)
-                self.logger.info(f'Creating terminal {name} on {console}')
-                port = parser.parse_port(console)
-                self.terminals[name] = \
-                    self.fvp.create_pexpect(port, logfile=logfile)
-
-                # testimage.bbclass expects to see a log file at `bootlog`,
-                # so make a symlink to the 'default' log file
-                test_log_suffix = pathlib.Path(self.bootlog).suffix
-                default_test_file = f"{name}_log{test_log_suffix}"
-                if name == 'default' and not os.path.exists(self.bootlog):
-                    os.symlink(default_test_file, self.bootlog)
-
-    def _create_logfile(self, name, mode='ab'):
+    def _create_logfile(self, name):
         if not self.bootlog:
             return None
 
@@ -112,7 +53,70 @@ class OEFVPTarget(OESSHTarget):
         except:
             pass
         os.symlink(fvp_log_file, fvp_log_symlink)
-        return self.stack.enter_context(open(fvp_log_path, mode))
+        return open(fvp_log_path, 'wb')
+
+
+class OEFVPTarget(OEFVPSSHTarget):
+    """
+    For compatibility with OE-core test cases, this target's start() method
+    waits for a Linux shell before returning to ensure that SSH commands work
+    with the default test dependencies.
+    """
+    def __init__(self, logger, target_ip, server_ip, **kwargs):
+        super().__init__(logger, target_ip, server_ip, **kwargs)
+        self.logfile = self.bootlog and open(self.bootlog, "wb") or None
+
+        # FVPs boot slowly, so allow ten minutes
+        self.boot_timeout = 10 * 60
+
+    def _after_start(self):
+        with open(self.fvp_log.name, 'rb') as logfile:
+            parser = runner.ConsolePortParser(logfile)
+            self.logger.debug(f"Awaiting console on terminal {self.config['consoles']['default']}")
+            port = parser.parse_port(self.config['consoles']['default'])
+            console = self.fvp.create_pexpect(port)
+            try:
+                console.expect("login\\:", timeout=self.boot_timeout)
+                self.logger.debug("Found login prompt")
+            except pexpect.TIMEOUT:
+                self.logger.info("Timed out waiting for login prompt.")
+                self.logger.info("Boot log follows:")
+                self.logger.info(b"\n".join(console.before.splitlines()[-200:]).decode("utf-8", errors="replace"))
+                raise RuntimeError("Failed to start FVP.")
+
+
+class OEFVPSerialTarget(OEFVPSSHTarget):
+    """
+    This target is intended for interaction with the target over one or more
+    telnet consoles using pexpect.
+
+    This still depends on OEFVPSSHTarget so SSH commands can still be run on
+    the target, but note that this class does not inherently guarantee that
+    the SSH server is running prior to running test cases. Test cases that use
+    SSH should first validate that SSH is available, e.g. by depending on the
+    "linuxboot" test case in meta-arm.
+    """
+    DEFAULT_CONSOLE = "default"
+
+    def __init__(self, logger, target_ip, server_ip, **kwargs):
+        super().__init__(logger, target_ip, server_ip, **kwargs)
+        self.terminals = {}
+
+    def _after_start(self):
+        with open(self.fvp_log.name, 'rb') as logfile:
+            parser = runner.ConsolePortParser(logfile)
+            for name, console in self.config["consoles"].items():
+                logfile = self._create_logfile(name)
+                self.logger.info(f'Creating terminal {name} on {console}')
+                port = parser.parse_port(console)
+                self.terminals[name] = \
+                    self.fvp.create_pexpect(port, logfile=logfile)
+
+                # testimage.bbclass expects to see a log file at `bootlog`,
+                # so make a symlink to the 'default' log file
+                if name == 'default':
+                    default_test_file = f"{name}_log{self.test_log_suffix}"
+                    os.symlink(default_test_file, self.bootlog)
 
     def _get_terminal(self, name):
         return self.terminals[name]
@@ -132,7 +136,3 @@ class OEFVPTarget(OESSHTarget):
                 return attr
 
         return call_pexpect
-
-    @property
-    def config(self):
-        return self.fvp.getConfig()

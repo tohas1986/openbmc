@@ -1,0 +1,277 @@
+From 8dbf2e5a4f03b9d269e3a1a33744e3d588d1c222 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Mon, 21 Dec 2020 15:44:18 +0000
+Subject: [PATCH] Add linear type to pid control service
+
+---
+ conf.hpp                   |  8 +++-----
+ dbus/dbusconfiguration.cpp | 26 ++++----------------------
+ pid/builder.cpp            |  4 ++--
+ pid/buildjson.cpp          |  2 +-
+ pid/ec/stepwise.cpp        | 32 ++++++++++++++++++++++++++++++++
+ pid/ec/stepwise.hpp        |  7 +++++--
+ pid/stepwisecontroller.cpp | 10 +++++-----
+ pid/stepwisecontroller.hpp | 16 ++++++++++++++--
+ 8 files changed, 66 insertions(+), 39 deletions(-)
+
+diff --git a/conf.hpp b/conf.hpp
+index 428d446..6822d99 100644
+--- a/conf.hpp
++++ b/conf.hpp
+@@ -37,11 +37,9 @@ struct ControllerInfo
+     std::string type;                // fan or margin or temp?
+     std::vector<std::string> inputs; // one or more sensors.
+     double setpoint;                 // initial setpoint for thermal.
+-    union
+-    {
+-        ec::pidinfo pidInfo; // pid details
+-        ec::StepwiseInfo stepwiseInfo;
+-    };
++
++    ec::pidinfo pidInfo; // pid details
++    ec::StepwiseInfo stepwiseInfo;
+ };
+ 
+ /*
+diff --git a/dbus/dbusconfiguration.cpp b/dbus/dbusconfiguration.cpp
+index f69f54d..4a2bd89 100644
+--- a/dbus/dbusconfiguration.cpp
++++ b/dbus/dbusconfiguration.cpp
+@@ -917,38 +917,20 @@ bool init(sdbusplus::bus::bus& bus, boost::asio::steady_timer& timer)
+                     info.stepwiseInfo.negativeHysteresis = std::visit(
+                         VariantToDoubleVisitor(), findNegHyst->second);
+                 }
+-                std::vector<double> readings =
++                info.stepwiseInfo.reading =
+                     std::get<std::vector<double>>(base.at("Reading"));
+-                if (readings.size() > ec::maxStepwisePoints)
+-                {
+-                    throw std::invalid_argument("Too many stepwise points.");
+-                }
+-                if (readings.empty())
++                if (info.stepwiseInfo.reading.empty())
+                 {
+                     throw std::invalid_argument(
+                         "Must have one stepwise point.");
+                 }
+-                std::copy(readings.begin(), readings.end(),
+-                          info.stepwiseInfo.reading);
+-                if (readings.size() < ec::maxStepwisePoints)
+-                {
+-                    info.stepwiseInfo.reading[readings.size()] =
+-                        std::numeric_limits<double>::quiet_NaN();
+-                }
+-                std::vector<double> outputs =
++                info.stepwiseInfo.output =
+                     std::get<std::vector<double>>(base.at("Output"));
+-                if (readings.size() != outputs.size())
++                if (info.stepwiseInfo.reading.size() != info.stepwiseInfo.output.size())
+                 {
+                     throw std::invalid_argument(
+                         "Outputs size must match readings");
+                 }
+-                std::copy(outputs.begin(), outputs.end(),
+-                          info.stepwiseInfo.output);
+-                if (outputs.size() < ec::maxStepwisePoints)
+-                {
+-                    info.stepwiseInfo.output[outputs.size()] =
+-                        std::numeric_limits<double>::quiet_NaN();
+-                }
+             }
+         }
+     }
+diff --git a/pid/builder.cpp b/pid/builder.cpp
+index 706585a..bb785b0 100644
+--- a/pid/builder.cpp
++++ b/pid/builder.cpp
+@@ -110,7 +110,7 @@ std::unordered_map<int64_t, std::shared_ptr<ZoneInterface>>
+ 
+                 zone->addThermalPID(std::move(pid));
+             }
+-            else if (info.type == "stepwise")
++            else if (info.type == "stepwise" || info.type == "linear")
+             {
+                 for (const auto& i : info.inputs)
+                 {
+@@ -118,7 +118,7 @@ std::unordered_map<int64_t, std::shared_ptr<ZoneInterface>>
+                     zone->addThermalInput(i);
+                 }
+                 auto stepwise = StepwiseController::createStepwiseController(
+-                    zone.get(), name, inputs, info.stepwiseInfo);
++                    zone.get(), name, info.type, inputs, info.stepwiseInfo);
+                 zone->addThermalPID(std::move(stepwise));
+             }
+ 
+diff --git a/pid/buildjson.cpp b/pid/buildjson.cpp
+index c178293..c57fe54 100644
+--- a/pid/buildjson.cpp
++++ b/pid/buildjson.cpp
+@@ -55,7 +55,7 @@ void from_json(const json& j, conf::ControllerInfo& c)
+         p.at("negativeHysteresis").get_to(negativeHysteresisValue);
+     }
+ 
+-    if (c.type != "stepwise")
++    if (c.type != "stepwise" && c.type != "linear")
+     {
+         p.at("samplePeriod").get_to(c.pidInfo.ts);
+         p.at("proportionalCoeff").get_to(c.pidInfo.proportionalCoeff);
+diff --git a/pid/ec/stepwise.cpp b/pid/ec/stepwise.cpp
+index 0065228..a4f2fbd 100644
+--- a/pid/ec/stepwise.cpp
++++ b/pid/ec/stepwise.cpp
+@@ -47,5 +47,37 @@ double stepwise(const ec::StepwiseInfo& info, double input)
+     return value;
+ }
+ 
++double linear(const ec::StepwiseInfo& info, double input)
++{
++    double value = info.output[0];
++
++    // if input is higher than the max reading point
++    // return the max value of output
++    if(input >= info.reading.back())
++    {
++        value = info.output.back();
++    }
++    // if input is smaller than the minimum reading point
++    // return the minimum value of output
++    else if(input > info.reading[0])
++    {
++        for (size_t i = 1; i < info.reading.size(); ++i)
++         {
++            // DO Interpolation
++            if (info.reading[i] > input)
++            {
++                double inputLow = info.reading[i - 1];
++                double inputHigh = info.reading[i];
++                double outputLow = info.output[i - 1];
++                double outputHigh = info.output[i];
++                value = outputLow + ((outputHigh - outputLow) / (inputHigh - inputLow)) * (input - inputLow);
++                break;
++            }
++         }
++    }
++
++    return value;
++}
++
+ } // namespace ec
+ } // namespace pid_control
+diff --git a/pid/ec/stepwise.hpp b/pid/ec/stepwise.hpp
+index 88db332..2ec5d5a 100644
+--- a/pid/ec/stepwise.hpp
++++ b/pid/ec/stepwise.hpp
+@@ -29,14 +29,17 @@ constexpr size_t maxStepwisePoints = 20;
+ struct StepwiseInfo
+ {
+     double ts; // sample time in seconds
+-    double reading[maxStepwisePoints];
+-    double output[maxStepwisePoints];
++//    double reading[maxStepwisePoints];
++//    double output[maxStepwisePoints];
++    std::vector<double> reading;
++    std::vector<double> output;
+     double positiveHysteresis;
+     double negativeHysteresis;
+     bool isCeiling;
+ };
+ 
+ double stepwise(const ec::StepwiseInfo& info, double value);
++double linear(const ec::StepwiseInfo& info, double value);
+ 
+ } // namespace ec
+ } // namespace pid_control
+diff --git a/pid/stepwisecontroller.cpp b/pid/stepwisecontroller.cpp
+index c8ec219..284d016 100644
+--- a/pid/stepwisecontroller.cpp
++++ b/pid/stepwisecontroller.cpp
+@@ -45,17 +45,17 @@ void StepwiseController::process(void)
+     // Calculate new output if hysteresis allows
+     if (std::isnan(output))
+     {
+-        output = ec::stepwise(info, input);
++        output = pwmFunction(info, input);
+         lastInput = input;
+     }
+     else if ((input - lastInput) > info.positiveHysteresis)
+     {
+-        output = ec::stepwise(info, input);
++        output = pwmFunction(info, input);
+         lastInput = input;
+     }
+     else if ((lastInput - input) > info.negativeHysteresis)
+     {
+-        output = ec::stepwise(info, input);
++        output = pwmFunction(info, input);
+         lastInput = input;
+     }
+ 
+@@ -67,7 +67,7 @@ void StepwiseController::process(void)
+ }
+ 
+ std::unique_ptr<Controller> StepwiseController::createStepwiseController(
+-    ZoneInterface* owner, const std::string& id,
++    ZoneInterface* owner, const std::string& id, const std::string& type,
+     const std::vector<std::string>& inputs, const ec::StepwiseInfo& initial)
+ {
+     // StepwiseController requires at least 1 input
+@@ -77,7 +77,7 @@ std::unique_ptr<Controller> StepwiseController::createStepwiseController(
+         return nullptr;
+     }
+ 
+-    auto thermal = std::make_unique<StepwiseController>(id, inputs, owner);
++    auto thermal = std::make_unique<StepwiseController>(id, type, inputs, owner);
+     thermal->setStepwiseInfo(initial);
+ 
+     return thermal;
+diff --git a/pid/stepwisecontroller.hpp b/pid/stepwisecontroller.hpp
+index a3b3965..368f519 100644
+--- a/pid/stepwisecontroller.hpp
++++ b/pid/stepwisecontroller.hpp
+@@ -4,6 +4,7 @@
+ #include "ec/stepwise.hpp"
+ #include "fan.hpp"
+ 
++#include <functional>
+ #include <limits>
+ #include <memory>
+ #include <vector>
+@@ -18,15 +19,25 @@ class StepwiseController : public Controller
+   public:
+     static std::unique_ptr<Controller>
+         createStepwiseController(ZoneInterface* owner, const std::string& id,
++                                 const std::string& type,
+                                  const std::vector<std::string>& inputs,
+                                  const ec::StepwiseInfo& initial);
+ 
+-    StepwiseController(const std::string& id,
++    StepwiseController(const std::string& id, const std::string& type,
+                        const std::vector<std::string>& inputs,
+                        ZoneInterface* owner) :
+         Controller(),
+         _owner(owner), _id(id), _inputs(inputs)
+-    {}
++    {
++        if (type == "stepwise")
++        {
++            pwmFunction = ec::stepwise;
++        }
++        else if (type == "linear")
++        {
++            pwmFunction = ec::linear;
++        }
++    }
+ 
+     double inputProc(void) override;
+ 
+@@ -57,6 +68,7 @@ class StepwiseController : public Controller
+     ec::StepwiseInfo _stepwise_info;
+     std::string _id;
+     std::vector<std::string> _inputs;
++    std::function<double(const ec::StepwiseInfo&, double)> pwmFunction;
+     double lastInput = std::numeric_limits<double>::quiet_NaN();
+     double lastOutput = std::numeric_limits<double>::quiet_NaN();
+ };
+-- 
+2.7.4
+

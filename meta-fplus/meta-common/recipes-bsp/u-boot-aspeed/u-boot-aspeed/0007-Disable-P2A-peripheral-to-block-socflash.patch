@@ -1,0 +1,43 @@
+From 0fb9185cbda9b7ed47098f50d1ec0343323564ea Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 28 Apr 2020 17:28:03 +0300
+Subject: [PATCH] Disable P2A peripheral to block socflash Disable LPC snoop
+ interrupts;
+
+---
+ arch/arm/mach-aspeed/platform_g5.S | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/arch/arm/mach-aspeed/platform_g5.S b/arch/arm/mach-aspeed/platform_g5.S
+index 2ac1ca4..fc18a56 100644
+--- a/arch/arm/mach-aspeed/platform_g5.S
++++ b/arch/arm/mach-aspeed/platform_g5.S
+@@ -368,6 +368,7 @@ init_dram:
+     ldr   r0, =0x1e78501c                        @ restore normal mask setting
+     ldr   r1, =0x023FFFF3                        @ added 2016.09.06
+     str   r1, [r0]
++
+     b     bypass_first_reset
+ 
+ start_first_reset:
+@@ -602,6 +603,20 @@ bypass_first_reset:
+     tst   r1, r2
+     strne r3, [r0]
+ 
++    /* Disable LPC snoop interrupts */
++    ldr   r0, =0x1e789080
++    ldr   r2, =0xfffffff5
++    ldr   r1, [r0]
++    and   r1, r1, r2
++    str   r1, [r0]
++
++    /* Disable socflash interface (P2A) */
++    ldr   r0, =0x1e6e202c
++    ldr   r2, =0x00400000
++    ldr   r1, [r0]
++    orr   r1, r1, r2
++    str   r1, [r0]
++
+     /* Configure USB ports to the correct pin state */
+     ldr   r0, =0x1e6e200c                        @ enable portA clock
+     ldr   r2, =0x00004000

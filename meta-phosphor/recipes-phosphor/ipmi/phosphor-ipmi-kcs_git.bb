@@ -3,13 +3,14 @@ DESCRIPTION = "Phosphor OpenBMC KCS to DBUS."
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=b1beb00e508e89da1ed2a541934f28c0"
 DEPENDS += " \
+        fmt \
         sdbusplus \
         sdeventplus \
         stdplus \
         systemd \
         "
 PROVIDES += "virtual/obmc-host-ipmi-hw"
-SRCREV = "c0c95be197cc6f863b0c11ca7726f8e34b74f370"
+SRCREV = "314604455606f9baee1e4f5d7fe645d1ebf3c295"
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 

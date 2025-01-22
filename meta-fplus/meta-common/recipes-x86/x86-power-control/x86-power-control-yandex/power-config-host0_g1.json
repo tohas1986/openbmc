@@ -1,0 +1,11 @@
+{
+  "IdButton": "BMC_ID_BTN_N",
+  "PostComplete": "Z0",
+  "PwrButton": "PWR_BTN_N",
+  "PwrOK": "HGX_BASE_PWR_GD",
+  "PwrOut": "PS_ON_L",
+  "RstButton": "Z1",
+  "RstOut": "Z2",
+  "PwrOutSteady": "true",
+  "PowerRestore": "false"
+}

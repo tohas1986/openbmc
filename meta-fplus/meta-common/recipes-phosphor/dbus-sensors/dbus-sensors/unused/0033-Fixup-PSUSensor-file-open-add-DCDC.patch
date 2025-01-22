@@ -1,0 +1,55 @@
+From dbe1b6badf0de757b1a712e6291bd8b93378d1c9 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Wed, 7 Apr 2021 13:43:39 +0000
+Subject: [PATCH] Fixup PSUSensor file open, add DCDC
+
+---
+ src/PSUSensor.cpp     | 2 +-
+ src/PSUSensorMain.cpp | 7 ++++---
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index ab6cd13..73505ab 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -71,7 +71,7 @@ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+                              << path << "\n";
+         inputDev.assign(fd);
+     }
+-    inputDev.assign(fd);
++    //inputDev.assign(fd);
+ 
+     std::string dbusPath = sensorPathPrefix + sensorTypeName + name;
+ 
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index e8897b1..38137ed 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -41,7 +41,7 @@
+ #include <CLI/CLI.hpp>
+ bool DEBUG = false;
+ 
+-static constexpr std::array<const char*, 37> sensorTypes = {
++static constexpr std::array<const char*, 38> sensorTypes = {
+     "xyz.openbmc_project.Configuration.ADM1272",
+     "xyz.openbmc_project.Configuration.ADM1278",
+     "xyz.openbmc_project.Configuration.DPS800",
+@@ -78,7 +78,8 @@ static constexpr std::array<const char*, 37> sensorTypes = {
+     "xyz.openbmc_project.Configuration.JC42",
+     "xyz.openbmc_project.Configuration.LM5066I",
+     "xyz.openbmc_project.Configuration.LM5066I05",
+-    "xyz.openbmc_project.Configuration.NCT7601"};
++    "xyz.openbmc_project.Configuration.NCT7601",
++    "xyz.openbmc_project.Configuration.dcdc54"};
+ 
+ static std::vector<std::string> pmbusNames = {
+     "adm1272",   "adm1278",   "dps800",    "ina219",   "ina230",   "isl68137",
+@@ -86,7 +87,7 @@ static std::vector<std::string> pmbusNames = {
+     "max20730",  "max20734",  "max20796",  "max34451", "pmbus",    "pxe1610",
+     "raa228000", "raa228228", "raa229004", "tps546d24",
+     "emc1413", "max31725", "max31730","max6581", "max6654", "tmp112", "tmp175",
+-    "tmp421", "tmp441", "tmp75", "nct7802", "jc42", "lm5066i", "lm5066i05", "nct7601" };
++    "tmp421", "tmp441", "tmp75", "nct7802", "jc42", "lm5066i", "lm5066i05", "nct7601", "dcdc54" };
+ 
+ namespace fs = std::filesystem;
+ 

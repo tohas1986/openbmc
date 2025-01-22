@@ -1,0 +1,21 @@
+{
+    "InactivityTimeout": 36000,
+    "MountPoints": {
+        "ISO0": {
+            "EndpointId": "/nbd/1",
+            "Mode": 1,
+            "NBDDevice": "nbd1",
+            "UnixSocket": "/tmp/nbd1.sock",
+            "Timeout": 300,
+            "BlockSize": 512
+        },
+        "USB0": {
+            "EndpointId": "/nbd/2",
+            "Mode": 1,
+            "NBDDevice": "nbd2",
+            "UnixSocket": "/tmp/nbd2.sock",
+            "Timeout": 300,
+            "BlockSize": 512
+        }
+    }
+}

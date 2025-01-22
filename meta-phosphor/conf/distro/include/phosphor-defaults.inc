@@ -1,6 +1,7 @@
-OBMC_BMC_INSTANCES ??= "0"
-OBMC_CHASSIS_INSTANCES ??= "0"
-OBMC_HOST_INSTANCES ??= "0"
+OBMC_BMC_INSTANCES ?= "0"
+OBMC_CHASSIS_INSTANCES ?= "0"
+OBMC_HOST_INSTANCES ?= "0"
+OBMC_POWER_INSTANCES ?= "0"
 
 # obmc-bmc-state-manager
 #
@@ -73,11 +74,14 @@ PREFERRED_PROVIDER_virtual/phosphor-ipmi-fru-hostfw-config ?= "phosphor-ipmi-fru
 # This virtual is a native recipe that provides that mapping by installing
 # configuration files in the format and native sysroot location expected by
 # the phosphor-ipmi-fru build process in the native sysroot.
-PREFERRED_PROVIDER_virtual/phosphor-ipmi-fru-inventory ?= "phosphor-ipmi-fru-inventory-example-native"
+PREFERRED_PROVIDER_virtual/phosphor-ipmi-fru-inventory ?= \
+    "phosphor-ipmi-fru-inventory-example-native"
 
-PREFERRED_PROVIDER_virtual/phosphor-ipmi-fru-properties ?= "phosphor-ipmi-fru-properties-native"
+PREFERRED_PROVIDER_virtual/phosphor-ipmi-fru-properties ?= \
+    "phosphor-ipmi-fru-properties-native"
 
-PREFERRED_PROVIDER_virtual/phosphor-ipmi-fru-read-inventory ?= "phosphor-ipmi-fru-read-inventory-example-native"
+PREFERRED_PROVIDER_virtual/phosphor-ipmi-fru-read-inventory ?= \
+    "phosphor-ipmi-fru-read-inventory-example-native"
 
 # Configuration overrides for phosphor-host-ipmid.
 #
@@ -88,14 +92,16 @@ PREFERRED_PROVIDER_virtual/phosphor-ipmi-fru-read-inventory ?= "phosphor-ipmi-fr
 # This virtual is a native recipe that provides that mapping by installing
 # configuration files in the format and native sysroot location expected by
 # the phosphor-host-ipmid build process in the native sysroot.
-PREFERRED_PROVIDER_virtual/phosphor-ipmi-sensor-inventory ?= "phosphor-ipmi-sensor-inventory-native"
+PREFERRED_PROVIDER_virtual/phosphor-ipmi-sensor-inventory ?= \
+    "phosphor-ipmi-sensor-inventory-native"
 
 # The phosphor-host-ipmid application is data-driven and requires an input
 # mapping of inventory object path to the sensor number and sensor metadata.
 # This virtual is a native recipe that provides that mapping by installing
 # configuration files in the format and native sysroot location expected by
 # the phosphor-host-ipmid build process in the native sysroot.
-PREFERRED_PROVIDER_virtual/phosphor-ipmi-inventory-sel ?= "phosphor-ipmi-inventory-sel-native"
+PREFERRED_PROVIDER_virtual/phosphor-ipmi-inventory-sel ?= \
+    "phosphor-ipmi-inventory-sel-native"
 
 # Various other overrides.
 
@@ -104,7 +110,8 @@ PREFERRED_PROVIDER_virtual/phosphor-ipmi-inventory-sel ?= "phosphor-ipmi-invento
 # This virtual is a native recipe that provides that mapping by installing
 # configuration files in the format and native sysroot location expected by
 # the phosphor-led-manager build process in the native sysroot.
-PREFERRED_PROVIDER_virtual/phosphor-led-manager-config-native ?= "phosphor-led-manager-config-example-native"
+PREFERRED_PROVIDER_virtual/phosphor-led-manager-config-native ?= \
+    "phosphor-led-manager-config-example-native"
 
 # The phosphor-logging application has a data driven plugin that adds FRU
 # callout information to error logs, when applications generating error logs
@@ -113,20 +120,23 @@ PREFERRED_PROVIDER_virtual/phosphor-led-manager-config-native ?= "phosphor-led-m
 # This virtual is a native recipe that provides that mapping by installing
 # configuration files in the format and native sysroot location expected by
 # the phosphor-logging build process in the native sysroot.
-PREFERRED_PROVIDER_virtual/phosphor-logging-callouts ?= "phosphor-logging-callouts-example-native"
+PREFERRED_PROVIDER_virtual/phosphor-logging-callouts ?= \
+    "phosphor-logging-callouts-example-native"
 
 # The phosphor-fan-presence application is data driven and requires an input
 # YAML that maps fans to their tach sensors.  This virtual is a recipe that
 # provides that mapping by installing configuration files in the format and
 # sysroot location expected by the phosphor-fan-presence build process in the
 # sysroot.
-PREFERRED_PROVIDER_virtual/phosphor-fan-presence-config ?= "phosphor-fan-presence-config"
+PREFERRED_PROVIDER_virtual/phosphor-fan-presence-config ?= \
+    "phosphor-fan-presence-config"
 
 # The phosphor-fan-control application is data driven and requires a YAML file
 # to define the fans in the system.  This virtual is a recipe that provides
 # that definition by installing the YAML file in the format and sysroot
 # location expected by the phosphor-fan-control build process in the sysroot.
-PREFERRED_PROVIDER_virtual/phosphor-fan-control-fan-config ?= "phosphor-fan-control-fan-config"
+PREFERRED_PROVIDER_virtual/phosphor-fan-control-fan-config ?= \
+    "phosphor-fan-control-fan-config"
 
 OBMC_DBUS_PATH_ROOT ?= "/xyz/openbmc_project"
 OBMC_DBUS_IFACE_ROOT ?= "xyz.openbmc_project"

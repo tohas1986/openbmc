@@ -44,8 +44,7 @@ QB_ROOTFS_OPT = "-drive file=@ROOTFS@,if=mtd,format=raw"
 QB_DEFAULT_FSTYPE = "static.mtd"
 # Disable virtio-pci device
 QB_RNG = ""
-# Specify netdev to align with default QB_SLIRP_OPT
-QB_NETWORK_DEVICE = "-net nic,netdev=net0"
+QB_NETWORK_DEVICE = "-net nic"
 # Boot from drive
 QB_DEFAULT_KERNEL = "none"
 # runqemu overrides default memory size

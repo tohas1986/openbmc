@@ -1,0 +1,22 @@
+From dab3f09ac60502f2e05a21dcde974d1fcf0e6cd5 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 12 Jan 2021 12:52:03 +0000
+Subject: [PATCH] Append logfile
+
+---
+ log-handler.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/log-handler.c b/log-handler.c
+index 275cc81..0785e6b 100644
+--- a/log-handler.c
++++ b/log-handler.c
+@@ -152,7 +152,7 @@ static int log_init(struct handler *handler, struct console *console,
+ 	if (!filename)
+ 		filename = default_filename;
+ 
+-	lh->fd = open(filename, O_RDWR | O_CREAT, 0644);
++	lh->fd = open(filename, O_RDWR | O_CREAT | O_APPEND, 0644);
+ 	if (lh->fd < 0) {
+ 		warn("Can't open log buffer file %s", filename);
+ 		return -1;

@@ -1,5 +1,3 @@
-.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
-
 Release 2.2 (morty)
 ===================
 
@@ -29,7 +27,7 @@ Staging Directories in Sysroot Has Been Simplified
 The way directories are staged in sysroot has been simplified and
 introduces the new :term:`SYSROOT_DIRS`,
 :term:`SYSROOT_DIRS_NATIVE`, and ``SYSROOT_DIRS_BLACKLIST``
-(replaced by :term:`SYSROOT_DIRS_IGNORE` in version 4.0). See the
+(replaced by :term:`SYSROOT_DIRS_IGNORE` in version 3.5). See the
 :oe_lists:`v2 patch series on the OE-Core Mailing List
 </pipermail/openembedded-core/2016-May/121365.html>`
 for additional information.
@@ -73,8 +71,8 @@ Metadata Must Now Use Python 3 Syntax
 The metadata is now required to use Python 3 syntax. For help preparing
 metadata, see any of the many Python 3 porting guides available.
 Alternatively, you can reference the conversion commits for BitBake and
-you can use :term:`OpenEmbedded-Core (OE-Core)` as a guide for changes.
-Particular areas of interest are:
+you can use :term:`OpenEmbedded-Core (OE-Core)` as a guide for changes. Following are
+particular areas of interest:
 
   - subprocess command-line pipes needing locale decoding
 
@@ -105,7 +103,7 @@ online package-manager support through SMART still require Python 2.
 ``buildtools-tarball`` Includes Python 3
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The :term:`buildtools` tarball now includes Python 3.
+``buildtools-tarball`` now includes Python 3.
 
 .. _migration-2.2-uclibc-replaced-by-musl:
 
@@ -121,10 +119,11 @@ compared to uClibc.
 ``${B}`` No Longer Default Working Directory for Tasks
 ------------------------------------------------------
 
-``${``\ :term:`B`\ ``}`` is no longer the default working directory for tasks.
-Consequently, any custom tasks you define now need to either have the
-``[``\ :ref:`dirs <bitbake-user-manual/bitbake-user-manual-metadata:variable flags>`\ ``]``
-flag set, or the task needs to change into the appropriate working directory
+``${``\ :term:`B`\ ``}`` is no longer the default working
+directory for tasks. Consequently, any custom tasks you define now need
+to either have the
+``[``\ :ref:`dirs <bitbake:bitbake-user-manual/bitbake-user-manual-metadata:variable flags>`\ ``]`` flag
+set, or the task needs to change into the appropriate working directory
 manually (e.g using ``cd`` for a shell task).
 
 .. note::
@@ -182,8 +181,14 @@ root filesystem, provides an image, and uses the ``nographic`` option::
 
    $ runqemu qemux86-64 tmp/deploy/images/qemux86-64/core-image-minimal-qemux86-64.ext4 tmp/deploy/images/qemux86-64/bzImage nographic
 
-Here is a list of variables that can be set in configuration files
-such as ``bsp.conf`` to enable the BSP to be booted by ``runqemu``::
+Following is a list of variables that can be set in configuration files
+such as ``bsp.conf`` to enable the BSP to be booted by ``runqemu``:
+
+.. note::
+
+   "QB" means "QEMU Boot".
+
+::
 
    QB_SYSTEM_NAME: QEMU name (e.g. "qemu-system-i386")
    QB_OPT_APPEND: Options to append to QEMU (e.g. "-show-cursor")
@@ -215,10 +220,6 @@ such as ``bsp.conf`` to enable the BSP to be booted by ``runqemu``::
 
 To use ``runqemu``, set :term:`IMAGE_CLASSES` as
 follows and run ``runqemu``:
-
-.. note::
-
-   "QB" means "QEMU Boot".
 
 .. note::
 

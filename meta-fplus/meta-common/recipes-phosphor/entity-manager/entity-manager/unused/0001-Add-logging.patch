@@ -1,0 +1,44 @@
+From 1286a278ebb6431e016a2f3b4ae7a4265b4ab2a0 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 10:24:51 +0000
+Subject: [PATCH 1/1] Add logging
+
+---
+ src/FruDevice.cpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/FruDevice.cpp b/src/FruDevice.cpp
+index 78d4635..10525eb 100644
+--- a/src/FruDevice.cpp
++++ b/src/FruDevice.cpp
+@@ -339,6 +339,7 @@ std::set<int> findI2CEeproms(int i2cBus, std::shared_ptr<DeviceMap> devices)
+ 
+         // There is an eeprom file at this address, it may have invalid
+         // contents, but we found it.
++        std::cerr << "Found loaded EEPROM Bus:" << +i2cBus << " Addr:0x" << addressString << std::endl;
+         foundList.insert(address);
+ 
+         std::vector<uint8_t> device = processEeprom(i2cBus, address);
+@@ -415,6 +416,7 @@ int getBusFRUs(int file, int first, int last, int bus,
+             if (failedItems.find(ii) != failedItems.end())
+             {
+                 // if we failed to read it once, unlikely we can read it later
++                std::cerr << "Skipping failed device bus:" << bus << " addr " << ii << "\n";
+                 continue;
+             }
+ 
+@@ -446,9 +448,11 @@ int getBusFRUs(int file, int first, int last, int bus,
+                                 readBlockData, errorMessage);
+             if (device.empty())
+             {
++                std::cerr << "Skipping empty device bus:" << bus << " addr " << ii << "\n";
+                 continue;
+             }
+ 
++            std::cerr << "Found EEPROM device bus:" << bus << " addr 0x" << std::hex << std::setfill('0') << std::setw(2) << +ii << "\n";
+             devices->emplace(ii, device);
+         }
+         return 1;
+-- 
+2.7.4
+

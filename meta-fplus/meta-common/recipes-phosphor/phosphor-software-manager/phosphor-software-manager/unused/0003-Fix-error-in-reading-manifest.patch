@@ -1,0 +1,24 @@
+From 6ae6cf8693da7508a898b6b685151760cd6a3c0e Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 20 Dec 2021 13:26:58 +0000
+Subject: [PATCH] Fix error in reading manifest
+
+---
+ version.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/version.cpp b/version.cpp
+index 250c221..50c937a 100644
+--- a/version.cpp
++++ b/version.cpp
+@@ -69,8 +69,8 @@ std::string Version::getValue(const std::string& manifestFilePath,
+     }
+     catch (const std::exception& e)
+     {
+-        error("Error occurred when reading MANIFEST file: {ERROR}", "KEY", key,
+-              "ERROR", e);
++        efile.close();
++        value = "";
+     }
+ 
+     return value;

@@ -29,12 +29,11 @@
 WARN_QA ?= " libdir xorg-driver-abi buildpaths \
             textrel incompatible-license files-invalid \
             infodir build-deps src-uri-bad symlink-to-sysroot multilib \
-            invalid-packageconfig host-user-contaminated uppercase-pn \
+            invalid-packageconfig host-user-contaminated uppercase-pn patch-fuzz \
             mime mime-xdg unlisted-pkg-lics unhandled-features-check \
             missing-update-alternatives native-last missing-ptest \
             license-exists license-no-generic license-syntax license-format \
             license-incompatible license-file-missing obsolete-license \
-            32bit-time virtual-slash \
             "
 ERROR_QA ?= "dev-so debug-deps dev-deps debug-files arch pkgconfig la \
             perms dep-cmp pkgvarcheck perm-config perm-line perm-link \
@@ -45,12 +44,9 @@ ERROR_QA ?= "dev-so debug-deps dev-deps debug-files arch pkgconfig la \
             already-stripped installed-vs-shipped ldflags compile-host-path \
             install-host-path pn-overrides unknown-configure-option \
             useless-rpaths rpaths staticdev empty-dirs \
-            patch-fuzz \
             "
 # Add usrmerge QA check based on distro feature
 ERROR_QA:append = "${@bb.utils.contains('DISTRO_FEATURES', 'usrmerge', ' usrmerge', '', d)}"
-ERROR_QA:append:layer-core = " patch-status"
-WARN_QA:append:layer-core = " missing-metadata missing-maintainer"
 
 FAKEROOT_QA = "host-user-contaminated"
 FAKEROOT_QA[doc] = "QA tests which need to run under fakeroot. If any \
@@ -97,14 +93,15 @@ def package_qa_check_shebang_size(path, name, d, elf, messages):
         return
 
     if stanza.startswith(b'#!'):
+        #Shebang not found
         try:
-            stanza.decode("utf-8")
+            stanza = stanza.decode("utf-8")
         except UnicodeDecodeError:
             #If it is not a text file, it is not a script
             return
 
         if len(stanza) > 129:
-            oe.qa.add_message(messages, "shebang-size", "%s: %s maximum shebang size exceeded, the maximum size is 128." % (name, package_qa_clean_path(path, d, name)))
+            oe.qa.add_message(messages, "shebang-size", "%s: %s maximum shebang size exceeded, the maximum size is 128." % (name, package_qa_clean_path(path, d)))
             return
 
 QAPATHTEST[libexec] = "package_qa_check_libexec"
@@ -116,7 +113,7 @@ def package_qa_check_libexec(path,name, d, elf, messages):
         return True
 
     if 'libexec' in path.split(os.path.sep):
-        oe.qa.add_message(messages, "libexec", "%s: %s is using libexec please relocate to %s" % (name, package_qa_clean_path(path, d, name), libexec))
+        oe.qa.add_message(messages, "libexec", "%s: %s is using libexec please relocate to %s" % (name, package_qa_clean_path(path, d), libexec))
         return False
 
     return True
@@ -208,7 +205,7 @@ def package_qa_check_staticdev(path, name, d, elf, messages):
 
     if not name.endswith("-pic") and not name.endswith("-staticdev") and not name.endswith("-ptest") and path.endswith(".a") and not path.endswith("_nonshared.a") and not '/usr/lib/debug-static/' in path and not '/.debug-static/' in path:
         oe.qa.add_message(messages, "staticdev", "non -staticdev package contains static .a library: %s path '%s'" % \
-                 (name, package_qa_clean_path(path, d, name)))
+                 (name, package_qa_clean_path(path,d, name)))
 
 QAPATHTEST[mime] = "package_qa_check_mime"
 def package_qa_check_mime(path, name, d, elf, messages):
@@ -219,7 +216,7 @@ def package_qa_check_mime(path, name, d, elf, messages):
 
     if d.getVar("datadir") + "/mime/packages" in path and path.endswith('.xml') and not bb.data.inherits_class("mime", d):
         oe.qa.add_message(messages, "mime", "package contains mime types but does not inherit mime: %s path '%s'" % \
-                 (name, package_qa_clean_path(path, d, name)))
+                 (name, package_qa_clean_path(path,d)))
 
 QAPATHTEST[mime-xdg] = "package_qa_check_mime_xdg"
 def package_qa_check_mime_xdg(path, name, d, elf, messages):
@@ -239,7 +236,7 @@ def package_qa_check_mime_xdg(path, name, d, elf, messages):
         except:
             # At least libreoffice installs symlinks with absolute paths that are dangling here.
             # We could implement some magic but for few (one) recipes it is not worth the effort so just warn:
-            wstr = "%s cannot open %s - is it a symlink with absolute path?\n" % (name, package_qa_clean_path(path, d, name))
+            wstr = "%s cannot open %s - is it a symlink with absolute path?\n" % (name, package_qa_clean_path(path,d))
             wstr += "Please check if (linked) file contains key 'MimeType'.\n"
             pkgname = name
             if name == d.getVar('PN'):
@@ -247,8 +244,8 @@ def package_qa_check_mime_xdg(path, name, d, elf, messages):
             wstr += "If yes: add \'inhert mime-xdg\' and \'MIME_XDG_PACKAGES += \"%s\"\' / if no add \'INSANE_SKIP:%s += \"mime-xdg\"\' to recipe." % (pkgname, pkgname)
             oe.qa.add_message(messages, "mime-xdg", wstr)
         if mime_type_found:
-            oe.qa.add_message(messages, "mime-xdg", "%s: contains desktop file with key 'MimeType' but does not inhert mime-xdg: %s" % \
-                    (name, package_qa_clean_path(path, d, name)))
+            oe.qa.add_message(messages, "mime-xdg", "package contains desktop file with key 'MimeType' but does not inhert mime-xdg: %s path '%s'" % \
+                    (name, package_qa_clean_path(path,d)))
 
 def package_qa_check_libdir(d):
     """
@@ -321,8 +318,8 @@ def package_qa_check_dbg(path, name, d, elf, messages):
 
     if not "-dbg" in name and not "-ptest" in name:
         if '.debug' in path.split(os.path.sep):
-            oe.qa.add_message(messages, "debug-files", "%s: non debug package contains .debug directory %s" % \
-                     (name, package_qa_clean_path(path, d, name)))
+            oe.qa.add_message(messages, "debug-files", "non debug package contains .debug directory: %s path %s" % \
+                     (name, package_qa_clean_path(path,d)))
 
 QAPATHTEST[arch] = "package_qa_check_arch"
 def package_qa_check_arch(path,name,d, elf, messages):
@@ -371,7 +368,7 @@ def package_qa_check_arch(path,name,d, elf, messages):
                  (elf.abiSize(), bits, package_qa_clean_path(path, d, name)))
     elif not ((littleendian == elf.isLittleEndian()) or is_bpf):
         oe.qa.add_message(messages, "arch", "Endiannes did not match (%d, expected %d) in %s" % \
-                 (elf.isLittleEndian(), littleendian, package_qa_clean_path(path, d, name)))
+                 (elf.isLittleEndian(), littleendian, package_qa_clean_path(path,d, name)))
 
 QAPATHTEST[desktop] = "package_qa_check_desktop"
 def package_qa_check_desktop(path, name, d, elf, messages):
@@ -508,132 +505,6 @@ def package_qa_check_symlink_to_sysroot(path, name, d, elf, messages):
             if target.startswith(tmpdir):
                 trimmed = path.replace(os.path.join (d.getVar("PKGDEST"), name), "")
                 oe.qa.add_message(messages, "symlink-to-sysroot", "Symlink %s in %s points to TMPDIR" % (trimmed, name))
-
-QAPATHTEST[32bit-time] = "check_32bit_symbols"
-def check_32bit_symbols(path, packagename, d, elf, messages):
-    """
-    Check that ELF files do not use any 32 bit time APIs from glibc.
-    """
-    thirtytwo_bit_time_archs = {'arm','armeb','mipsarcho32','powerpc','x86'}
-    overrides = set(d.getVar('OVERRIDES').split(':'))
-    if not (thirtytwo_bit_time_archs & overrides):
-        return
-
-    import re
-    # This list is manually constructed by searching the image folder of the
-    # glibc recipe for __USE_TIME_BITS64.  There is no good way to do this
-    # automatically.
-    api32 = {
-        # /usr/include/time.h
-        "clock_getres", "clock_gettime", "clock_nanosleep", "clock_settime",
-        "ctime", "ctime_r", "difftime", "gmtime", "gmtime_r", "localtime",
-        "localtime_r", "mktime", "nanosleep", "time", "timegm", "timelocal",
-        "timer_gettime", "timer_settime", "timespec_get", "timespec_getres",
-        # /usr/include/bits/time.h
-        "clock_adjtime",
-        # /usr/include/signal.h
-        "sigtimedwait",
-        # /usr/include/sys/time.h
-        "adjtime",
-        "futimes", "futimesat", "getitimer", "gettimeofday", "lutimes",
-        "setitimer", "settimeofday", "utimes",
-        # /usr/include/sys/timex.h
-        "adjtimex", "ntp_adjtime", "ntp_gettime", "ntp_gettimex",
-        # /usr/include/sys/wait.h
-        "wait3", "wait4",
-        # /usr/include/sys/stat.h
-        "fstat", "fstat64", "fstatat", "fstatat64", "futimens", "lstat",
-        "lstat64", "stat", "stat64", "utimensat",
-        # /usr/include/sys/poll.h
-        "ppoll",
-        # /usr/include/sys/resource.h
-        "getrusage",
-        # /usr/include/sys/ioctl.h
-        "ioctl",
-        # /usr/include/sys/select.h
-        "select", "pselect",
-        # /usr/include/sys/prctl.h
-        "prctl",
-        # /usr/include/sys/epoll.h
-        "epoll_pwait2",
-        # /usr/include/sys/timerfd.h
-        "timerfd_gettime", "timerfd_settime",
-        # /usr/include/sys/socket.h
-        "getsockopt", "recvmmsg", "recvmsg", "sendmmsg", "sendmsg",
-        "setsockopt",
-        # /usr/include/sys/msg.h
-        "msgctl",
-        # /usr/include/sys/sem.h
-        "semctl", "semtimedop",
-        # /usr/include/sys/shm.h
-        "shmctl",
-        # /usr/include/pthread.h
-        "pthread_clockjoin_np", "pthread_cond_clockwait",
-        "pthread_cond_timedwait", "pthread_mutex_clocklock",
-        "pthread_mutex_timedlock", "pthread_rwlock_clockrdlock",
-        "pthread_rwlock_clockwrlock", "pthread_rwlock_timedrdlock",
-        "pthread_rwlock_timedwrlock", "pthread_timedjoin_np",
-        # /usr/include/semaphore.h
-        "sem_clockwait", "sem_timedwait",
-        # /usr/include/threads.h
-        "cnd_timedwait", "mtx_timedlock", "thrd_sleep",
-        # /usr/include/aio.h
-        "aio_cancel", "aio_error", "aio_read", "aio_return", "aio_suspend",
-        "aio_write", "lio_listio",
-        # /usr/include/mqueue.h
-        "mq_timedreceive", "mq_timedsend",
-        # /usr/include/glob.h
-        "glob", "glob64", "globfree", "globfree64",
-        # /usr/include/sched.h
-        "sched_rr_get_interval",
-        # /usr/include/fcntl.h
-        "fcntl", "fcntl64",
-        # /usr/include/utime.h
-        "utime",
-        # /usr/include/ftw.h
-        "ftw", "ftw64", "nftw", "nftw64",
-        # /usr/include/fts.h
-        "fts64_children", "fts64_close", "fts64_open", "fts64_read",
-        "fts64_set", "fts_children", "fts_close", "fts_open", "fts_read",
-        "fts_set",
-        # /usr/include/netdb.h
-        "gai_suspend",
-    }
-
-    ptrn = re.compile(
-        r'''
-        (?P<value>[\da-fA-F]+) \s+
-        (?P<flags>[lgu! ][w ][C ][W ][Ii ][dD ]F) \s+
-        (?P<section>\*UND\*) \s+
-        (?P<alignment>(?P<size>[\da-fA-F]+)) \s+
-        (?P<symbol>
-        ''' +
-        r'(?P<notag>' + r'|'.join(sorted(api32)) + r')' +
-        r'''
-        (@+(?P<tag>GLIBC_\d+\.\d+\S*)))
-        ''', re.VERBOSE
-    )
-
-    # elf is a oe.qa.ELFFile object
-    if elf is not None:
-        phdrs = elf.run_objdump("-tw", d)
-        syms = re.finditer(ptrn, phdrs)
-        usedapis = {sym.group('notag') for sym in syms}
-        if usedapis:
-            elfpath = package_qa_clean_path(path, d, packagename)
-            # Remove any .debug dir, heuristic that probably works
-            # At this point, any symbol information is stripped into the debug
-            # package, so that is the only place we will find them.
-            elfpath = elfpath.replace('.debug/', '')
-            allowed = "32bit-time" in (d.getVar('INSANE_SKIP') or '').split()
-            if not allowed:
-                msgformat = elfpath + " uses 32-bit api '%s'"
-                for sym in usedapis:
-                    oe.qa.add_message(messages, '32bit-time', msgformat % sym)
-                oe.qa.add_message(
-                    messages, '32bit-time',
-                    'Suppress with INSANE_SKIP = "32bit-time"'
-                )
 
 # Check license variables
 do_populate_lic[postfuncs] += "populate_lic_qa_checksum"
@@ -905,7 +776,13 @@ def package_qa_check_rdepends(pkg, pkgdest, skip, taskdeps, packages, d):
                     if rdep_data and 'PN' in rdep_data and rdep_data['PN'] in taskdeps:
                         continue
                     if not rdep_data or not 'PN' in rdep_data:
-                        for _, rdep_data in oe.packagedata.foreach_runtime_provider_pkgdata(d, rdepend):
+                        pkgdata_dir = d.getVar("PKGDATA_DIR")
+                        try:
+                            possibles = os.listdir("%s/runtime-rprovides/%s/" % (pkgdata_dir, rdepend))
+                        except OSError:
+                            possibles = []
+                        for p in possibles:
+                            rdep_data = oe.packagedata.read_subpkgdata(p, d)
                             if rdep_data and 'PN' in rdep_data and rdep_data['PN'] in taskdeps:
                                 break
                     if rdep_data and 'PN' in rdep_data and rdep_data['PN'] in taskdeps:
@@ -918,12 +795,8 @@ def package_qa_check_rdepends(pkg, pkgdest, skip, taskdeps, packages, d):
 
         if "file-rdeps" not in skip:
             ignored_file_rdeps = set(['/bin/sh', '/usr/bin/env', 'rtld(GNU_HASH)'])
-            if bb.utils.contains('DISTRO_FEATURES', 'usrmerge', True, False, d):
-                ignored_file_rdeps |= set(['/usr/bin/sh'])
             if bb.data.inherits_class('nativesdk', d):
                 ignored_file_rdeps |= set(['/bin/bash', '/usr/bin/perl', 'perl'])
-                if bb.utils.contains('DISTRO_FEATURES', 'usrmerge', True, False, d):
-                    ignored_file_rdeps |= set(['/usr/bin/bash'])
             # For Saving the FILERDEPENDS
             filerdepends = {}
             rdep_data = oe.packagedata.read_subpkgdata(pkg, d)
@@ -953,17 +826,17 @@ def package_qa_check_rdepends(pkg, pkgdest, skip, taskdeps, packages, d):
                     # perl
                     filerdepends.pop(rdep,None)
 
-                    for _, rdep_data in oe.packagedata.foreach_runtime_provider_pkgdata(d, rdep, True):
-                        for key in rdep_data:
-                            if key.startswith("FILERPROVIDES:") or key.startswith("RPROVIDES:"):
-                                for subkey in bb.utils.explode_deps(rdep_data[key]):
-                                    filerdepends.pop(subkey,None)
-                            # Add the files list to the rprovides
-                            if key.startswith("FILES_INFO:"):
-                                # Use eval() to make it as a dict
-                                for subkey in eval(rdep_data[key]):
-                                    filerdepends.pop(subkey,None)
-
+                    # For Saving the FILERPROVIDES, RPROVIDES and FILES_INFO
+                    rdep_data = oe.packagedata.read_subpkgdata(rdep, d)
+                    for key in rdep_data:
+                        if key.startswith("FILERPROVIDES:") or key.startswith("RPROVIDES:"):
+                            for subkey in bb.utils.explode_deps(rdep_data[key]):
+                                filerdepends.pop(subkey,None)
+                        # Add the files list to the rprovides
+                        if key.startswith("FILES_INFO:"):
+                            # Use eval() to make it as a dict
+                            for subkey in eval(rdep_data[key]):
+                                filerdepends.pop(subkey,None)
                     if not filerdepends:
                         # Break if all the file rdepends are met
                         break
@@ -1333,76 +1206,39 @@ python do_qa_patch() {
             msg += "    devtool modify %s\n" % d.getVar('PN')
             msg += "    devtool finish --force-patch-refresh %s <layer_path>\n\n" % d.getVar('PN')
             msg += "Don't forget to review changes done by devtool!\n"
-            msg += "\nPatch log indicates that patches do not apply cleanly."
+            if bb.utils.filter('ERROR_QA', 'patch-fuzz', d):
+                bb.error(msg)
+            elif bb.utils.filter('WARN_QA', 'patch-fuzz', d):
+                bb.warn(msg)
+            msg = "Patch log indicates that patches do not apply cleanly."
             oe.qa.handle_error("patch-fuzz", msg, d)
 
     # Check if the patch contains a correctly formatted and spelled Upstream-Status
     import re
     from oe import patch
 
+    coremeta_path = os.path.join(d.getVar('COREBASE'), 'meta', '')
     for url in patch.src_patches(d):
-        (_, _, fullpath, _, _, _) = bb.fetch.decodeurl(url)
+       (_, _, fullpath, _, _, _) = bb.fetch.decodeurl(url)
 
-        msg = oe.qa.check_upstream_status(fullpath)
-        if msg:
-            oe.qa.handle_error("patch-status", msg, d)
+       # skip patches not in oe-core
+       if not os.path.abspath(fullpath).startswith(coremeta_path):
+           continue
 
-    ###########################################################################
-    # Check for missing ptests
-    ###########################################################################
-    def match_line_in_files(toplevel, filename_glob, line_regex):
-        import pathlib
-        try:
-            toppath = pathlib.Path(toplevel)
-            for entry in toppath.glob(filename_glob):
-                try:
-                    with open(entry, 'r', encoding='utf-8', errors='ignore') as f:
-                        for line in f.readlines():
-                            if re.match(line_regex, line):
-                                return True
-                except FileNotFoundError:
-                    # Broken symlink in source
-                    pass
-        except FileNotFoundError:
-            # pathlib.Path.glob() might throw this when file/directory
-            # disappear while scanning.
-            bb.note("unimplemented-ptest: FileNotFoundError exception while scanning (disappearing file while scanning?). Check was ignored." % d.getVar('PN'))
-            pass
-        return False
+       kinda_status_re = re.compile(r"^.*upstream.*status.*$", re.IGNORECASE | re.MULTILINE)
+       strict_status_re = re.compile(r"^Upstream-Status: (Pending|Submitted|Denied|Accepted|Inappropriate|Backport|Inactive-Upstream)( .+)?$", re.MULTILINE)
+       guidelines = "https://www.openembedded.org/wiki/Commit_Patch_Message_Guidelines#Patch_Header_Recommendations:_Upstream-Status"
 
-    srcdir = d.getVar('S')
-    if not bb.utils.contains('DISTRO_FEATURES', 'ptest', True, False, d):
-        pass
-    elif bb.data.inherits_class('ptest', d):
-        bb.note("Package %s QA: skipping unimplemented-ptest: ptest implementation detected" % d.getVar('PN'))
-    elif srcdir == d.getVar('WORKDIR'):
-        bb.note("Package %s QA: skipping unimplemented-ptest: This check is not supported for recipe with \"S = \"${WORKDIR}\"" % d.getVar('PN'))
+       with open(fullpath, encoding='utf-8', errors='ignore') as f:
+           file_content = f.read()
+           match_kinda = kinda_status_re.search(file_content)
+           match_strict = strict_status_re.search(file_content)
 
-    # Detect perl Test:: based tests
-    elif os.path.exists(os.path.join(srcdir, "t")) and any(filename.endswith('.t') for filename in os.listdir(os.path.join(srcdir, 't'))):
-        oe.qa.handle_error("unimplemented-ptest", "%s: perl Test:: based tests detected" % d.getVar('PN'), d)
-
-    # Detect pytest-based tests
-    elif match_line_in_files(srcdir, "**/*.py", r'\s*(?:import\s*pytest|from\s*pytest)'):
-        oe.qa.handle_error("unimplemented-ptest", "%s: pytest-based tests detected" % d.getVar('PN'), d)
-
-    # Detect meson-based tests
-    elif os.path.exists(os.path.join(srcdir, "meson.build")) and match_line_in_files(srcdir, "**/meson.build", r'\s*test\s*\('):
-        oe.qa.handle_error("unimplemented-ptest", "%s: meson-based tests detected" % d.getVar('PN'), d)
-
-    # Detect cmake-based tests
-    elif os.path.exists(os.path.join(srcdir, "CMakeLists.txt")) and match_line_in_files(srcdir, "**/CMakeLists.txt", r'\s*(?:add_test|enable_testing)\s*\('):
-        oe.qa.handle_error("unimplemented-ptest", "%s: cmake-based tests detected" % d.getVar('PN'), d)
-
-    # Detect autotools-based·tests
-    elif os.path.exists(os.path.join(srcdir, "Makefile.in")) and (match_line_in_files(srcdir, "**/Makefile.in", r'\s*TESTS\s*\+?=') or match_line_in_files(srcdir,"**/*.at",r'.*AT_INIT')):
-        oe.qa.handle_error("unimplemented-ptest", "%s: autotools-based tests detected" % d.getVar('PN'), d)
-
-    # Last resort, detect a test directory in sources
-    elif any(filename.lower() in ["test", "tests"] for filename in os.listdir(srcdir)):
-        oe.qa.handle_error("unimplemented-ptest", "%s: test subdirectory detected" % d.getVar('PN'), d)
-
-    oe.qa.exit_if_errors(d)
+           if not match_strict:
+               if match_kinda:
+                   bb.error("Malformed Upstream-Status in patch\n%s\nPlease correct according to %s :\n%s" % (fullpath, guidelines, match_kinda.group(0)))
+               else:
+                   bb.error("Missing Upstream-Status in patch\n%s\nPlease add according to %s ." % (fullpath, guidelines))
 }
 
 python do_qa_configure() {
@@ -1497,66 +1333,30 @@ Rerun configure task after fixing this."""
     oe.qa.exit_if_errors(d)
 }
 
+def unpack_check_src_uri(pn, d):
+    import re
+
+    skip = (d.getVar('INSANE_SKIP') or "").split()
+    if 'src-uri-bad' in skip:
+        bb.note("Recipe %s skipping qa checking: src-uri-bad" % d.getVar('PN'))
+        return
+
+    if "${PN}" in d.getVar("SRC_URI", False):
+        oe.qa.handle_error("src-uri-bad", "%s: SRC_URI uses PN not BPN" % pn, d)
+
+    for url in d.getVar("SRC_URI").split():
+        # Search for github and gitlab URLs that pull unstable archives (comment for future greppers)
+        if re.search(r"git(hu|la)b\.com/.+/.+/archive/.+", url) or "//codeload.github.com/" in url:
+            oe.qa.handle_error("src-uri-bad", "%s: SRC_URI uses unstable GitHub/GitLab archives, convert recipe to use git protocol" % pn, d)
+
 python do_qa_unpack() {
     src_uri = d.getVar('SRC_URI')
     s_dir = d.getVar('S')
     if src_uri and not os.path.exists(s_dir):
         bb.warn('%s: the directory %s (%s) pointed to by the S variable doesn\'t exist - please set S within the recipe to point to where the source has been unpacked to' % (d.getVar('PN'), d.getVar('S', False), s_dir))
+
+    unpack_check_src_uri(d.getVar('PN'), d)
 }
-
-python do_recipe_qa() {
-    import re
-
-    def test_missing_metadata(pn, d):
-        fn = d.getVar("FILE")
-        srcfile = d.getVar('SRC_URI').split()
-        # Check that SUMMARY is not the same as the default from bitbake.conf
-        if d.getVar('SUMMARY') == d.expand("${PN} version ${PV}-${PR}"):
-            oe.qa.handle_error("missing-metadata", "Recipe {} in {} does not contain a SUMMARY. Please add an entry.".format(pn, fn), d)
-        if not d.getVar('HOMEPAGE'):
-            if srcfile and srcfile[0].startswith('file') or not d.getVar('SRC_URI'):
-                # We are only interested in recipes SRC_URI fetched from external sources
-                pass
-            else:
-                oe.qa.handle_error("missing-metadata", "Recipe {} in {} does not contain a HOMEPAGE. Please add an entry.".format(pn, fn), d)
-
-    def test_missing_maintainer(pn, d):
-        fn = d.getVar("FILE")
-        if pn.endswith("-native") or pn.startswith("nativesdk-") or "packagegroup-" in pn or "core-image-ptest-" in pn:
-            return
-        if not d.getVar('RECIPE_MAINTAINER'):
-            oe.qa.handle_error("missing-maintainer", "Recipe {} in {} does not have an assigned maintainer. Please add an entry into meta/conf/distro/include/maintainers.inc.".format(pn, fn), d)
-
-    def test_srcuri(pn, d):
-        skip = (d.getVar('INSANE_SKIP') or "").split()
-        if 'src-uri-bad' in skip:
-            bb.note("Recipe %s skipping qa checking: src-uri-bad" % pn)
-            return
-
-        if "${PN}" in d.getVar("SRC_URI", False):
-            oe.qa.handle_error("src-uri-bad", "%s: SRC_URI uses PN not BPN" % pn, d)
-
-        for url in d.getVar("SRC_URI").split():
-            # Search for github and gitlab URLs that pull unstable archives (comment for future greppers)
-            if re.search(r"git(hu|la)b\.com/.+/.+/archive/.+", url) or "//codeload.github.com/" in url:
-                oe.qa.handle_error("src-uri-bad", "%s: SRC_URI uses unstable GitHub/GitLab archives, convert recipe to use git protocol" % pn, d)
-
-    pn = d.getVar('PN')
-    test_missing_metadata(pn, d)
-    test_missing_maintainer(pn, d)
-    test_srcuri(pn, d)
-    oe.qa.exit_if_errors(d)
-}
-
-addtask do_recipe_qa before do_fetch do_package_qa do_build
-
-SSTATETASKS += "do_recipe_qa"
-do_recipe_qa[sstate-inputdirs] = ""
-do_recipe_qa[sstate-outputdirs] = ""
-python do_recipe_qa_setscene () {
-    sstate_setscene(d)
-}
-addtask do_recipe_qa_setscene
 
 # Check for patch fuzz
 do_patch[postfuncs] += "do_qa_patch "
@@ -1571,7 +1371,7 @@ do_unpack[postfuncs] += "do_qa_unpack"
 
 python () {
     import re
-
+    
     tests = d.getVar('ALL_QA').split()
     if "desktop" in tests:
         d.appendVar("PACKAGE_DEPENDS", " desktop-file-utils-native")
@@ -1606,13 +1406,6 @@ python () {
     # why it doesn't work.
     if (d.getVar(d.expand('DEPENDS:${PN}'))):
         oe.qa.handle_error("pkgvarcheck", "recipe uses DEPENDS:${PN}, should use DEPENDS", d)
-
-    # virtual/ is meaningless for these variables
-    if "virtual-slash" in (d.getVar("ALL_QA") or "").split():
-        for k in ['RDEPENDS', 'RPROVIDES']:
-            for var in bb.utils.explode_deps(d.getVar(k + ':' + pn) or ""):
-                if var.startswith("virtual/"):
-                    oe.qa.handle_error("virtual-slash", "%s is set to %s but the substring 'virtual/' holds no meaning in this context. It only works for build time dependencies, not runtime ones. It is suggested to use 'VIRTUAL-RUNTIME_' variables instead." % (k, var), d)
 
     issues = []
     if (d.getVar('PACKAGES') or "").split():

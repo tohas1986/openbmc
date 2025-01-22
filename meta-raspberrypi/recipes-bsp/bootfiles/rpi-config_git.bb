@@ -7,9 +7,8 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 
 COMPATIBLE_MACHINE = "^rpi$"
 
-SRCREV = "6ac2d832c6c3b208e2669f50ec1abf2c20cb7ff4"
+SRCREV = "648ffc470824c43eb0d16c485f4c24816b32cd6f"
 SRC_URI = "git://github.com/Evilpaul/RPi-config.git;protocol=https;branch=master \
-           file://0001-config.txt-reintroduce-start_x.patch \
           "
 
 S = "${WORKDIR}/git"
@@ -30,8 +29,6 @@ GPIO_IR ?= "18"
 GPIO_IR_TX ?= "17"
 
 CAN_OSCILLATOR ?= "16000000"
-CAN0_INTERRUPT_PIN ?= "25"
-CAN1_INTERRUPT_PIN ?= "24"
 
 ENABLE_UART ??= ""
 
@@ -181,25 +178,11 @@ do_deploy() {
     fi
 
     # UART support
-    if [ "${ENABLE_UART}" = "1" ] || [ "${ENABLE_UART}" = "0" ]; then
+    if [ "${ENABLE_UART}" = "1" ] || [ "${ENABLE_UART}" = "0" ] ; then
         echo "# Enable UART" >>$CONFIG
         echo "enable_uart=${ENABLE_UART}" >>$CONFIG
     elif [ -n "${ENABLE_UART}" ]; then
         bbfatal "Invalid value for ENABLE_UART [${ENABLE_UART}]. The value for ENABLE_UART can be 0 or 1."
-    fi
-
-    # U-Boot requires "enable_uart=1" for various boards to operate correctly
-    # cf https://source.denx.de/u-boot/u-boot/-/blob/v2023.04/arch/arm/mach-bcm283x/Kconfig?ref_type=tags#L65
-    if [ "${RPI_USE_U_BOOT}" = "1" ] && [ "${ENABLE_UART}" != "1" ]; then
-        case "${UBOOT_MACHINE}" in
-            rpi_0_w_defconfig|rpi_3_32b_config|rpi_4_32b_config|rpi_arm64_config)
-                if [ "${ENABLE_UART}" = "0" ]; then
-                    bbfatal "Invalid configuration: RPI_USE_U_BOOT requires to enable the UART in config.txt for ${MACHINE}"
-                fi
-                echo "# U-Boot requires UART" >>$CONFIG
-                echo "enable_uart=1" >>$CONFIG
-                ;;
-        esac
     fi
 
     # Infrared support
@@ -226,12 +209,6 @@ do_deploy() {
     #    echo "# Enable Sony RaspberryPi Camera(imx477)" >> $CONFIG
     #    echo "dtoverlay=imx477" >> $CONFIG
     #fi
-
-    # Choose Camera Sensor to be used, default imx708 sensor
-    if [ "${RASPBERRYPI_CAMERA_V3}" = "1" ]; then
-        echo "# Enable Sony RaspberryPi Camera(imx708)" >> $CONFIG
-        echo "dtoverlay=imx708" >> $CONFIG
-    fi
 
     # Waveshare "C" 1024x600 7" Rev2.1 IPS capacitive touch (http://www.waveshare.com/7inch-HDMI-LCD-C.htm)
     if [ "${WAVESHARE_1024X600_C_2_1}" = "1" ]; then
@@ -270,12 +247,12 @@ do_deploy() {
     # ENABLE DUAL CAN
     if [ "${ENABLE_DUAL_CAN}" = "1" ]; then
         echo "# Enable DUAL CAN" >>$CONFIG
-        echo "dtoverlay=mcp2515-can0,oscillator=${CAN_OSCILLATOR},interrupt=${CAN0_INTERRUPT_PIN}" >>$CONFIG
-        echo "dtoverlay=mcp2515-can1,oscillator=${CAN_OSCILLATOR},interrupt=${CAN1_INTERRUPT_PIN}" >>$CONFIG
+        echo "dtoverlay=mcp2515-can0,oscillator=${CAN_OSCILLATOR},interrupt=25" >>$CONFIG
+        echo "dtoverlay=mcp2515-can1,oscillator=${CAN_OSCILLATOR},interrupt=24" >>$CONFIG
     # ENABLE CAN
     elif [ "${ENABLE_CAN}" = "1" ]; then
         echo "# Enable CAN" >>$CONFIG
-        echo "dtoverlay=mcp2515-can0,oscillator=${CAN_OSCILLATOR},interrupt=${CAN0_INTERRUPT_PIN}" >>$CONFIG
+        echo "dtoverlay=mcp2515-can0,oscillator=${CAN_OSCILLATOR},interrupt=25" >>$CONFIG
     fi
 
 
@@ -319,13 +296,6 @@ do_deploy() {
         echo "# Enable One-Wire Interface" >> $CONFIG
         echo "dtoverlay=w1-gpio" >> $CONFIG
     fi
-
-    # Reduce config.txt file size to avoid corruption and
-    # to boot successfully Raspberry Pi 5. The issue has
-    # been reported to related projects:
-    # https://github.com/raspberrypi/firmware/issues/1848
-    # https://github.com/Evilpaul/RPi-config/issues/9
-    sed -i '/^##/d' $CONFIG
 }
 
 do_deploy:append:raspberrypi3-64() {

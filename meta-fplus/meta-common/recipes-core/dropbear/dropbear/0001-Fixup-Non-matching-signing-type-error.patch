@@ -1,0 +1,30 @@
+From 66784b8f1f44b41e5a68e1204afaa84074f6638a Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 1 Sep 2020 15:02:48 +0000
+Subject: [PATCH 1/1] Fixup Non-matching signing type error
+
+---
+ signkey.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/signkey.c b/signkey.c
+index 92fe6a2..206a886 100644
+--- a/signkey.c
++++ b/signkey.c
+@@ -657,8 +657,11 @@ int buf_verify(buffer * buf, sign_key *key, enum signature_type expect_sigtype,
+ 	sigtype = signature_type_from_name(type_name, type_name_len);
+ 	m_free(type_name);
+ 
+-	if (expect_sigtype != sigtype) {
+-			dropbear_exit("Non-matching signing type");
++	if (sigtype == DROPBEAR_SIGNATURE_NONE) {
++		dropbear_exit("No signature type");
++	}
++	if ((expect_sigtype != DROPBEAR_SIGNATURE_RSA_SHA256) && (expect_sigtype != sigtype)) {
++		dropbear_exit("Non-matching signing type");
+ 	}
+ 
+ 	keytype = signkey_type_from_signature(sigtype);
+-- 
+2.7.4
+

@@ -1,0 +1,33 @@
+From 71b551a34086b1178b231dcac8982f0b6aa69eec Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 07:58:34 +0000
+Subject: [PATCH 1/1] Add protection against ASUS BIOS bug
+
+---
+ main.cpp | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/main.cpp b/main.cpp
+index e33459d..36496f6 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -70,9 +70,13 @@ void PostCodeEventHandler(sdeventplus::source::IO& s, int postFd, uint32_t,
+             if (verbose)
+                 fprintf(stderr, "Code: 0x%" PRIx64 "\n", code);
+ 
+-            reporter->value(std::make_tuple(~code, secondary_post_code_t{}), true);
+-            reporter->value(std::make_tuple(code, secondary_post_code_t{}));
+-            old_code = code;
++            // Asus & Intel BIOS bug: 2-0-2-0-2... codes are coming
++            if (!(code == 2 && old_code == 0) && !(code == 0 && old_code == 2))
++            {
++                reporter->value(std::make_tuple(~code, secondary_post_code_t{}), true);
++                reporter->value(std::make_tuple(code, secondary_post_code_t{}));
++                old_code = code;
++            }
+         }
+ 
+         // read depends on old data being cleared since it doens't always read
+-- 
+2.7.4
+

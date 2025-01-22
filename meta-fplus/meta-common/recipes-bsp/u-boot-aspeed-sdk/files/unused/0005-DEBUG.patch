@@ -1,0 +1,21 @@
+From 45570fb3dc1977c9fbfe0f868339f3c3a1f18526 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 10 Feb 2022 14:19:05 +0000
+Subject: [PATCH] DEBUG
+
+---
+ configs/yandex_ast2600_defconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/configs/yandex_ast2600_defconfig b/configs/yandex_ast2600_defconfig
+index 7e5617df8f..975e1f38d0 100644
+--- a/configs/yandex_ast2600_defconfig
++++ b/configs/yandex_ast2600_defconfig
+@@ -141,3 +141,4 @@ CONFIG_USB_GADGET=y
+ CONFIG_USB_DEVICE=y
+ CONFIG_DM_USB=y
+ CONFIG_ASPEED_DP=y
++CONFIG_LOGLEVEL=7
+-- 
+2.33.1
+

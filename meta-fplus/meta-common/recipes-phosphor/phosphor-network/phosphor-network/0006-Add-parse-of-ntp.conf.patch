@@ -1,0 +1,47 @@
+From fe59571534a08423b5853c2265eb84beefe8bdc0 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 20 Dec 2022 14:30:25 +0000
+Subject: [PATCH] Add parse of ntp.conf
+
+---
+ src/ethernet_interface.cpp | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/src/ethernet_interface.cpp b/src/ethernet_interface.cpp
+index c0da8a8..f672783 100644
+--- a/src/ethernet_interface.cpp
++++ b/src/ethernet_interface.cpp
+@@ -22,6 +22,8 @@
+ #include <unordered_map>
+ #include <variant>
+ #include <xyz/openbmc_project/Common/error.hpp>
++#include <fstream>
++#include <iostream>
+ 
+ namespace phosphor
+ {
+@@ -497,6 +499,24 @@ ServerList EthernetInterface::getNTPServerFromTimeSyncd()
+             "Failed to get NTP server information from Systemd-Timesyncd");
+     }
+ 
++    /* Parse ntp.conf just in case */
++    std::string line;
++    std::ifstream ntpConf("/etc/ntp.conf");
++    if (ntpConf.is_open())
++    {
++        const std::string prefix = "server ";
++        while (std::getline(ntpConf, line))
++        {
++            size_t pos = line.find(prefix);
++            if (line.starts_with(prefix) && pos != std::string::npos)
++            {
++                std::string server = line.erase(pos, prefix.length());
++                servers.push_back(server);
++            }
++        }
++    }
++    ntpConf.close();
++
+     return servers;
+ }
+ 

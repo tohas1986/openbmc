@@ -1,0 +1,77 @@
+From 37afa51616da53ea9906b77638882294bc384bd5 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 1 Apr 2021 15:34:29 +0000
+Subject: [PATCH] mcutempsensor-Don-t-read-if-power-is-off
+
+---
+ include/MCUTempSensor.hpp |  3 ++-
+ src/MCUTempSensor.cpp     | 20 +++++++++++++++-----
+ 2 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/include/MCUTempSensor.hpp b/include/MCUTempSensor.hpp
+index deb7102..d0bed60 100644
+--- a/include/MCUTempSensor.hpp
++++ b/include/MCUTempSensor.hpp
+@@ -16,7 +16,8 @@ struct MCUTempSensor : public Sensor
+                   const std::string& sensorConfiguration,
+                   sdbusplus::asio::object_server& objectServer,
+                   std::vector<thresholds::Threshold>&& thresholds,
+-                  uint8_t busId, uint8_t mcuAddress, uint8_t tempReg);
++                  uint8_t busId, uint8_t mcuAddress, uint8_t tempReg,
++                  const PowerState powerState);
+     ~MCUTempSensor() override;
+ 
+     void checkThresholds(void) override;
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index c85543e..54c943f 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -55,11 +55,11 @@ MCUTempSensor::MCUTempSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+                              sdbusplus::asio::object_server& objectServer,
+                              std::vector<thresholds::Threshold>&& thresholdData,
+                              uint8_t busId, uint8_t mcuAddress,
+-                             uint8_t tempReg) :
++                             uint8_t tempReg, const PowerState powerState) :
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(thresholdData), sensorConfiguration,
+            "xyz.openbmc_project.Configuration.ExitAirTemp", mcuTempMaxReading,
+-           mcuTempMinReading, conn),
++           mcuTempMinReading, conn, powerState),
+     busId(busId), mcuAddress(mcuAddress), tempReg(tempReg),
+     objectServer(objectServer), waitTimer(io)
+ {
+@@ -169,7 +169,17 @@ void MCUTempSensor::read(void)
+             return;
+         }
+         int16_t temp;
+-        int ret = getMCURegsInfoWord(tempReg, &temp);
++        int ret;
++        /* Don't read anything if power is off */
++        if (isPowerOn())
++        {
++            ret = getMCURegsInfoWord(tempReg, &temp);
++        }
++        else
++        {
++            ret = -1;
++        }
++
+         if (ret >= 0)
+         {
+             double v = static_cast<double>(temp);
+@@ -252,13 +262,13 @@ void createSensors(
+                             << "\tReg: " << static_cast<int>(tempReg) << "\n"
+                             << "\tClass: " << sensorClass << "\n";
+                     }
+-
++                    PowerState powerState = PowerState::on;
+                     auto& sensor = sensors[name];
+ 
+                     sensor = std::make_unique<MCUTempSensor>(
+                         dbusConnection, io, name, pathPair.first, objectServer,
+                         std::move(sensorThresholds), busId, mcuAddress,
+-                        tempReg);
++                        tempReg, powerState);
+ 
+                     sensor->init();
+                 }

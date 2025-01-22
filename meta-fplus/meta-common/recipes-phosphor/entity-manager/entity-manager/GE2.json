@@ -1,0 +1,529 @@
+{
+    "Exposes": [
+        {
+            "Index": 0,
+            "Name": "P_12V",
+            "PowerState": "Always",
+            "ScaleFactor": 0.108,
+            "Min": 0, "Max": 13.0,
+            "Type": "ADC",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 13.776 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 13.202 },
+                { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 10.742 },
+                { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 10.250 }
+            ]
+        },
+        {
+            "Index": 1,
+            "Name": "P_12V_AUX",
+            "PowerState": "Always",
+            "ScaleFactor": 0.108,
+            "Min": 0, "Max": 13.0,
+            "Type": "ADC",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 13.776 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 13.202 },
+                { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 10.742 },
+                { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 10.250 }
+            ]
+        },
+        {
+            "Index": 2,
+            "Name": "P_5V_UP",
+            "PowerState": "Always",
+            "ScaleFactor": 0.274,
+            "Min": 0, "Max": 5.68,
+            "Type": "ADC",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 5.680 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 5.474 },
+                { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 4.498 },
+                { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 4.292 }
+            ]
+        },
+        {
+            "Index": 3,
+            "Name": "P_5V_DOWN",
+            "PowerState": "Always",
+            "ScaleFactor": 0.274,
+            "Min": 0, "Max": 5.68,
+            "Type": "ADC",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 5.680 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 5.474 },
+                { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 4.498 },
+                { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 4.292 }
+            ]
+        },
+        {
+            "Index": 4,
+            "Name": "P_3V3",
+            "PowerState": "Always",
+            "ScaleFactor": 0.405,
+            "Min": 0, "Max": 4.0,
+            "Type": "ADC",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 3.754 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 3.616 },
+                { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 2.958 },
+                { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 2.820 }
+            ]
+        },
+        {
+            "Index": 5,
+            "Name": "P_3V3_AUX",
+            "PowerState": "Always",
+            "ScaleFactor": 0.405,
+            "Min": 0, "Max": 4.0,
+            "Type": "ADC",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 3.754 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 3.616 },
+                { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 2.958 },
+                { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 2.820 }
+            ]
+        },
+        {
+            "Index": 6,
+            "Name": "P_1V15",
+            "PowerState": "Always",
+            "ScaleFactor": 1.0,
+            "Min": 0, "Max": 2.0,
+            "Type": "ADC",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 1.754 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 1.616 },
+                { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 0.858 },
+                { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 0.720 }
+            ]
+        },
+        {
+            "Index": 7,
+            "Name": "P_1V2",
+            "PowerState": "Always",
+            "ScaleFactor": 1.0,
+            "Min": 0, "Max": 2.0,
+            "Type": "ADC",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 1.754 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 1.616 },
+                { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 0.858 },
+                { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 0.720 }
+            ]
+        },
+
+        { "Name": "BMC_CPU", "Type": "HealthSensor", "Class": "CPU", "FailTime": 1500, "IsReboot": true,
+          "RebootCmd": "/sbin/reboot",
+          "Thresholds": [ { "Direction": "greater than", "Name": "upper critical", "Severity": 0, "Value": 99 } ]
+        },
+        { "Name": "BMC_MEM", "Type": "HealthSensor", "Class": "Memory", "FailTime": 1500, "IsReboot": true,
+          "RebootCmd": "/sbin/reboot",
+          "Thresholds": [ { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 80 } ]
+        },
+        { "Name": "BMC_DAYS", "Type": "HealthSensor", "Class": "Uptime", "FailTime": 300, "IsReboot": true,
+          "RebootCmd": "/sbin/reboot",
+          "Thresholds": [ { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 10 } ]
+        },
+
+        {
+          "Index": 0,
+          "Name": "SYS_FAN1",
+          "Pwm": 0,
+          "Status": "enabled",
+          "Tachs": [ 0 ],
+          "Type": "AspeedFan"
+        },
+        {
+          "Index": 1,
+          "Name": "SYS_FAN2",
+          "Pwm": 1,
+          "Status": "enabled",
+          "Tachs": [ 1 ],
+          "Type": "AspeedFan"
+        },
+        {
+          "Index": 2,
+          "Name": "SYS_FAN3",
+          "Pwm": 2,
+          "Status": "enabled",
+          "Tachs": [ 2 ],
+          "Type": "AspeedFan"
+        },
+        {
+          "Index": 3,
+          "Name": "SYS_FAN4",
+          "Pwm": 3,
+          "Status": "enabled",
+          "Tachs": [ 3 ],
+          "Type": "AspeedFan"
+        },
+        {
+            "Address": "0x41", "Bus": 14,
+            "Name": "INA219_PWR_LOW1",
+            "Labels": [ "power2" ],
+            "power2_Name": "IO_BRD_POUT_3V3", "power2_Min": 0.0, "power2_Max": 10.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 13.0 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 11.5 }
+            ]
+        },
+        {
+            "Address": "0x28", "Bus": 14,
+            "Name": "BPB1_HDD_TEMP",
+            "temp1_Name": "BPB_HDD_TEMP1", "temp2_Name": "BPB_HDD_TEMP2", "Labels": [ "temp1", "temp2" ],
+            "Type": "NCT7802",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp2" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp2" }
+            ]
+        },
+        {
+            "Address": "0x28", "Bus": 15,
+            "Name": "BPB2_HDD_TEMP",
+            "temp1_Name": "BPB_HDD_TEMP3", "temp2_Name": "BPB_HDD_TEMP4", "Labels": [ "temp1", "temp2" ],
+            "Type": "NCT7802",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp2" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp2" }
+            ]
+        },
+        {
+            "Address": "0x28", "Bus": 16,
+            "Name": "BPB3_HDD_TEMP",
+            "temp1_Name": "BPB_HDD_TEMP5", "temp2_Name": "BPB_HDD_TEMP6", "Labels": [ "temp1", "temp2" ],
+            "Type": "NCT7802",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp2" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp2" }
+            ]
+        },
+        {
+            "Address": "0x28", "Bus": 17,
+            "Name": "BPB4_HDD_TEMP",
+            "temp1_Name": "BPB_HDD_TEMP7", "temp2_Name": "BPB_HDD_TEMP8", "Labels": [ "temp1", "temp2" ],
+            "Type": "NCT7802",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp2" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp2" }
+            ]
+        },
+        {
+            "Address": "0x41", "Bus": 24,
+            "Name": "LM5066_1",
+            "pin_Name": "SYS_FAN_PWR", "pin_Min": 0.0, "pin_Max": 150.0,
+            "Labels": [ "pin" ],
+            "Type": "LM5066I"
+        },
+        {
+            "Address": "0x28", "Bus": 18,
+            "Name": "BPB5_HDD_TEMP",
+            "temp1_Name": "BPB_HDD_TEMP9", "temp2_Name": "BPB_HDD_TEMP10", "Labels": [ "temp1", "temp2" ],
+            "Type": "NCT7802",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp2" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp2" }
+            ]
+        },
+        {
+            "Address": "0x28", "Bus": 19,
+            "Name": "BPB6_HDD_TEMP",
+            "temp1_Name": "BPB_HDD_TEMP11", "temp2_Name": "BPB_HDD_TEMP12", "Labels": [ "temp1", "temp2" ],
+            "Type": "NCT7802",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp2" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp2" }
+            ]
+        },
+        {
+            "Address": "0x28", "Bus": 20,
+            "Name": "BPB7_HDD_TEMP",
+            "temp1_Name": "BPB_HDD_TEMP13", "temp2_Name": "BPB_HDD_TEMP14", "Labels": [ "temp1", "temp2" ],
+            "Type": "NCT7802",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp2" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp2" }
+            ]
+        },
+        {
+            "Address": "0x28", "Bus": 21,
+            "Name": "BPB8_HDD_TEMP",
+            "temp1_Name": "BPB_HDD_TEMP15", "temp2_Name": "BPB_HDD_TEMP16", "Labels": [ "temp1", "temp2" ],
+            "Type": "NCT7802",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp1" },
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60, "Label": "temp2" },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 55, "Label": "temp2" }
+            ]
+        },
+        {
+            "Address": "0x4c", "Bus": 25,
+            "Name": "SYS_TEMP1", "Labels": [ "temp1"], "temp1_Name": "SYS_TEMP1",
+            "Type": "TMP75",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "temp1", "Name": "upper critical", "Severity": 1, "Value": 60.0 }
+            ]
+        },
+        {
+            "Address": "0x4d", "Bus": 25,
+            "Name": "SYS_TEMP2", "Labels": [ "temp1"], "temp1_Name": "SYS_TEMP2",
+            "Type": "TMP75",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "temp1", "Name": "upper critical", "Severity": 1, "Value": 60.0 }
+            ]
+        },
+        {
+            "Address": "0x4e", "Bus": 25,
+            "Name": "SYS_TEMP3", "Labels": [ "temp1"], "temp1_Name": "SYS_TEMP3",
+            "Type": "TMP75",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "temp1", "Name": "upper critical", "Severity": 1, "Value": 60.0 }
+            ]
+        },
+        {
+            "Address": "0x4f", "Bus": 25,
+            "Name": "SYS_TEMP4", "Labels": [ "temp1"], "temp1_Name": "SYS_TEMP4",
+            "Type": "TMP75",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "temp1", "Name": "upper critical", "Severity": 1, "Value": 60.0 }
+            ]
+        },
+        {
+            "Address": "0x48", "Bus": 7,
+            "Name": "INLET_TEMP", "Labels": [ "temp1"], "temp1_Name": "INLET_TEMP",
+            "Type": "TMP75"
+        },
+        { "Bus": 6, "Address": "0x18", "Type": "JC42", "Name": "IO_BRD1_TEMP",
+          "Labels": ["temp1"], "temp1_Name": "IO_BRD1_TEMP"
+        },
+        { "Bus": 4, "Address": "0x18", "Type": "JC42", "Name": "IO_BRD2_TEMP",
+          "Labels": ["temp1"], "temp1_Name": "IO_BRD2_TEMP"
+        },
+        {
+            "Address": "0x44", "Bus": 14,
+            "Name": "INA219_1_12",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB1_HDD_12V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB1_HDD_12V_V", "in1_Min": 10.0, "in1_Max": 14.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 13.0 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 11.5 }
+            ]
+        },
+        {
+            "Address": "0x45", "Bus": 14,
+            "Name": "INA219_1_5",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB1_HDD_5V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB1_HDD_5V_V", "in1_Min": 4.0, "in1_Max": 6.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 5.5 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 4.5 }
+            ]
+        },
+        {
+            "Address": "0x44", "Bus": 15,
+            "Name": "INA219_2_12",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB2_HDD_12V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB2_HDD_12V_V", "in1_Min": 10.0, "in1_Max": 14.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 13.0 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 11.5 }
+            ]
+        },
+        {
+            "Address": "0x45", "Bus": 15,
+            "Name": "INA219_2_5",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB2_HDD_5V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB2_HDD_5V_V", "in1_Min": 4.0, "in1_Max": 6.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 5.5 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 4.5 }
+            ]
+        },
+        {
+            "Address": "0x44", "Bus": 16,
+            "Name": "INA219_3_12",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB3_HDD_12V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB3_HDD_12V_V", "in1_Min": 10.0, "in1_Max": 14.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 13.0 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 11.5 }
+            ]
+        },
+        {
+            "Address": "0x45", "Bus": 16,
+            "Name": "INA219_3_5",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB3_HDD_5V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB3_HDD_5V_V", "in1_Min": 4.0, "in1_Max": 6.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 5.5 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 4.5 }
+            ]
+        },
+        {
+            "Address": "0x44", "Bus": 17,
+            "Name": "INA219_4_12",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB4_HDD_12V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB4_HDD_12V_V", "in1_Min": 10.0, "in1_Max": 14.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 13.0 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 11.5 }
+            ]
+        },
+        {
+            "Address": "0x45", "Bus": 17,
+            "Name": "INA219_4_5",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB4_HDD_5V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB4_HDD_5V_V", "in1_Min": 4.0, "in1_Max": 6.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 5.5 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 4.5 }
+            ]
+        },
+        {
+            "Address": "0x44", "Bus": 18,
+            "Name": "INA219_5_12",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB5_HDD_12V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB5_HDD_12V_V", "in1_Min": 10.0, "in1_Max": 14.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 13.0 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 11.5 }
+            ]
+        },
+        {
+            "Address": "0x45", "Bus": 18,
+            "Name": "INA219_5_5",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB5_HDD_5V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB5_HDD_5V_V", "in1_Min": 4.0, "in1_Max": 6.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 5.5 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 4.5 }
+            ]
+        },
+        {
+            "Address": "0x44", "Bus": 19,
+            "Name": "INA219_6_12",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB6_HDD_12V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB6_HDD_12V_V", "in1_Min": 10.0, "in1_Max": 14.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 13.0 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 11.5 }
+            ]
+        },
+        {
+            "Address": "0x45", "Bus": 19,
+            "Name": "INA219_6_5",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB6_HDD_5V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB6_HDD_5V_V", "in1_Min": 4.0, "in1_Max": 6.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 5.5 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 4.5 }
+            ]
+        },
+        {
+            "Address": "0x44", "Bus": 20,
+            "Name": "INA219_7_12",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB7_HDD_12V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB7_HDD_12V_V", "in1_Min": 10.0, "in1_Max": 14.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 13.0 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 11.5 }
+            ]
+        },
+        {
+            "Address": "0x45", "Bus": 20,
+            "Name": "INA219_7_5",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB7_HDD_5V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB7_HDD_5V_V", "in1_Min": 4.0, "in1_Max": 6.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 5.5 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 4.5 }
+            ]
+        },
+        {
+            "Address": "0x44", "Bus": 21,
+            "Name": "INA219_8_12",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB8_HDD_12V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB8_HDD_12V_V", "in1_Min": 10.0, "in1_Max": 14.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 13.0 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 11.5 }
+            ]
+        },
+        {
+            "Address": "0x45", "Bus": 21,
+            "Name": "INA219_8_5",
+            "Labels": [ "power2", "in1" ],
+            "power2_Name": "BPB8_HDD_5V_PWR", "power2_Min": 0.0, "power2_Max": 300.0,
+            "in1_Name": "BPB8_HDD_5V_V", "in1_Min": 4.0, "in1_Max": 6.0,
+            "Type": "pmbus",
+            "Thresholds" : [
+                { "Direction": "greater than", "Label": "in1", "Name": "upper critical", "Severity": 1, "Value": 5.5 },
+                { "Direction": "less than", "Label": "in1", "Name": "lower critical", "Severity": 0, "Value": 4.5 }
+            ]
+        }
+    ],
+    "Name": "GE2",
+    "Bus": 7,
+    "Probe": [ "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': 'Y4J-GE1-TY25-3Q1'})" ],
+    "Type": "Board",
+    "xyz.openbmc_project.Inventory.Decorator.Asset": {
+        "Manufacturer": "$BOARD_MANUFACTURER",
+        "Model": "$BOARD_PRODUCT_NAME",
+        "PartNumber": "$BOARD_PART_NUMBER",
+        "SerialNumber": "$BOARD_SERIAL_NUMBER"
+    },
+    "xyz.openbmc_project.Inventory.Decorator.AssetTag": {
+        "AssetTag": "$PRODUCT_ASSET_TAG"
+    },
+    "xyz.openbmc_project.Inventory.Item.Board.Motherboard": {
+        "ProductId": 0
+    },
+    "xyz.openbmc_project.Inventory.Item.System": {}
+}
+

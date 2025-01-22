@@ -1,0 +1,12 @@
+[Unit]
+Description=Network Time Service
+After=network.target network-online.target
+Wants=network.target network-online.target
+
+[Service]
+Type=forking
+PIDFile=/run/ntpd.pid
+ExecStart=/usr/sbin/ntpd -p /run/ntpd.pid -g
+
+[Install]
+WantedBy=multi-user.target

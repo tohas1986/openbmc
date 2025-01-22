@@ -41,9 +41,9 @@ class Local(FetchMethod):
         """
         Return the local filename of a given url assuming a successful fetch.
         """
-        return self.localfile_searchpaths(urldata, d)[-1]
+        return self.localpaths(urldata, d)[-1]
 
-    def localfile_searchpaths(self, urldata, d):
+    def localpaths(self, urldata, d):
         """
         Return the local filename of a given url assuming a successful fetch.
         """
@@ -51,13 +51,11 @@ class Local(FetchMethod):
         path = urldata.decodedurl
         newpath = path
         if path[0] == "/":
-            logger.debug2("Using absolute %s" % (path))
             return [path]
         filespath = d.getVar('FILESPATH')
         if filespath:
             logger.debug2("Searching for %s in paths:\n    %s" % (path, "\n    ".join(filespath.split(":"))))
             newpath, hist = bb.utils.which(filespath, path, history=True)
-            logger.debug2("Using %s for %s" % (newpath, path))
             searched.extend(hist)
         return searched
 
@@ -74,7 +72,7 @@ class Local(FetchMethod):
             filespath = d.getVar('FILESPATH')
             if filespath:
                 locations = filespath.split(":")
-            msg = "Unable to find file " + urldata.url + " anywhere to download to " + urldata.localpath + ". The paths that were searched were:\n    " + "\n    ".join(locations)
+            msg = "Unable to find file " + urldata.url + " anywhere. The paths that were searched were:\n    " + "\n    ".join(locations)
             raise FetchError(msg)
 
         return True

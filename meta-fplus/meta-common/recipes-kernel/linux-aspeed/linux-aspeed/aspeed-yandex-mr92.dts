@@ -1,0 +1,571 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2021 Facebook Inc.
+/dts-v1/;
+
+#include "aspeed-g6.dtsi"
+#include <dt-bindings/gpio/aspeed-gpio.h>
+#include <dt-bindings/usb/pd.h>
+
+/ {
+	model = "MR92 BMC";
+	compatible = "yandex,evb2600-bmc", "aspeed,ast2600";
+
+	aliases {
+		serial4 = &uart5;
+	};
+
+	chosen {
+		bootargs = "console=ttyS4,115200n8 rw earlyrintk";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		video_engine_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		rvas_memory: rvas {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		ssp_memory: ssp_memory {
+			size = <0x02000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		bmc_dev_memory: bmc_dev_memory {
+			size = <0x00100000>;
+			alignment = <0x00100000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		/* 1GB memory */
+		vga_memory: region@bf000000 {
+			no-map;
+			compatible = "shared-dma-pool";
+			reg = <0xbf000000 0x01000000>;  /* 16M */
+		};
+
+	};
+
+	vga-shared-memory {
+		compatible = "aspeed,ast2500-vga-sharedmem";
+		reg = <0xbff00000 0x100000>;
+	};
+
+	iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&adc0 0>, <&adc0 1>, <&adc0 2>, <&adc0 3>,
+			<&adc0 4>, <&adc0 5>, <&adc0 6>, <&adc0 7>,
+			<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
+			<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		heartbeat {
+			label = "heartbeat";
+			gpios = <&gpio0 ASPEED_GPIO(P, 7) GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "timer";
+			active-delay = <100>;
+			inactive-delay = <100>;
+		};
+		status_amber {
+			label = "status_amber";
+			gpios = <&gpio0 ASPEED_GPIO(P, 6) GPIO_ACTIVE_LOW>;
+			default-state = "keep";
+		};
+	};
+};
+
+&mdio0 {
+	status = "okay";
+
+	ethphy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mdio1 {
+	status = "okay";
+
+	ethphy1: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mdio2 {
+	status = "okay";
+
+	ethphy2: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mdio3 {
+	status = "okay";
+
+	ethphy3: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+
+&mac0 {
+	status = "okay";
+
+	phy-mode = "rgmii-rxid";
+	phy-handle = <&ethphy0>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii1_default>;
+};
+
+
+&mac1 {
+	status = "okay";
+
+	phy-mode = "rgmii-rxid";
+	phy-handle = <&ethphy1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii2_default>;
+};
+
+&mac2 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy2>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii3_default>;
+};
+
+&mac3 {
+	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&ethphy3>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rgmii4_default>;
+};
+
+&syscon {
+	mac0-clk-delay = <0x10 0x0a
+			  0x10 0x10
+			  0x10 0x10>;
+	mac1-clk-delay = <0x10 0x0a
+			  0x10 0x10
+			  0x10 0x10>;
+	mac2-clk-delay = <0x08 0x04
+			  0x08 0x04
+			  0x08 0x04>;
+	mac3-clk-delay = <0x08 0x04
+			  0x08 0x04
+			  0x08 0x04>;
+};
+
+&rtc {
+	status = "okay";
+};
+
+&fmc {
+	status = "okay";
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "spi1";
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			u-boot@0 {
+				reg = <0x0 0xe0000>; // 896KB
+				label = "u-boot";
+			};
+
+			u-boot-env@e0000 {
+				reg = <0xe0000 0x20000>; // 128KB
+				label = "u-boot-env";
+			};
+
+			kernel@100000 {
+				reg = <0x100000 0x900000>; // 9MB
+				label = "kernel";
+			};
+
+			rofs@a00000 {
+				reg = <0xa00000 0x2000000>; // 32MB
+				label = "rofs";
+			};
+
+			rwfs@6000000 {
+				reg = <0x2a00000 0xfc0000>; // 16MB
+				label = "rwfs";
+			};
+
+			persistent@39c0000 {
+				reg = <0x39c0000 0x640000>; // 6.4MB
+				label = "persistent";
+			};
+		};
+	};
+};
+
+&spi2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi2_default>;
+
+	flash@0 {
+		status = "okay";
+		m25p,fast-read;
+		label = "pnor";
+		spi-max-frequency = <100000000>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c2 {
+	status = "okay";
+};
+
+&i2c3 {
+	status = "okay";
+};
+
+&i2c4 {
+	status = "okay";
+};
+
+&i2c5 {
+	status = "okay";
+};
+
+&i2c6 {
+	status = "okay";
+};
+
+&i2c7 {
+	status = "okay";
+	fru@0x51 {
+		compatible = "atmel,24c256";
+		reg = <0x51>;
+	};
+};
+
+&i2c8 {
+	status = "okay";
+};
+
+&i2c9 {
+	status = "okay";
+};
+
+&i2c10 {
+	status = "disabled";
+};
+
+&i2c11 {
+	status = "disabled";
+};
+
+&i2c12 {
+	status = "okay";
+};
+
+&i2c13 {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+	gpio-line-names =
+	/* A0-A7 */ //"BMC_READY","PS_PWROK","A2","A3","A4","A5","A6","A7",
+	/* A0-A7 */ "BMC_READY","A1","A2","A3","A4","A5","A6","A7",
+	/* B0-B7 */ "B0","B1","B2","B3","B4","B5","B6","B7",
+	/* C0-C7 */ "C0","C1","C2","C3","C4","C5","C6","C7",
+	/* D0-D7 */ "D0","D1","D2","D3","D4","D5","D6","D7",
+	/* E0-E7 */ "E0","E1","E2","E3","E4","E5","E6","E7",
+	/* F0-F7 */ "F0","F1","F2","F3","F4","F5","F6","F7",
+	/* G0-G7 */ "G0","G1","G2","G3","G4","G5","G6","G7",
+	/* H0-H7 */ "H0","H1","H2","H3","H4","H5","H6","H7",
+	/* I0-I7 */ "I0","I1","I2","I3","I4","I5","I6","I7",
+	/* J0-J7 */ "J0","J1","J2","J3","J4","J5","J6","J7",
+	/* K0-K7 */ "K0","K1","K2","K3","K4","K5","K6","K7",
+	/* L0-L7 */ "L0","L1","L2","L3","L4","L5","L6","L7",
+	/* M0-M7 */ "M0","M1","M2","M3","M4","M5","M6","M7",
+	/* N0-N7 */ "N0","N1","N2","N3","N4","N5","N6","N7",
+	/* O0-O7 */ "O0","O1","O2","O3","O4","O5","O6","O7",
+	/* P0-P7 */ //"POWER_BUTTON","POWER_OUT","RESET_BUTTON","RESET_OUT","P4","NMI_OUT","P6","P7",
+	/* P0-P7 */ "P0","P1","P2","P3","P4","P5","P6","P7",
+	/* Q0-Q7 */ "Q0","Q1","Q2","Q3","Q4","Q5","Q6","Q7",
+	/* R0-R7 */ "R0","R1","R2","R3","R4","R5","R6","R7",
+	/* S0-S7 */ "S0","S1","S2","S3","S4","S5","S6","S7",
+	/* T0-T7 */ "T0","T1","T2","T3","T4","T5","T6","T7",
+	/* U0-U7 */ "U0","U1","U2","U3","U4","U5","U6","U7",
+	/* V0-V7 */ "V0","V1","V2","V3","V4","V5","V6","V7",
+	/* W0-W7 */ "W0","W1","W2","W3","W4","W5","W6","W7",
+	/* X0-X7 */ "X0","X1","X2","X3","X4","X5","X6","X7",
+	/* Y0-Y7 */ "Y0","Y1","Y2","Y3","Y4","Y5","Y6","Y7",
+	/* Z0-Z7 */ "Z0","Z1","Z2","Z3","Z4","Z5","Z6","Z7";
+};
+
+&sgpiom0 {
+	status = "okay";
+	ngpios = <128>;
+	gpio-line-names =
+	/* A0-A7 */ "SGPIO_A0_IN","SGPIO_A0_OUT","SGPIO_A1_IN","SGPIO_A1_OUT","SGPIO_A2_IN","SGPIO_A2_OUT","SGPIO_A3_IN","SGPIO_A3_OUT",
+				"SGPIO_A4_IN","SGPIO_A4_OUT","SGPIO_A5_IN","SGPIO_A5_OUT","SGPIO_A6_IN","SGPIO_A6_OUT","SGPIO_A7_IN","SGPIO_A7_OUT",
+	/* B0-B7 */ "SGPIO_B0_IN","SGPIO_B0_OUT","SGPIO_B1_IN","SGPIO_B1_OUT","SGPIO_B2_IN","SGPIO_B2_OUT","SGPIO_B3_IN","SGPIO_B3_OUT",
+				"SGPIO_B4_IN","SGPIO_B4_OUT","SGPIO_B5_IN","SGPIO_B5_OUT","SGPIO_B6_IN","SGPIO_B6_OUT","SGPIO_B7_IN","SGPIO_B7_OUT",
+	/* C0-C7 */ "SGPIO_C0_IN","SGPIO_C0_OUT","SGPIO_C1_IN","SGPIO_C1_OUT","SGPIO_C2_IN","SGPIO_C2_OUT","SGPIO_C3_IN","SGPIO_C3_OUT",
+				"SGPIO_C4_IN","SGPIO_C4_OUT","SGPIO_C5_IN","SGPIO_C5_OUT","SGPIO_C6_IN","SGPIO_C6_OUT","SGPIO_C7_IN","SGPIO_C7_OUT",
+	/* D0-D7 */ "SGPIO_D0_IN","SGPIO_D0_OUT","SGPIO_D1_IN","SGPIO_D1_OUT","SGPIO_D2_IN","SGPIO_D2_OUT","SGPIO_D3_IN","SGPIO_D3_OUT",
+				"SGPIO_D4_IN","SGPIO_D4_OUT","SGPIO_D5_IN","SGPIO_D5_OUT","SGPIO_D6_IN","SGPIO_D6_OUT","SGPIO_D7_IN","SGPIO_D7_OUT",
+	/* E0-E7 */ "SGPIO_E0_IN","SGPIO_E0_OUT","SGPIO_E1_IN","SGPIO_E1_OUT","SGPIO_E2_IN","SGPIO_E2_OUT","SGPIO_E3_IN","SGPIO_E3_OUT",
+				"SGPIO_E4_IN","SGPIO_E4_OUT","SGPIO_E5_IN","SGPIO_E5_OUT","SGPIO_E6_IN","SGPIO_E6_OUT","SGPIO_E7_IN","SGPIO_E7_OUT",
+	/* F0-F7 */ "SGPIO_F0_IN","SGPIO_F0_OUT","SGPIO_F1_IN","SGPIO_F1_OUT","SGPIO_F2_IN","SGPIO_F2_OUT","SGPIO_F3_IN","SGPIO_F3_OUT",
+				"SGPIO_F4_IN","SGPIO_F4_OUT","SGPIO_F5_IN","SGPIO_F5_OUT","SGPIO_F6_IN","SGPIO_F6_OUT","SGPIO_F7_IN","SGPIO_F7_OUT",
+	/* G0-G7 */ "SGPIO_G0_IN","SGPIO_G0_OUT","SGPIO_G1_IN","SGPIO_G1_OUT","SGPIO_G2_IN","SGPIO_G2_OUT","SGPIO_G3_IN","SGPIO_G3_OUT",
+				"SGPIO_G4_IN","SGPIO_G4_OUT","SGPIO_G5_IN","SGPIO_G5_OUT","SGPIO_G6_IN","SGPIO_G6_OUT","SGPIO_G7_IN","SGPIO_G7_OUT",
+	/* H0-H7 */ "SGPIO_H0_IN","SGPIO_H0_OUT","SGPIO_H1_IN","SGPIO_H1_OUT","SGPIO_H2_IN","SGPIO_H2_OUT","SGPIO_H3_IN","SGPIO_H3_OUT",
+				"SGPIO_H4_IN","SGPIO_H4_OUT","SGPIO_H5_IN","SGPIO_H5_OUT","SGPIO_H6_IN","SGPIO_H6_OUT","SGPIO_H7_IN","SGPIO_H7_OUT",
+	/* I0-I7 */ "SGPIO_I0_IN","SGPIO_I0_OUT","SGPIO_I1_IN","SGPIO_I1_OUT","SGPIO_I2_IN","SGPIO_I2_OUT","SGPIO_I3_IN","SGPIO_I3_OUT",
+				"SGPIO_I4_IN","SGPIO_I4_OUT","SGPIO_I5_IN","SGPIO_I5_OUT","SGPIO_I6_IN","SGPIO_I6_OUT","SGPIO_I7_IN","SGPIO_I7_OUT",
+	/* J0-J7 */ "SGPIO_J0_IN","SGPIO_J0_OUT","SGPIO_J1_IN","SGPIO_J1_OUT","SGPIO_J2_IN","SGPIO_J2_OUT","SGPIO_J3_IN","SGPIO_J3_OUT",
+				"SGPIO_J4_IN","SGPIO_J4_OUT","SGPIO_J5_IN","SGPIO_J5_OUT","SGPIO_J6_IN","SGPIO_J6_OUT","SGPIO_J7_IN","SGPIO_J7_OUT",
+	/* K0-K7 */ "SGPIO_K0_IN","SGPIO_K0_OUT","SGPIO_K1_IN","SGPIO_K1_OUT","SGPIO_K2_IN","SGPIO_K2_OUT","SGPIO_K3_IN","SGPIO_K3_OUT",
+				"SGPIO_K4_IN","SGPIO_K4_OUT","SGPIO_K5_IN","SGPIO_K5_OUT","SGPIO_K6_IN","SGPIO_K6_OUT","SGPIO_K7_IN","SGPIO_K7_OUT",
+	/* L0-L7 */ "SGPIO_L0_IN","SGPIO_L0_OUT","SGPIO_L1_IN","SGPIO_L1_OUT","SGPIO_L2_IN","SGPIO_L2_OUT","SGPIO_L3_IN","SGPIO_L3_OUT",
+				"SGPIO_L4_IN","SGPIO_L4_OUT","SGPIO_L5_IN","SGPIO_L5_OUT","SGPIO_L6_IN","SGPIO_L6_OUT","SGPIO_L7_IN","SGPIO_L7_OUT",
+	/* M0-M7 */ "SGPIO_M0_IN","SGPIO_M0_OUT","SGPIO_M1_IN","SGPIO_M1_OUT","SGPIO_M2_IN","SGPIO_M2_OUT","SGPIO_M3_IN","SGPIO_M3_OUT",
+				"SGPIO_M4_IN","SGPIO_M4_OUT","SGPIO_M5_IN","SGPIO_M5_OUT","SGPIO_M6_IN","SGPIO_M6_OUT","SGPIO_M7_IN","SGPIO_M7_OUT",
+	/* N0-N7 */ "SGPIO_N0_IN","SGPIO_N0_OUT","SGPIO_N1_IN","SGPIO_N1_OUT","SGPIO_N2_IN","SGPIO_N2_OUT","SGPIO_N3_IN","SGPIO_N3_OUT",
+				"SGPIO_N4_IN","SGPIO_N4_OUT","SGPIO_N5_IN","SGPIO_N5_OUT","SGPIO_N6_IN","SGPIO_N6_OUT","SGPIO_N7_IN","SGPIO_N7_OUT",
+	/* O0-O7 */ "SGPIO_O0_IN","SGPIO_O0_OUT","SGPIO_O1_IN","SGPIO_O1_OUT","SGPIO_O2_IN","SGPIO_O2_OUT","SGPIO_O3_IN","SGPIO_O3_OUT",
+				"SGPIO_O4_IN","SGPIO_O4_OUT","SGPIO_O5_IN","SGPIO_O5_OUT","SGPIO_O6_IN","SGPIO_O6_OUT","SGPIO_O7_IN","SGPIO_O7_OUT",
+	/* P0-P7 */ "SGPIO_P0_IN","SGPIO_P0_OUT","SGPIO_P1_IN","SGPIO_P1_OUT","SGPIO_P2_IN","SGPIO_P2_OUT","SGPIO_P3_IN","SGPIO_P3_OUT",
+				"SGPIO_P4_IN","SGPIO_P4_OUT","SGPIO_P5_IN","SGPIO_P5_OUT","SGPIO_P6_IN","SGPIO_P6_OUT","SGPIO_P7_IN","SGPIO_P7_OUT";
+};
+
+&adc0 {
+	vref = <1800>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc0_default &pinctrl_adc1_default
+		&pinctrl_adc2_default &pinctrl_adc3_default
+		&pinctrl_adc4_default &pinctrl_adc5_default
+		&pinctrl_adc6_default &pinctrl_adc7_default>;
+};
+
+&adc1 {
+	vref = <2500>;
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc8_default &pinctrl_adc9_default
+		&pinctrl_adc10_default &pinctrl_adc11_default
+		&pinctrl_adc12_default &pinctrl_adc13_default
+		&pinctrl_adc14_default &pinctrl_adc15_default>;
+};
+
+/* ttyS0 0x1e783000  Passed to host via SIO -> LPC */
+&uart1 {
+	status = "disabled";
+};
+
+/* ttyS1 0x1e78d000 Passed to host via SIO -> LPC */
+&uart2{
+	status = "disabled";
+};
+
+/* ttyS2 0x1e78e000 */
+&uart3{
+	status = "okay";
+};
+
+/* ttyS3 0x1e78f000 This UART is used to be internally connected to UART1 for SOL function */
+&uart4{
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <>;
+};
+
+&uart_routing {
+	status = "okay";
+};
+
+/* Console UART */
+&uart5 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <>;
+};
+
+&vuart1 {
+	status = "disabled";
+};
+
+&vuart2 {
+	status = "disabled";
+};
+
+&wdt1 {
+	status = "okay";
+	aspeed,reset-type = "soc";
+};
+
+&wdt2 {
+	status = "okay";
+	aspeed,reset-type = "soc";
+};
+
+&wdt3 {
+	status = "disabled";
+};
+
+&kcs3 {
+	kcs_addr = <0xCA2>;
+	aspeed,lpc-io-reg = <0xca2>;
+	status = "okay";
+};
+
+&kcs4 {
+	kcs_addr = <0xCA4>;
+	aspeed,lpc-io-reg = <0xca4>;
+	status = "okay";
+};
+
+&lpc_ctrl {
+	// Enable lpc clock
+	status = "okay";
+};
+
+&lpc_sio {
+	status = "okay";
+};
+
+&lpc_snoop {
+	snoop-ports = <0x80>;
+	status = "okay";
+};
+
+&mbox {
+	status = "okay";
+};
+
+&pwm_tacho {
+	status = "okay";
+	#pwm-cells = <3>;
+	aspeed,pwm-outputs = <7>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm0_default &pinctrl_tach0_default
+			&pinctrl_pwm1_default &pinctrl_tach1_default
+			&pinctrl_pwm2_default &pinctrl_tach2_default
+			&pinctrl_pwm3_default &pinctrl_tach3_default
+			&pinctrl_pwm4_default &pinctrl_tach4_default
+			&pinctrl_pwm5_default &pinctrl_tach5_default
+			&pinctrl_pwm6_default &pinctrl_tach6_default
+			&pinctrl_pwm7_default &pinctrl_tach7_default>;
+
+	fan@0 {
+		reg = <0x00>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x00>;
+	};
+	fan@1 {
+		reg = <0x01>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x01>;
+	};
+	fan@2 {
+		reg = <0x02>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x02>;
+	};
+	fan@3 {
+		reg = <0x03>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x03>;
+	};
+	fan@4 {
+		reg = <0x04>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x04>;
+	};
+	fan@5 {
+		reg = <0x05>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x05>;
+	};
+	fan@6 {
+		reg = <0x0c>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x06>;
+	};
+	fan@7 {
+		reg = <0x0d>;
+		aspeed,fan-tach-ch = /bits/ 8 <0x07>;
+	};
+};
+
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+
+&vhub {
+	status = "okay";
+//  Disable PCIe EHCI port as it doesn't work
+//	pinctrl-names = "default";
+//	pinctrl-0 = <&pinctrl_usb2adp_default>;
+};
+
+&ehci0 {
+	status = "disabled";
+};
+
+&ehci1 {
+	status = "disabled";
+};
+
+&otp {
+	status = "okay";
+};
+
+&espi {
+	status = "okay";
+};

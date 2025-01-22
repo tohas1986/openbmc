@@ -1,0 +1,34 @@
+From 6232db611d45f43dc25157837411b304507890ea Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 1 Feb 2022 08:33:05 +0000
+Subject: [PATCH] Don't allow badly formed strings in SMBIOS break the app
+
+---
+ include/smbios_mdrv2.hpp | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/include/smbios_mdrv2.hpp b/include/smbios_mdrv2.hpp
+index cb733e7..3452e51 100644
+--- a/include/smbios_mdrv2.hpp
++++ b/include/smbios_mdrv2.hpp
+@@ -19,6 +19,7 @@
+ #include <phosphor-logging/elog-errors.hpp>
+ 
+ #include <array>
++#include <iostream>
+ 
+ static constexpr const char* mdrType2File = "/var/lib/smbios/smbios2";
+ static constexpr const char* smbiosPath = "/var/lib/smbios";
+@@ -281,6 +282,12 @@ static inline std::string positionToString(uint8_t positionNum,
+     {
+         for (; *target != '\0'; target++)
+         {
++            if (*target > 127)
++            {
++                std::cerr << __FUNCTION__ << " Unprintable character detected\n";
++                return "";
++            }
++
+             limit--;
+             // When target = dataIn + structLen + limit,
+             // following target++ will be nullptr

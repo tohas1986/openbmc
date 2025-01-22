@@ -1,23 +1,14 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
-SRC_URI:append = " \
-    file://journald-size-policy-10MB.conf \
-    file://journald-storage-policy.conf \
-    file://systemd-networkd-only-wait-for-one.conf \
-"
+SRC_URI:append:bletchley = " \
+  file://40-system.conf \
+  "
 
-do_install:append() {
+FILES:${PN}:append:bletchley = " \
+  ${systemd_unitdir}/system.conf.d/40-system.conf \
+  "
 
-    install -m 644 -D \
-        ${WORKDIR}/journald-size-policy-10MB.conf \
-        ${D}${systemd_unitdir}/journald.conf.d/journald-size-policy-10MB.conf
-
-    install -m 644 -D \
-        ${WORKDIR}/journald-storage-policy.conf \
-        ${D}/${systemd_unitdir}/journald.conf.d/journald-storage-policy.conf
-
-    install -m 644 -D \
-        ${WORKDIR}/systemd-networkd-only-wait-for-one.conf \
-        ${D}${systemd_system_unitdir}/systemd-networkd-wait-online.service.d/systemd-networkd-only-wait-for-one.conf
-
+do_install:append:bletchley() {
+    install -d -m 0755 ${D}${systemd_unitdir}/system.conf.d/
+    install -m 0644 ${WORKDIR}/40-system.conf ${D}${systemd_unitdir}/system.conf.d/
 }

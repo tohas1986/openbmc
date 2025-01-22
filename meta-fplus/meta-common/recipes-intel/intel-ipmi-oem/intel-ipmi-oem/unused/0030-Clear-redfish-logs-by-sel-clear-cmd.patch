@@ -1,0 +1,81 @@
+From ccec008397c7d65dc208a65e27d4794d39551af0 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Tue, 23 Mar 2021 15:19:07 +0000
+Subject: [PATCH] Clear redfish logs by sel clear cmd
+
+---
+ src/storagecommands.cpp | 37 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 37 insertions(+)
+
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index 0647215..a8656bf 100755
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -34,6 +34,7 @@
+ #include <sdbusplus/timer.hpp>
+ #include <stdexcept>
+ #include <string_view>
++#include <fstream>
+ 
+ static constexpr bool DEBUG = false;
+ 
+@@ -42,6 +43,9 @@ namespace intel_oem::ipmi::sel
+ static const std::filesystem::path selLogDir = "/var/lib/ipmi";
+ static const std::string selLogFilename = "ipmi_sel";
+ 
++static const std::filesystem::path redfishLogDir = "/var/lib/ipmi";
++static const std::string redfishLogFilename = "redfish";
++
+ static int getFileTimestamp(const std::filesystem::path& file)
+ {
+     struct stat st;
+@@ -718,6 +722,28 @@ static bool getSELLogFiles(std::vector<std::filesystem::path>& selLogFiles)
+     return !selLogFiles.empty();
+ }
+ 
++static bool getRedfishLogFiles(std::vector<std::filesystem::path>& redfishLogFiles)
++{
++    // Loop through the directory looking for log files
++    for (const std::filesystem::directory_entry& dirEnt :
++         std::filesystem::directory_iterator(intel_oem::ipmi::sel::redfishLogDir))
++    {
++        std::string filename = dirEnt.path().filename();
++        if (boost::starts_with(filename, intel_oem::ipmi::sel::redfishLogFilename))
++        {
++            // If we find an log file, save the path
++            redfishLogFiles.emplace_back(intel_oem::ipmi::sel::redfishLogDir /
++                                     filename);
++        }
++    }
++    // As the log files rotate, they are appended with a ".#" that is higher for
++    // the older logs. Since we don't expect more than 10 log files, we
++    // can just sort the list to get them in order from newest to oldest
++    std::sort(redfishLogFiles.begin(), redfishLogFiles.end());
++
++    return !redfishLogFiles.empty();
++}
++
+ static int countSELEntries()
+ {
+     // Get the list of ipmi_sel log files
+@@ -1175,6 +1201,17 @@ ipmi::RspType<uint8_t> ipmiStorageClearSEL(ipmi::Context::ptr ctx,
+         }
+     }
+ 
++    // Clear the redfish by deleting the log files
++    std::vector<std::filesystem::path> redfishLogFiles;
++    if (getRedfishLogFiles(redfishLogFiles))
++    {
++        for (const std::filesystem::path& file : redfishLogFiles)
++        {
++            std::error_code ec;
++            std::filesystem::remove(file, ec);
++        }
++    }
++
+     // Reload rsyslog so it knows to start new log files
+     std::shared_ptr<sdbusplus::asio::connection> dbus = getSdBus();
+     sdbusplus::message::message rsyslogReload = dbus->new_method_call(
+-- 
+2.7.4
+

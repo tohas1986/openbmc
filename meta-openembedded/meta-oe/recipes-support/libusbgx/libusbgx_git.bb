@@ -5,15 +5,12 @@ LIC_FILES_CHKSUM = "file://COPYING;md5=b234ee4d69f5fce4486a80fdaf4a4263 \
 
 inherit autotools pkgconfig systemd update-rc.d update-alternatives
 
-PV = "0.2.0+git"
-SRCREV = "ec0b01c03fdc7893997b7b32ec1c12c6103f62f3"
+PV = "0.2.0+git${SRCPV}"
+SRCREV = "45c14ef4d5d7ced0fbf984208de44ced6d5ed898"
 SRCBRANCH = "master"
 SRC_URI = " \
     git://github.com/libusbgx/libusbgx.git;branch=${SRCBRANCH};protocol=https \
-    file://0001-libusbgx-Add-interface-name-for-NCM-Feature-Descript.patch \
-    file://0001-fix-stack-buffer-overflow-in-usbg_f_foo_attr_val-pro.patch \
     file://gadget-start \
-    file://gadget-stop \
     file://usbgx.initd \
     file://usbgx.service \
 "
@@ -38,11 +35,7 @@ INITSCRIPT_PARAMS = "defaults"
 INHIBIT_UPDATERCD_BBCLASS = "${@bb.utils.contains('PACKAGECONFIG', 'examples', '1', '0', d)}"
 
 do_install:append() {
-    install -Dm 0755 ${WORKDIR}/gadget-start ${D}${bindir}/gadget-start
-    sed -i -e 's,/usr/bin,${bindir},g' -e 's,/etc,${sysconfdir},g' ${D}${bindir}/gadget-start
-    install -m 0755 ${WORKDIR}/gadget-start ${D}${bindir}/gadget-stop
-    sed -i -e 's,/usr/bin,${bindir},g' -e 's,/etc,${sysconfdir},g' ${D}${bindir}/gadget-stop
-
+    install -Dm 0755 ${WORKDIR}/gadget-start ${D}/${bindir}/gadget-start
     if ${@bb.utils.contains('DISTRO_FEATURES','systemd','true','false',d)}; then
         install -Dm 0644 ${WORKDIR}/usbgx.service ${D}${systemd_system_unitdir}/usbgx.service
     fi

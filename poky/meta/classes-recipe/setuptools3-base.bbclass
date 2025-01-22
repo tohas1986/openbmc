@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: MIT
 #
 
-DEPENDS:append:class-target = " python3-native python3"
-DEPENDS:append:class-nativesdk = " python3-native python3"
-RDEPENDS:${PN}:append:class-target = " python3-core"
+DEPENDS:append:class-target = " ${PYTHON_PN}-native ${PYTHON_PN}"
+DEPENDS:append:class-nativesdk = " ${PYTHON_PN}-native ${PYTHON_PN}"
+RDEPENDS:${PN}:append:class-target = " ${PYTHON_PN}-core"
 
 export STAGING_INCDIR
 export STAGING_LIBDIR
@@ -23,8 +23,15 @@ export CCSHARED  = "-fPIC -DPIC"
 # the python executable
 export LINKFORSHARED = "${SECURITY_CFLAGS} -Xlinker -export-dynamic"
 
-FILES:${PN} += "${PYTHON_SITEPACKAGES_DIR}"
-FILES:${PN}-staticdev += "${PYTHON_SITEPACKAGES_DIR}/*.a"
-FILES:${PN}-dev += "${PYTHON_SITEPACKAGES_DIR}/*.la"
+FILES:${PN} += "${libdir}/* ${libdir}/${PYTHON_DIR}/*"
 
+FILES:${PN}-staticdev += "\
+  ${PYTHON_SITEPACKAGES_DIR}/*.a \
+"
+FILES:${PN}-dev += "\
+  ${datadir}/pkgconfig \
+  ${libdir}/pkgconfig \
+  ${PYTHON_SITEPACKAGES_DIR}/*.la \
+"
 inherit python3native python3targetconfig
+

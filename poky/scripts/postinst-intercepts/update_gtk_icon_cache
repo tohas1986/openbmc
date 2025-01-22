@@ -11,11 +11,7 @@ $STAGING_DIR_NATIVE/${libdir_native}/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders --u
 
 for icondir in $D/usr/share/icons/*/ ; do
     if [ -d $icondir ] ; then
-        for gtkuic_cmd in gtk-update-icon-cache gtk4-update-icon-cache ; do
-            if [ -n "$(which $gtkuic_cmd)" ]; then
-                $gtkuic_cmd -fqt  $icondir
-            fi
-        done
+        gtk-update-icon-cache -fqt  $icondir
     fi
 done
 

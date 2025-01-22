@@ -2,38 +2,24 @@ SUMMARY = "Primary bootloader for NPCM8XX (Arbel) devices"
 DESCRIPTION = "Primary bootloader for NPCM8XX (Arbel) devices"
 HOMEPAGE = "https://github.com/Nuvoton-Israel/npcm8xx-bootblock"
 LICENSE = "GPL-2.0-only"
-LIC_FILES_CHKSUM = "file://LICENSE;md5=b234ee4d69f5fce4486a80fdaf4a4263"
+LIC_FILES_CHKSUM = "file://LICENSE;md5=650b869bd8ff2aed59c62bad2a22a821"
 
-PACKAGE_ARCH = "${MACHINE_ARCH}"
+FILENAME = "arbel_a35_bootblock_${PV}.bin"
 
-S = "${WORKDIR}/git"
-B = "${S}/Sources"
-BB_BRANCH ?= "main"
+S = "${WORKDIR}"
+
 SRC_URI = " \
-    git://github.com/Nuvoton-Israel/npcm8xx-bootblock;branch=${BB_BRANCH};protocol=https"
+    https://github.com/Nuvoton-Israel/npcm8xx-bootblock/blob/${SRCREV}/LICENSE;name=lic \
+    https://github.com/Nuvoton-Israel/npcm8xx-bootblock/releases/download/${RELEASE}/arbel_a35_bootblock.bin;downloadfilename=${FILENAME};name=bin \
+"
 
-export CROSS_COMPILE="${TARGET_PREFIX}"
-CFLAGS[unexport] = "1"
-LDFLAGS[unexport] = "1"
-AS[unexport] = "1"
-LD[unexport] = "1"
-do_configure[noexec] = "1"
-
-EXTRA_OEMAKE += "CROSS_COMPILER_INC=${STAGING_DIR_HOST}${includedir}"
-
-TIP = "${@'tip' if d.getVar("TIP_IMAGE") == 'True' else 'no_tip'}"
-BOOTBLOCK = "arbel_a35_bootblock"
-BOOTBLOCK .= "${@'_no_tip' if d.getVar("TIP_IMAGE") != 'True' else ''}"
-
-do_compile() {
-    oe_runmake "${BOOTBLOCK}" ENCLAVE="${TIP}"
-}
-do_compile[cleandirs] = "${B}/Images"
+SRC_URI[lic.sha256sum] = "7c34d28e784b202aa4998f477fd0aa9773146952d7f6fa5971369fcdda59cf48"
 
 inherit deploy
-do_deploy() {
-    install -d ${DEPLOYDIR}
-    install -m 644 "${B}/Images/${TIP}/${BOOTBLOCK}.bin" "${DEPLOYDIR}/${BOOTBLOCK}.bin"
+
+do_deploy () {
+	install -D -m 644 ${WORKDIR}/${FILENAME} ${DEPLOYDIR}/arbel_a35_bootblock.bin
 }
 
 addtask deploy before do_build after do_compile
+

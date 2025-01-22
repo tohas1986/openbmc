@@ -1,0 +1,51 @@
+From d76c80fffdc872575307907792babce2ae994ff6 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 30 Sep 2022 07:45:03 +0000
+Subject: [PATCH] Add power operation guard after bmc reset cold
+
+---
+ globalhandler.cpp | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+diff --git a/globalhandler.cpp b/globalhandler.cpp
+index 4012ce0..31202ea 100644
+--- a/globalhandler.cpp
++++ b/globalhandler.cpp
+@@ -20,6 +20,37 @@ void register_netfn_global_functions() __attribute__((constructor));
+ 
+ void resetBMC()
+ {
++    char command[200];
++    std::stringstream cmd;
++    std::string cmd_str;
++
++    std::cerr << "Resetting BMC..." << "\n";
++    cmd << "systemctl stop --no-block phosphor-ipmi-net@eth0.service;";
++    cmd << "systemctl stop --no-block phosphor-ipmi-net@eth0.socket;";
++    cmd << "systemctl stop --no-block phosphor-ipmi-kcs@ipmi_kcs3.service;";
++    cmd << "systemctl stop --no-block phosphor-ipmi-kcs@ipmi_kcs4.service";
++    std::cerr << cmd.str() << "\n";
++    cmd_str = cmd.str();
++
++    int rc = 0;
++
++    try
++    {
++        memset(command,0,sizeof(command));
++        std::copy(cmd_str.begin(), cmd_str.end(), command);
++        rc = system(command);
++
++        if (rc < 0)
++        {
++            std::cerr << "error to execute cmd: " << cmd.str() << "\n";
++        }
++    }
++    catch (...)
++    {
++        std::cerr << "Error, can't stop netipmid and kcsbridge" << "\n";
++
++    }
++
+     sdbusplus::bus_t bus{ipmid_get_sd_bus_connection()};
+ 
+     auto bmcStateObj =

@@ -21,12 +21,12 @@ PACKAGECONFIG ?= ""
 PACKAGECONFIG[disabledebug] = "--disable-debug,,"
 PACKAGECONFIG[allboardconfigs] = "--with-board-configs,,"
 PACKAGECONFIG[enableboardconfig] = "--enable-board=${BOARD},,"
-PACKAGECONFIG[python] = "--enable-python=${STAGING_BINDIR_NATIVE}/python3-native/python3,,python3 python3-native"
+PACKAGECONFIG[python] = "--enable-python=${STAGING_BINDIR_NATIVE}/${PYTHON_PN}-native/${PYTHON_PN},,${PYTHON_PN} ${PYTHON_PN}-native"
 
 PACKAGES =+ "${@bb.utils.contains('PACKAGECONFIG', 'python', \
-    'python3-libsoc-staticdev python3-libsoc', '', d)}"
+    '${PYTHON_PN}-libsoc-staticdev ${PYTHON_PN}-libsoc', '', d)}"
 
 RDEPENDS:${PN} = "libgcc"
 
-FILES:python3-libsoc-staticdev += "${PYTHON_SITEPACKAGES_DIR}/*/*.a"
-FILES:python3-libsoc += "${PYTHON_SITEPACKAGES_DIR}"
+FILES:${PYTHON_PN}-libsoc-staticdev += "${PYTHON_SITEPACKAGES_DIR}/*/*.a"
+FILES:${PYTHON_PN}-libsoc += "${PYTHON_SITEPACKAGES_DIR}"

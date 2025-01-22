@@ -14,8 +14,8 @@ Normal Recipe Build Tasks
 
 The following sections describe normal tasks associated with building a
 recipe. For more information on tasks and dependencies, see the
-":ref:`bitbake-user-manual/bitbake-user-manual-metadata:tasks`" and
-":ref:`bitbake-user-manual/bitbake-user-manual-execution:dependencies`" sections in the
+":ref:`bitbake:bitbake-user-manual/bitbake-user-manual-metadata:tasks`" and
+":ref:`bitbake:bitbake-user-manual/bitbake-user-manual-execution:dependencies`" sections in the
 BitBake User Manual.
 
 .. _ref-tasks-build:
@@ -78,9 +78,9 @@ task runs with the current working directory set to
 ``${``\ :term:`B`\ ``}``.
 
 Recipes implementing this task should inherit the
-:ref:`ref-classes-deploy` class and should write the output
+:ref:`deploy <ref-classes-deploy>` class and should write the output
 to ``${``\ :term:`DEPLOYDIR`\ ``}``, which is not to be
-confused with ``${DEPLOY_DIR}``. The :ref:`ref-classes-deploy` class sets up
+confused with ``${DEPLOY_DIR}``. The :ref:`deploy <ref-classes-deploy>` class sets up
 :ref:`ref-tasks-deploy` as a shared state (sstate) task that can be accelerated
 through sstate use. The sstate mechanism takes care of copying the
 output from ``${DEPLOYDIR}`` to ``${DEPLOY_DIR_IMAGE}``.
@@ -102,7 +102,7 @@ Adding :ref:`ref-tasks-deploy` after other tasks works the same way.
 .. note::
 
    You do not need to add ``before do_build`` to the ``addtask`` command
-   (though it is harmless), because the :ref:`ref-classes-base` class contains the following::
+   (though it is harmless), because the :ref:`base <ref-classes-base>` class contains the following::
 
            do_build[recrdeptask] += "do_deploy"
 
@@ -118,9 +118,9 @@ If the :ref:`ref-tasks-deploy` task re-executes, any previous output is removed
 ``do_fetch``
 ------------
 
-Fetches the source code. This task uses the :term:`SRC_URI` variable and the
-argument's prefix to determine the correct
-:ref:`fetcher <bitbake-user-manual/bitbake-user-manual-fetching:fetchers>`
+Fetches the source code. This task uses the
+:term:`SRC_URI` variable and the argument's prefix to
+determine the correct :ref:`fetcher <bitbake:bitbake-user-manual/bitbake-user-manual-fetching:fetchers>`
 module.
 
 .. _ref-tasks-image:
@@ -225,7 +225,7 @@ section in the Yocto Project Overview and Concepts Manual.
 -----------------
 
 Runs QA checks on packaged files. For more information on these checks,
-see the :ref:`ref-classes-insane` class.
+see the :ref:`insane <ref-classes-insane>` class.
 
 .. _ref-tasks-package_write_deb:
 
@@ -256,6 +256,17 @@ the Yocto Project Overview and Concepts Manual.
 
 Creates RPM packages (i.e. ``*.rpm`` files) and places them in the
 ``${``\ :term:`DEPLOY_DIR_RPM`\ ``}`` directory in
+the package feeds area. For more information, see the
+":ref:`overview-manual/concepts:package feeds`" section in
+the Yocto Project Overview and Concepts Manual.
+
+.. _ref-tasks-package_write_tar:
+
+``do_package_write_tar``
+------------------------
+
+Creates tarballs and places them in the
+``${``\ :term:`DEPLOY_DIR_TAR`\ ``}`` directory in
 the package feeds area. For more information, see the
 ":ref:`overview-manual/concepts:package feeds`" section in
 the Yocto Project Overview and Concepts Manual.
@@ -332,7 +343,7 @@ while ``file2.patch`` would not be applied.
 You can find out more about the patching process in the
 ":ref:`overview-manual/concepts:patching`" section in
 the Yocto Project Overview and Concepts Manual and the
-":ref:`dev-manual/new-recipe:patching code`" section in the
+":ref:`dev-manual/common-tasks:patching code`" section in the
 Yocto Project Development Tasks Manual.
 
 .. _ref-tasks-populate_lic:
@@ -358,7 +369,7 @@ information.
 ``do_populate_sdk_ext``
 -----------------------
 
-Creates the file and directory structure for an installable extensible
+Creates the file and directory structure for an installable extensible 
 SDK (eSDK). See the ":ref:`overview-manual/concepts:sdk generation`"
 section in the Yocto Project Overview and Concepts Manual for more
 information.
@@ -395,7 +406,7 @@ Installs the files into the individual recipe specific sysroots (i.e.
 ``recipe-sysroot`` and ``recipe-sysroot-native`` under
 ``${``\ :term:`WORKDIR`\ ``}`` based upon the
 dependencies specified by :term:`DEPENDS`). See the
-":ref:`ref-classes-staging`" class for more information.
+":ref:`staging <ref-classes-staging>`" class for more information.
 
 .. _ref-tasks-rm_work:
 
@@ -470,29 +481,9 @@ You can run this task using BitBake as follows::
 
    $ bitbake -c cleanall recipe
 
-You should never use the :ref:`ref-tasks-cleanall` task in a normal
-scenario. If you want to start fresh with the :ref:`ref-tasks-fetch` task,
-use instead::
-
-  $ bitbake -f -c fetch recipe
-
-.. note::
-
-   The reason to prefer ``bitbake -f -c fetch`` is that the
-   :ref:`ref-tasks-cleanall` task would break in some cases, such as::
-
-      $ bitbake -c fetch    recipe
-      $ bitbake -c cleanall recipe-native
-      $ bitbake -c unpack   recipe
-
-   because after step 1 there is a stamp file for the
-   :ref:`ref-tasks-fetch` task of ``recipe``, and it won't be removed at
-   step 2 because step 2 uses a different work directory. So the unpack task
-   at step 3 will try to extract the downloaded archive and fail as it has
-   been deleted in step 2.
-
-   Note that this also applies to BitBake from concurrent processes when a
-   shared download directory (:term:`DL_DIR`) is setup.
+Typically, you would not normally use the :ref:`ref-tasks-cleanall` task. Do so only
+if you want to start fresh with the :ref:`ref-tasks-fetch`
+task.
 
 .. _ref-tasks-cleansstate:
 
@@ -516,18 +507,6 @@ scratch is guaranteed.
 
 .. note::
 
-   Using :ref:`ref-tasks-cleansstate` with a shared :term:`SSTATE_DIR` is
-   not recommended because it could trigger an error during the build of a
-   separate BitBake instance. This is because the builds check sstate "up
-   front" but download the files later, so it if is deleted in the
-   meantime, it will cause an error but not a total failure as it will
-   rebuild it.
-
-   The reliable and preferred way to force a new build is to use ``bitbake
-   -f`` instead.
-
-.. note::
-
    The :ref:`ref-tasks-cleansstate` task cannot remove sstate from a remote sstate
    mirror. If you need to build a target from scratch using remote mirrors, use
    the "-f" option as follows::
@@ -543,7 +522,7 @@ scratch is guaranteed.
 Starts a shell in which an interactive Python interpreter allows you to
 interact with the BitBake build environment. From within this shell, you
 can directly examine and set bits from the data store and execute
-functions as if within the BitBake environment. See the ":ref:`dev-manual/python-development-shell:using a Python development shell`" section in
+functions as if within the BitBake environment. See the ":ref:`dev-manual/common-tasks:using a Python development shell`" section in
 the Yocto Project Development Tasks Manual for more information about
 using ``pydevshell``.
 
@@ -553,7 +532,7 @@ using ``pydevshell``.
 ---------------
 
 Starts a shell whose environment is set up for development, debugging,
-or both. See the ":ref:`dev-manual/development-shell:using a development shell`" section in the
+or both. See the ":ref:`dev-manual/common-tasks:using a development shell`" section in the
 Yocto Project Development Tasks Manual for more information about using
 ``devshell``.
 
@@ -616,7 +595,7 @@ information on how the root filesystem is created.
 
 Boots an image and performs runtime tests within the image. For
 information on automatically testing images, see the
-":ref:`dev-manual/runtime-testing:performing automated runtime testing`"
+":ref:`dev-manual/common-tasks:performing automated runtime testing`"
 section in the Yocto Project Development Tasks Manual.
 
 .. _ref-tasks-testimage_auto:
@@ -629,7 +608,7 @@ after it has been built. This task is enabled when you set
 :term:`TESTIMAGE_AUTO` equal to "1".
 
 For information on automatically testing images, see the
-":ref:`dev-manual/runtime-testing:performing automated runtime testing`"
+":ref:`dev-manual/common-tasks:performing automated runtime testing`"
 section in the Yocto Project Development Tasks Manual.
 
 Kernel-Related Tasks

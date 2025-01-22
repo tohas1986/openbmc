@@ -1,0 +1,9 @@
+{
+  "IdButton": "UID_SW_IN_N",
+  "PostComplete": "FM_BIOS_POST_CMPLT_N",
+  "PwrButton": "POWER_BUTTON",
+  "PwrOK": "PWRGD_SYS_PWROK",
+  "PwrOut": "POWER_OUT",
+  "RstButton": "RESET_BUTTON",
+  "RstOut": "RESET_OUT"
+}

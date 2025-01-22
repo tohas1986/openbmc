@@ -1,6 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2034
-# shellcheck disable=SC2317
 # Copyright 2021 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +21,6 @@ GBMC_IP_MONITOR_HOOKS=()
 # hooks that are executed after each event.
 shopt -s nullglob
 for conf in /usr/share/gbmc-ip-monitor/*.sh; do
-  # shellcheck source=/dev/null
   source "$conf"
 done
 
@@ -38,7 +35,7 @@ gbmc_ip_monitor_generate_init() {
   ip link | sed 's,^[^ ],[LINK]\0,'
   local intf=
   local line
-  while read -r line; do
+  while read line; do
     [[ "$line" =~ ^([0-9]+:[[:space:]][^:]+) ]] && intf="${BASH_REMATCH[1]}"
     [[ "$line" =~ ^[[:space:]]*inet ]] && echo "[ADDR]$intf $line"
   done < <(ip addr)
@@ -50,7 +47,7 @@ gbmc_ip_monitor_generate_init() {
 GBMC_IP_MONITOR_DEFER_OUTSTANDING=
 gbmc_ip_monitor_defer_() {
   sleep 1
-  printf '[DEFER]\n' >&"$GBMC_IP_MONITOR_DEFER"
+  printf '[DEFER]\n' >&$GBMC_IP_MONITOR_DEFER
 }
 gbmc_ip_monitor_defer() {
   [ -z "$GBMC_IP_MONITOR_DEFER_OUTSTANDING" ] || return 0
@@ -99,7 +96,7 @@ gbmc_ip_monitor_parse_line() {
     fi
     route="${BASH_REMATCH[2]}"
   elif [[ "$line" == '[LINK]'* ]]; then
-    change='link'
+    change=link
     action=add
     pfx_re='^\[LINK\](Deleted )?[0-9]+:[[:space:]]*'
     intf_re='([^:]+):[[:space:]]+'
@@ -111,7 +108,8 @@ gbmc_ip_monitor_parse_line() {
       action=del
     fi
     intf="${BASH_REMATCH[2]}"
-    read -ra data || return
+    read line || break
+    data=($line)
     mac="${data[1]}"
   elif [[ "$line" == '[DEFER]'* ]]; then
     GBMC_IP_MONITOR_DEFER_OUTSTANDING=
@@ -127,7 +125,7 @@ cleanup() {
   local st="$?"
   trap - HUP INT QUIT ABRT TERM EXIT
   jobs -l -p | xargs -r kill || true
-  exit "$st"
+  exit $st
 }
 trap cleanup HUP INT QUIT ABRT TERM EXIT
 
@@ -136,10 +134,10 @@ mkfifo "$FIFODIR"/fifo
 exec {GBMC_IP_MONITOR_DEFER}<>"$FIFODIR"/fifo
 rm -rf "$FIFODIR"
 
-while read -r line; do
+while read line; do
   gbmc_ip_monitor_parse_line "$line" || continue
   gbmc_ip_monitor_run_hooks || continue
   if [ "$change" = 'init' ]; then
     systemd-notify --ready
   fi
-done < <(gbmc_ip_monitor_generate_init; ip monitor link addr route label & cat <&"$GBMC_IP_MONITOR_DEFER")
+done < <(gbmc_ip_monitor_generate_init; ip monitor link addr route label & cat <&$GBMC_IP_MONITOR_DEFER)

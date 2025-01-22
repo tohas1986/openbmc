@@ -1,0 +1,414 @@
+From f7b623834efb435c19cba80ae807cfe52b564b48 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 8 Nov 2022 18:11:32 +0000
+Subject: [PATCH] WIP: Yandex
+
+- Take default config
+- Add IBMs config
+- Add CONFIG_RSA
+- Add ACRY and HACE both to config and DTS
+- Fix bootcmd
+- Disable raw and legacy image support
+- Enable FIT print in SPL
+- Enable CONFIG_LOG_MAX_LEVEL=9 for both SPL and main U-Boot
+- FIXME Force debug in include/log.h
+- Remove debug as it's useless
+- Add print FIT in SPL
+- Remove SPL GPIO support
+- Remove SHA256, SHA384 SPL support
+- Remove SPL watchdog support
+- Remove more code
+- Reduce malloc() heap size
+- Refactor ast_sysreset_request() to reduce size
+- Print error text on signature verification failure
+- Be more verbose in SPL
+- Add CONFIG_OF_CONTROL=y
+- Reduce logging
+- Fix DTS (scu vs. syscon)
+- Rework reset via WDT3 (reduce timeout)
+- Add SPL board_init into defconfig
+- Add CONFIG_CMD_OTP to enable otp in U-Boot
+- Roll-back changes to DTS (scu vs. syscon) - SPI flash fail
+- config: Add CONFIG_SHA for CONFIG_CMD_OTP to work
+- Introduce CONFIG_BOOTM_ALWAYS_VERIFY
+---
+ arch/arm/dts/yandex-som2600v1.dts | 39 +++-----------------
+ cmd/Kconfig                       |  6 ++++
+ common/bootm.c                    |  4 +++
+ common/image-fit.c                |  4 ++-
+ common/image-sig.c                |  2 ++
+ common/spl/spl_ram.c              |  3 +-
+ common/spl/spl_spi.c              |  2 +-
+ configs/yandex_ast2600_defconfig  | 59 ++++++++++++++++++++-----------
+ drivers/sysreset/sysreset_ast.c   | 18 ++++------
+ include/configs/yandex_ast2600.h  | 21 ++++++-----
+ include/log.h                     |  2 +-
+ 11 files changed, 81 insertions(+), 79 deletions(-)
+
+diff --git a/arch/arm/dts/yandex-som2600v1.dts b/arch/arm/dts/yandex-som2600v1.dts
+index 587b8e1375..e01be14dc0 100644
+--- a/arch/arm/dts/yandex-som2600v1.dts
++++ b/arch/arm/dts/yandex-som2600v1.dts
+@@ -201,44 +201,10 @@
+ 	};
+ };
+ 
+-&emmc {
+-	u-boot,dm-pre-reloc;
+-	timing-phase = <0x700ff>;
+-};
+-
+-&emmc_slot0 {
+-	u-boot,dm-pre-reloc;
+-	status = "okay";
+-	bus-width = <4>;
+-	pinctrl-names = "default";
+-	pinctrl-0 = <&pinctrl_emmc_default>;
+-	sdhci-drive-type = <1>;
+-};
+-
+ &sdhci {
+ 	timing-phase = <0xc6ffff>;
+ };
+ 
+-&sdhci_slot0 {
+-	status = "okay";
+-	bus-width = <4>;
+-	pwr-gpios = <&gpio0 ASPEED_GPIO(V, 0) GPIO_ACTIVE_HIGH>;
+-	pwr-sw-gpios = <&gpio0 ASPEED_GPIO(V, 1) GPIO_ACTIVE_HIGH>;
+-	pinctrl-names = "default";
+-	pinctrl-0 = <&pinctrl_sd1_default>;
+-	sdhci-drive-type = <1>;
+-};
+-
+-&sdhci_slot1 {
+-	status = "okay";
+-	bus-width = <4>;
+-	pwr-gpios = <&gpio0 ASPEED_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
+-	pwr-sw-gpios = <&gpio0 ASPEED_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
+-	pinctrl-names = "default";
+-	pinctrl-0 = <&pinctrl_sd2_default>;
+-	sdhci-drive-type = <1>;
+-};
+-
+ &i2c4 {
+ 	status = "okay";
+ 
+@@ -314,6 +280,11 @@
+ 	status = "okay";
+ };
+ 
++&acry {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
+ &gpio0 {
+ 	u-boot,dm-pre-reloc;
+ };
+diff --git a/cmd/Kconfig b/cmd/Kconfig
+index dbe21191de..d6f96de9a1 100644
+--- a/cmd/Kconfig
++++ b/cmd/Kconfig
+@@ -205,6 +205,12 @@ config CMD_BOOTM
+ 	help
+ 	  Boot an application image from the memory.
+ 
++config BOOTM_ALWAYS_VERIFY
++	bool "bootmverify"
++	default n
++	help
++	  Ignore environment "verify" variable.
++
+ config CMD_BOOTZ
+ 	bool "bootz"
+ 	help
+diff --git a/common/bootm.c b/common/bootm.c
+index 3adbceaa38..67ba3b9861 100644
+--- a/common/bootm.c
++++ b/common/bootm.c
+@@ -72,6 +72,10 @@ static int bootm_start(cmd_tbl_t *cmdtp, int flag, int argc,
+ {
+ 	memset((void *)&images, 0, sizeof(images));
+ 	images.verify = env_get_yesno("verify");
++#ifdef CONFIG_BOOTM_ALWAYS_VERIFY
++	printf("Always verify set\n");
++	images.verify = 1;
++#endif
+ 
+ 	boot_start_lmb(&images);
+ 
+diff --git a/common/image-fit.c b/common/image-fit.c
+index 3c8667f93d..70b4965402 100644
+--- a/common/image-fit.c
++++ b/common/image-fit.c
+@@ -1242,8 +1242,10 @@ int fit_image_verify_with_data(const void *fit, int image_noffset,
+ 			 * an image validation failure. See the call to
+ 			 * fit_image_verify_required_sigs() above.
+ 			 */
+-			if (ret)
++			if (ret) {
+ 				puts("- ");
++				printf("%s ", err_msg);
++			}
+ 			else
+ 				puts("+ ");
+ 		}
+diff --git a/common/image-sig.c b/common/image-sig.c
+index c94854ef8b..91e1034472 100644
+--- a/common/image-sig.c
++++ b/common/image-sig.c
+@@ -299,6 +299,7 @@ static int fit_image_verify_sig(const void *fit, int image_noffset,
+ 							size, -1, &err_msg);
+ 			if (ret) {
+ 				puts("- ");
++				printf("%s ", err_msg);
+ 			} else {
+ 				puts("+ ");
+ 				verified = 1;
+@@ -518,6 +519,7 @@ static int fit_config_verify_sig(const void *fit, int conf_noffset,
+ 						   conf_noffset, &err_msg);
+ 			if (ret) {
+ 				puts("- ");
++				printf("%s ", err_msg);
+ 			} else {
+ 				puts("+ ");
+ 				verified = 1;
+diff --git a/common/spl/spl_ram.c b/common/spl/spl_ram.c
+index 954e91a004..5d88378838 100644
+--- a/common/spl/spl_ram.c
++++ b/common/spl/spl_ram.c
+@@ -44,7 +44,8 @@ static int spl_ram_load_image(struct spl_image_info *spl_image,
+ 	    image_get_magic(header) == FDT_MAGIC) {
+ 		struct spl_load_info load;
+ 
+-		debug("Found FIT\n");
++		debug("Found FIT in RAM\n");
++		fit_print_contents(header);
+ 		load.bl_len = 1;
+ 		load.read = spl_ram_load_read;
+ 		spl_load_simple_fit(spl_image, &load, 0, header);
+diff --git a/common/spl/spl_spi.c b/common/spl/spl_spi.c
+index 8cd4830a39..b2f1f0d468 100644
+--- a/common/spl/spl_spi.c
++++ b/common/spl/spl_spi.c
+@@ -122,7 +122,7 @@ static int spl_spi_load_image(struct spl_image_info *spl_image,
+ 			   image_get_magic(header) == FDT_MAGIC) {
+ 			struct spl_load_info load;
+ 
+-			debug("Found FIT\n");
++			// debug("Found FIT on SPI\n");
+ 			load.dev = flash;
+ 			load.priv = NULL;
+ 			load.filename = NULL;
+diff --git a/configs/yandex_ast2600_defconfig b/configs/yandex_ast2600_defconfig
+index 2fc5144cc4..74288d8841 100644
+--- a/configs/yandex_ast2600_defconfig
++++ b/configs/yandex_ast2600_defconfig
+@@ -12,7 +12,6 @@ CONFIG_TARGET_YANDEX_AST2600=y
+ CONFIG_SPL_LIBCOMMON_SUPPORT=y
+ CONFIG_SPL_LIBGENERIC_SUPPORT=y
+ CONFIG_SYS_MALLOC_F_LEN=0x2000
+-CONFIG_SPL_MMC_SUPPORT=y
+ CONFIG_SPL_SERIAL_SUPPORT=y
+ CONFIG_SPL_DRIVERS_MISC_SUPPORT=y
+ CONFIG_ENV_SIZE=0x10000
+@@ -24,23 +23,20 @@ CONFIG_ARMV7_PSCI_NR_CPUS=2
+ CONFIG_NR_DRAM_BANKS=1
+ CONFIG_FIT=y
+ CONFIG_USE_BOOTARGS=y
+-CONFIG_BOOTARGS="console=ttyS4,115200n8 root=/dev/ram rw"
++CONFIG_BOOTARGS="console=ttyS4,115200n8 root=/dev/ram rw earlyprintk"
+ CONFIG_USE_BOOTCOMMAND=y
+-CONFIG_BOOTCOMMAND="bootm 20100000"
++CONFIG_BOOTCOMMAND="run bootspi"
+ CONFIG_SYS_CONSOLE_ENV_OVERWRITE=y
+ CONFIG_DISPLAY_BOARDINFO_LATE=y
+ CONFIG_ARCH_EARLY_INIT_R=y
+ CONFIG_BOARD_EARLY_INIT_F=y
+-CONFIG_SPL_RAW_IMAGE_SUPPORT=y
+-CONFIG_SPL_LEGACY_IMAGE_SUPPORT=y
+ CONFIG_SPL_SYS_MALLOC_SIMPLE=y
+ CONFIG_SPL_STACK_R=y
+ CONFIG_SPL_SEPARATE_BSS=y
+ CONFIG_SPL_DM_RESET=y
+ CONFIG_SPL_RAM_SUPPORT=y
+ CONFIG_SPL_RAM_DEVICE=y
+-CONFIG_SPL_WATCHDOG_SUPPORT=y
+-CONFIG_SPL_YMODEM_SUPPORT=y
++# REMOVE CONFIG_SPL_WATCHDOG_SUPPORT=y
+ CONFIG_HUSH_PARSER=y
+ # CONFIG_AUTO_COMPLETE is not set
+ CONFIG_SYS_PROMPT="ast# "
+@@ -55,7 +51,7 @@ CONFIG_CMD_GPIO=y
+ CONFIG_CMD_GPT=y
+ # CONFIG_RANDOM_UUID is not set
+ CONFIG_CMD_I2C=y
+-CONFIG_CMD_MMC=y
++# CONFIG_CMD_MMC=y
+ CONFIG_CMD_PART=y
+ CONFIG_CMD_SF=y
+ CONFIG_CMD_DHCP=y
+@@ -89,10 +85,9 @@ CONFIG_DM_I2C=y
+ CONFIG_SYS_I2C_ASPEED=y
+ CONFIG_MISC=y
+ CONFIG_ASPEED_AHBC=y
+-CONFIG_DM_MMC=y
+-CONFIG_SPL_MMC_TINY=y
+-CONFIG_MMC_SDHCI=y
+-CONFIG_MMC_SDHCI_ASPEED=y
++# CONFIG_DM_MMC=y
++# CONFIG_MMC_SDHCI=y
++# CONFIG_MMC_SDHCI_ASPEED=y
+ CONFIG_DM_SPI_FLASH=y
+ CONFIG_SPI_FLASH=y
+ CONFIG_SPI_FLASH_GIGADEVICE=y
+@@ -118,7 +113,6 @@ CONFIG_SYSRESET=y
+ CONFIG_WDT=y
+ CONFIG_USE_TINY_PRINTF=y
+ CONFIG_TPM=y
+-CONFIG_SPL_TPM=y
+ # CONFIG_EFI_LOADER is not set
+ CONFIG_BOARD_LATE_INIT=y
+ CONFIG_ASPEED_BYPASS_SELFTEST=y
+@@ -133,21 +127,46 @@ CONFIG_PHY_NCSI=n
+ # IBM P10BMC
+ CONFIG_ASPEED_HACE_V1=y
+ CONFIG_ENV_OFFSET=0xE0000
+-CONFIG_FIT_ENABLE_SHA384_SUPPORT=y
+ CONFIG_FIT_ENABLE_SHA512_SUPPORT=y
+ CONFIG_FIT_SIGNATURE=y
++# Removal causes fail of HACE engine
+ CONFIG_SPL_BOARD_INIT=y
+ CONFIG_SPL_FIT_IMAGE_TINY=y
+ CONFIG_SPL_FIT_SIGNATURE=y
+-CONFIG_SPL_GPIO_HOG=y
+-CONFIG_SPL_GPIO_SUPPORT=y
+ CONFIG_SPL_LOAD_FIT=y
+-CONFIG_SPL_SHA1_SUPPORT=y
+-CONFIG_SPL_SHA256_SUPPORT=y
+-CONFIG_SPL_SHA384_SUPPORT=y
+ CONFIG_SPL_SHA512_SUPPORT=y
+ CONFIG_SPL_STACK_R_ADDR=0x90300000
++# FIXME WARNING
++# CONFIG_SPL_SYS_MALLOC_F_LEN=0x800
+ CONFIG_SPL_SYS_MALLOC_F_LEN=0x1000
+ CONFIG_SPL_TINY_MEMSET=y
+ 
+-CONFIG_ASPEED_ECC=y
++CONFIG_RSA=y
++CONFIG_ASPEED_HACE=y
++CONFIG_ASPEED_ACRY=y
++# CONFIG_SPL_RAW_IMAGE_SUPPORT=y
++# CONFIG_SPL_LEGACY_IMAGE_SUPPORT=y
++CONFIG_SPL_CRYPTO_SUPPORT=y
++CONFIG_SPL_FIT_PRINT=y
++
++# Debug
++# CONFIG_DEBUG_UART=y
++# CONFIG_DEBUG_UART_BASE=0x1e784000
++# CONFIG_DEBUG_UART_CLOCK=1846154
++# CONFIG_DEBUG_UART_SHIFT=2
++# CONFIG_LOG_MAX_LEVEL=9
++# CONFIG_SPL_LOG_MAX_LEVEL=9
++
++# After reading https://www.timesys.com/security/securing-u-boot-a-guide-to-mitigating-common-attack-vectors/
++CONFIG_FIT_VERBOSE=y
++CONFIG_OF_CONTROL=y
++CONFIG_SHA_PROG_HW_ACCEL=y
++
++# OTP
++CONFIG_SHA256=y
++CONFIG_SHA384=y
++CONFIG_SHA512=y
++CONFIG_CMD_OTP=y
++
++# Strong security
++CONFIG_BOOTM_ALWAYS_VERIFY=y
+diff --git a/drivers/sysreset/sysreset_ast.c b/drivers/sysreset/sysreset_ast.c
+index d5d8736dc6..37265a520b 100644
+--- a/drivers/sysreset/sysreset_ast.c
++++ b/drivers/sysreset/sysreset_ast.c
+@@ -9,23 +9,17 @@
+ #include <dm.h>
+ #include <errno.h>
+ #include <sysreset.h>
+-#include <wdt.h>
+ #include <asm/io.h>
+ #include <linux/err.h>
+ 
++#define AST_WDT3_BASE 0x1E785080
++#define WDT3_TIMEOUT 50000
+ static int ast_sysreset_request(struct udevice *dev, enum sysreset_t type)
+ {
+-	struct udevice *wdt;
+-	int ret = uclass_first_device(UCLASS_WDT, &wdt);
+-
+-	if (ret)
+-		return ret;
+-
+-	ret = wdt_expire_now(wdt, 0);
+-	if (ret) {
+-		debug("Sysreset failed: %d", ret);
+-		return ret;
+-	}
++	printf("WDT3 enabled, reset now\n");
++	writel((u32) WDT3_TIMEOUT, AST_WDT3_BASE + 0x04);
++	writel(0x4755, AST_WDT3_BASE + 0x08);
++	writel(0x13, AST_WDT3_BASE + 0x0c);
+ 
+ 	return -EINPROGRESS;
+ }
+diff --git a/include/configs/yandex_ast2600.h b/include/configs/yandex_ast2600.h
+index f4f1b46d89..101566bdde 100644
+--- a/include/configs/yandex_ast2600.h
++++ b/include/configs/yandex_ast2600.h
+@@ -17,20 +17,23 @@
+ /* Memory Info */
+ #define CONFIG_SYS_LOAD_ADDR		0x83000000
+ 
+-#ifdef CONFIG_SPL_TINY
+-#ifdef CONFIG_SPL_BUILD
+-#define CONFIG_SYS_NS16550_REG_SIZE 2
+-#endif
+-#endif
+-
+ /* SPL */
+ #define CONFIG_SPL_TEXT_BASE		0x00000000
+ #define CONFIG_SPL_MAX_SIZE		0x00010000
+ #define CONFIG_SPL_STACK		0x10016000
+ #define CONFIG_SPL_BSS_START_ADDR	0x90000000
+ #define CONFIG_SPL_BSS_MAX_SIZE		0x00100000
+-#define CONFIG_SPL_LOAD_FIT_ADDRESS     0x00010000
+-
+-#define CONFIG_SUPPORT_EMMC_BOOT
++#define CONFIG_SPL_LOAD_FIT_ADDRESS	0x00010000
++
++/* Extra ENV for Boot Command */
++#define STR_HELPER(n)	#n
++#define STR(n)		STR_HELPER(n)
++
++#undef CONFIG_EXTRA_ENV_SETTINGS
++#define CONFIG_EXTRA_ENV_SETTINGS	\
++	"loadaddr=" STR(CONFIG_SYS_LOAD_ADDR) "\0"	\
++	"bootspi=fdt addr 20100000 && fdt header get fitsize totalsize && cp.b 20100000 ${loadaddr} ${fitsize} && bootm; echo Error loading kernel FIT image\0"	\
++	"verify=yes\0"	\
++	""
+ 
+ #endif	/* __CONFIG_H */
+diff --git a/include/log.h b/include/log.h
+index 7566ba7f2d..73e7aa5548 100644
+--- a/include/log.h
++++ b/include/log.h
+@@ -158,7 +158,7 @@ int _log(enum log_category_t cat, enum log_level_t level, const char *file,
+  */
+ #define debug_cond(cond, fmt, args...)			\
+ 	do {						\
+-		if (cond)				\
++		if (cond)                               \
+ 			printf(pr_fmt(fmt), ##args);	\
+ 	} while (0)
+ 
+-- 
+2.36.0
+

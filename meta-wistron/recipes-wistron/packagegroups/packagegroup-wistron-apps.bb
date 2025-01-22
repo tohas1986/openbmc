@@ -37,4 +37,6 @@ SUMMARY:${PN}-system = "Wistron System"
 RDEPENDS:${PN}-system = " \
         entity-manager \
         dbus-sensors \
+        bmcweb \
+        webui-vue \
         "

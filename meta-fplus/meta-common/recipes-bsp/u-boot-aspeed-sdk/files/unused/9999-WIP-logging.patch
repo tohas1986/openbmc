@@ -1,0 +1,477 @@
+From 6b06fe6ca92c0df495cf470de5669e0b97a3f7e1 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 19 Oct 2022 09:06:14 +0000
+Subject: [PATCH] WIP logging
+
+---
+ arch/arm/dts/yandex-som2600v1.dts            |  3 +++
+ arch/arm/mach-aspeed/ast2600/board_common.c  |  1 +
+ arch/arm/mach-aspeed/ast2600/cache.c         |  1 +
+ arch/arm/mach-aspeed/ast2600/spl.c           |  2 ++
+ board/aspeed/evb_ast2600/evb_ast2600.c       |  1 +
+ board/aspeed/slt_ast2600/slt_ast2600.c       |  1 +
+ board/aspeed/yandex_ast2600/yandex_ast2600.c |  4 ++-
+ common/spl/spl.c                             | 26 ++++++++++++++++++--
+ configs/yandex_ast2600_defconfig             | 12 +++++++--
+ drivers/ram/aspeed/sdram_ast2600.c           | 20 +++++++++++++++
+ include/log.h                                |  6 ++++-
+ 11 files changed, 71 insertions(+), 6 deletions(-)
+
+diff --git a/arch/arm/dts/yandex-som2600v1.dts b/arch/arm/dts/yandex-som2600v1.dts
+index 5d43317523..cc92fe6949 100644
+--- a/arch/arm/dts/yandex-som2600v1.dts
++++ b/arch/arm/dts/yandex-som2600v1.dts
+@@ -43,6 +43,7 @@
+ 
+ &sdrammc {
+ 	clock-frequency = <400000000>;
++	aspeed,ecc-enabled;
+ };
+ 
+ &wdt1 {
+@@ -201,6 +202,7 @@
+ 	};
+ };
+ 
++/*
+ &emmc {
+ 	u-boot,dm-pre-reloc;
+ 	timing-phase = <0x700ff>;
+@@ -238,6 +240,7 @@
+ 	pinctrl-0 = <&pinctrl_sd2_default>;
+ 	sdhci-drive-type = <1>;
+ };
++*/
+ 
+ &i2c4 {
+ 	status = "okay";
+diff --git a/arch/arm/mach-aspeed/ast2600/board_common.c b/arch/arm/mach-aspeed/ast2600/board_common.c
+index 53870dd71d..8f52bc9875 100644
+--- a/arch/arm/mach-aspeed/ast2600/board_common.c
++++ b/arch/arm/mach-aspeed/ast2600/board_common.c
+@@ -14,6 +14,7 @@
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
++#define LOG_DEBUG
+ /*
+  * RMII daughtercard workaround
+  */
+diff --git a/arch/arm/mach-aspeed/ast2600/cache.c b/arch/arm/mach-aspeed/ast2600/cache.c
+index 82de0b0fda..c6213d720f 100644
+--- a/arch/arm/mach-aspeed/ast2600/cache.c
++++ b/arch/arm/mach-aspeed/ast2600/cache.c
+@@ -8,6 +8,7 @@
+ #include <asm/system.h>
+ 
+ DECLARE_GLOBAL_DATA_PTR;
++#define LOG_DEBUG
+ 
+ void enable_caches(void)
+ {
+diff --git a/arch/arm/mach-aspeed/ast2600/spl.c b/arch/arm/mach-aspeed/ast2600/spl.c
+index afda32d6e0..fc05007d42 100644
+--- a/arch/arm/mach-aspeed/ast2600/spl.c
++++ b/arch/arm/mach-aspeed/ast2600/spl.c
+@@ -13,6 +13,8 @@
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+ 
++#define LOG_DEBUG
++
+ #define AST_BOOTMODE_SPI	0
+ #define AST_BOOTMODE_EMMC	1
+ #define AST_BOOTMODE_UART	2
+diff --git a/board/aspeed/evb_ast2600/evb_ast2600.c b/board/aspeed/evb_ast2600/evb_ast2600.c
+index 72ecb18c15..139b02a8fe 100644
+--- a/board/aspeed/evb_ast2600/evb_ast2600.c
++++ b/board/aspeed/evb_ast2600/evb_ast2600.c
+@@ -124,6 +124,7 @@ static void __maybe_unused espi_init(void)
+ 
+ int board_early_init_f(void)
+ {
++    puts("Vnezapno\n");
+ #if 0
+ 	port80h_snoop_init();
+ 	sgpio_init();
+diff --git a/board/aspeed/slt_ast2600/slt_ast2600.c b/board/aspeed/slt_ast2600/slt_ast2600.c
+index 5f19fc58b8..e65bedbd80 100644
+--- a/board/aspeed/slt_ast2600/slt_ast2600.c
++++ b/board/aspeed/slt_ast2600/slt_ast2600.c
+@@ -25,6 +25,7 @@ int board_init(void)
+ 	int i;
+ 	int ret;
+ 
++    puts("Super vnezapno %s\n", __FUNCTION__);
+ 	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
+ 
+ 	/*
+diff --git a/board/aspeed/yandex_ast2600/yandex_ast2600.c b/board/aspeed/yandex_ast2600/yandex_ast2600.c
+index f9d84f6258..8f7bdc836f 100644
+--- a/board/aspeed/yandex_ast2600/yandex_ast2600.c
++++ b/board/aspeed/yandex_ast2600/yandex_ast2600.c
+@@ -19,7 +19,7 @@ DECLARE_GLOBAL_DATA_PTR;
+ #define AST_GPIOUVWX_DRCTN	(AST_GPIO_BASE + 0x08C)
+ #define AST_GPIOYZ_DRCTN	(AST_GPIO_BASE + 0x1E4)
+ 
+-int board_init(void)
++int board_init_test(void)
+ {
+ 	u32 direction;
+ 
+@@ -27,6 +27,7 @@ int board_init(void)
+ 	int i;
+ 	int ret;
+ 
++    puts("Yandex vnezapno\n");
+ 	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
+ 
+ 	/*
+@@ -195,6 +196,7 @@ int board_late_init(void)
+ 
+ int board_early_init_f(void)
+ {
++    puts("yandex board_early_init_f\n");
+ 	return 0;
+ }
+ 
+diff --git a/common/spl/spl.c b/common/spl/spl.c
+index 927e072778..b451f225ef 100644
+--- a/common/spl/spl.c
++++ b/common/spl/spl.c
+@@ -25,6 +25,8 @@
+ #include <fdt_support.h>
+ #include <bootcount.h>
+ 
++#define LOG_DEBUG
++
+ DECLARE_GLOBAL_DATA_PTR;
+ 
+ #ifndef CONFIG_SYS_UBOOT_START
+@@ -334,6 +336,7 @@ __weak void __noreturn jump_to_image_no_args(struct spl_image_info *spl_image)
+ 	image_entry_noargs_t image_entry =
+ 		(image_entry_noargs_t)spl_image->entry_point;
+ 
++	printf("image entry point: 0x%lx\n", spl_image->entry_point);
+ 	debug("image entry point: 0x%lx\n", spl_image->entry_point);
+ 	image_entry();
+ }
+@@ -576,7 +579,7 @@ static int boot_from_devices(struct spl_image_info *spl_image,
+ 		loader = spl_ll_find_loader(spl_boot_list[i]);
+ #if defined(CONFIG_SPL_SERIAL_SUPPORT) && defined(CONFIG_SPL_LIBCOMMON_SUPPORT)
+ 		if (loader)
+-			printf("Trying to boot from %s\n", loader->name);
++			printf("Trying to boot from %s, 1000 chertey\n", loader->name);
+ 		else
+ 			puts(SPL_TPL_PROMPT "Unsupported Boot Device!\n");
+ #endif
+@@ -584,6 +587,7 @@ static int boot_from_devices(struct spl_image_info *spl_image,
+ 			spl_image->boot_device = spl_boot_list[i];
+ 			return 0;
+ 		}
++		printf("Shit happened with %s\n", loader->name);
+ 	}
+ 
+ 	return -ENODEV;
+@@ -678,35 +682,44 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
+ 		hang();
+ 	}
+ 
++	puts(SPL_TPL_PROMPT "Still here 1\n");
+ 	spl_perform_fixups(&spl_image);
++	puts(SPL_TPL_PROMPT "Still here 2\n");
+ 	if (CONFIG_IS_ENABLED(HANDOFF)) {
+ 		ret = write_spl_handoff();
+ 		if (ret)
+ 			printf(SPL_TPL_PROMPT
+ 			       "SPL hand-off write failed (err=%d)\n", ret);
+ 	}
++	puts(SPL_TPL_PROMPT "Still here 3\n");
+ 	if (CONFIG_IS_ENABLED(BLOBLIST)) {
++	    puts(SPL_TPL_PROMPT "Still here 3.5\n");
+ 		ret = bloblist_finish();
+ 		if (ret)
+ 			printf("Warning: Failed to finish bloblist (ret=%d)\n",
+ 			       ret);
++	puts(SPL_TPL_PROMPT "Still here 4\n");
+ 	}
+ 
++	puts(SPL_TPL_PROMPT "Still here 5\n");
+ #ifdef CONFIG_CPU_V7M
+ 	spl_image.entry_point |= 0x1;
+ #endif
+ 	switch (spl_image.os) {
+ 	case IH_OS_U_BOOT:
++	    puts(SPL_TPL_PROMPT "Still here 6\n");
+ 		debug("Jumping to U-Boot\n");
+ 		break;
+ #if CONFIG_IS_ENABLED(ATF)
+ 	case IH_OS_ARM_TRUSTED_FIRMWARE:
++	    puts(SPL_TPL_PROMPT "Still here 7\n");
+ 		debug("Jumping to U-Boot via ARM Trusted Firmware\n");
+ 		spl_invoke_atf(&spl_image);
+ 		break;
+ #endif
+ #if CONFIG_IS_ENABLED(OPTEE)
+ 	case IH_OS_TEE:
++	    puts(SPL_TPL_PROMPT "Still here 8\n");
+ 		debug("Jumping to U-Boot via OP-TEE\n");
+ 		spl_optee_entry(NULL, NULL, spl_image.fdt_addr,
+ 				(void *)spl_image.entry_point);
+@@ -714,28 +727,37 @@ void board_init_r(gd_t *dummy1, ulong dummy2)
+ #endif
+ #ifdef CONFIG_SPL_OS_BOOT
+ 	case IH_OS_LINUX:
++	    puts(SPL_TPL_PROMPT "Still here 9\n");
+ 		debug("Jumping to Linux\n");
+ 		spl_fixup_fdt();
+ 		spl_board_prepare_for_linux();
+ 		jump_to_image_linux(&spl_image);
+ #endif
+ 	default:
++	    puts(SPL_TPL_PROMPT "Still here 10\n");
+ 		debug("Unsupported OS image.. Jumping nevertheless..\n");
+ 	}
+ #if CONFIG_VAL(SYS_MALLOC_F_LEN) && !defined(CONFIG_SYS_SPL_MALLOC_SIZE)
+ 	debug("SPL malloc() used 0x%lx bytes (%ld KB)\n", gd->malloc_ptr,
+ 	      gd->malloc_ptr / 1024);
+ #endif
++puts(SPL_TPL_PROMPT "Still here 11\n");
+ #ifdef CONFIG_BOOTSTAGE_STASH
++    puts(SPL_TPL_PROMPT "Still here 12\n");
+ 	bootstage_mark_name(BOOTSTAGE_ID_END_SPL, "end_spl");
++    puts(SPL_TPL_PROMPT "Still here 13\n");
+ 	ret = bootstage_stash((void *)CONFIG_BOOTSTAGE_STASH_ADDR,
+ 			      CONFIG_BOOTSTAGE_STASH_SIZE);
+-	if (ret)
++	if (ret) {
++        puts(SPL_TPL_PROMPT "Still here 14\n");
+ 		debug("Failed to stash bootstage: err=%d\n", ret);
++    }
+ #endif
+ 
++    puts(SPL_TPL_PROMPT "Still here 15\n");
+ 	debug("loaded - jumping to U-Boot...\n");
+ 	spl_board_prepare_for_boot();
++    puts(SPL_TPL_PROMPT "Still here 16\n");
+ 	jump_to_image_no_args(&spl_image);
+ }
+ 
+diff --git a/configs/yandex_ast2600_defconfig b/configs/yandex_ast2600_defconfig
+index 29e6af1ea1..76ec32934d 100644
+--- a/configs/yandex_ast2600_defconfig
++++ b/configs/yandex_ast2600_defconfig
+@@ -42,8 +42,8 @@ CONFIG_SYS_CONSOLE_ENV_OVERWRITE=y
+ CONFIG_DISPLAY_BOARDINFO_LATE=y
+ CONFIG_ARCH_EARLY_INIT_R=y
+ CONFIG_BOARD_EARLY_INIT_F=y
+-# CONFIG_SPL_RAW_IMAGE_SUPPORT is not set
+-# CONFIG_SPL_LEGACY_IMAGE_SUPPORT is not set
++CONFIG_SPL_RAW_IMAGE_SUPPORT=y
++CONFIG_SPL_LEGACY_IMAGE_SUPPORT=y
+ CONFIG_SPL_SYS_MALLOC_SIMPLE=y
+ CONFIG_SPL_STACK_R=y
+ CONFIG_SPL_SEPARATE_BSS=y
+@@ -140,3 +140,11 @@ CONFIG_USB_DEVICE=y
+ CONFIG_DM_USB=y
+ CONFIG_ASPEED_DP=y
+ CONFIG_PHY_NCSI=n
++CONFIG_LOG=y
++CONFIG_MAX_LOG_LEVEL=9
++CONFIG_LOG_CONSOLE=y
++CONFIG_DEBUG_UART=y
++CONFIG_DEBUG_UART_BASE=0x1e784000
++CONFIG_DEBUG_UART_CLOCK=1846154
++CONFIG_DEBUG_UART_SHIFT=2
++
+diff --git a/drivers/ram/aspeed/sdram_ast2600.c b/drivers/ram/aspeed/sdram_ast2600.c
+index 66b5dd1fe6..6ccb7f2d0a 100644
+--- a/drivers/ram/aspeed/sdram_ast2600.c
++++ b/drivers/ram/aspeed/sdram_ast2600.c
+@@ -206,6 +206,7 @@ static void ast2600_sdramphy_kick_training(struct dram_info *info)
+ 	struct ast2600_sdrammc_regs *regs = info->regs;
+ 	u32 volatile data;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	writel(SDRAM_PHYCTRL0_NRST, &regs->phy_ctrl[0]);
+ 	udelay(5);
+ 	writel(SDRAM_PHYCTRL0_NRST | SDRAM_PHYCTRL0_INIT, &regs->phy_ctrl[0]);
+@@ -247,6 +248,7 @@ static void ast2600_sdramphy_init(u32 *p_tbl, struct dram_info *info)
+ 	u32 data;
+ 	int i = 1;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	writel(0, &info->regs->phy_ctrl[0]);
+ 	udelay(10);
+ 	//writel(SDRAM_PHYCTRL0_NRST, &regs->phy_ctrl[0]);
+@@ -282,6 +284,7 @@ static int ast2600_sdramphy_check_status(struct dram_info *info)
+ 	u32 reg_base = (u32)info->phy_status;
+ 	int need_retrain = 0;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	debug("\nSDRAM PHY training report:\n");
+ 	/* training status */
+ 	value = readl(reg_base + 0x00);
+@@ -381,6 +384,7 @@ int ast2600_sdrammc_dg_test(struct dram_info *info, unsigned int datagen, u32 mo
+ 	unsigned int timeout = 0;
+ 	struct ast2600_sdrammc_regs *regs = info->regs;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	writel(0, &regs->ecc_test_ctrl);
+ 	if (mode == 0)
+ 		writel(0x00000085 | (datagen << 3), &regs->ecc_test_ctrl);
+@@ -411,6 +415,7 @@ int ast2600_sdrammc_cbr_test(struct dram_info *info)
+ 	struct ast2600_sdrammc_regs *regs = info->regs;
+ 	u32 i;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	clrsetbits_le32(&regs->test_addr, GENMASK(30, 4), 0x7ffff0);
+ 
+ 	/* single */
+@@ -440,6 +445,7 @@ static int ast2600_sdrammc_test(struct dram_info *info)
+ 	u32 i = 0;
+ 	bool finish = false;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	debug("sdram mc test:\n");
+ 	while (finish == false) {
+ 		pattern = as2600_sdrammc_test_pattern[i++];
+@@ -482,6 +488,7 @@ static size_t ast2600_sdrammc_get_vga_mem_size(struct dram_info *info)
+ 	u32 vga_hwconf;
+ 	size_t vga_mem_size_base = 8 * 1024 * 1024;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	vga_hwconf = (readl(info->scu + AST_SCU_HW_STRAP) &
+ 		      SCU_HWSTRAP_VGAMEM_MASK) >>
+ 		     SCU_HWSTRAP_VGAMEM_SHIFT;
+@@ -508,6 +515,7 @@ static void ast2600_sdrammc_fpga_set_pll(struct dram_info *info)
+ 	u32 data;
+ 	u32 scu_base = (u32)info->scu;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	writel(0x00000303, scu_base + AST_SCU_FPGA_PLL);
+ 
+ 	do {
+@@ -523,6 +531,7 @@ static int ast2600_sdrammc_search_read_window(struct dram_info *info)
+ 	u32 win = 0x03, gwin = 0, gwinsize = 0;
+ 	u32 phy_setting = (u32)info->phy_setting;
+ 
++    printf("%s\n", __FUNCTION__);
+ #ifdef CONFIG_ASPEED_PALLADIUM
+ 	writel(0xc, phy_setting + 0x0000);
+ 	return 1;
+@@ -660,6 +669,7 @@ static void ast2600_sdrammc_calc_size(struct dram_info *info)
+ 	u32 refresh_timing_param = DDR4_TRFC;
+ 	const u32 write_addr_base = CONFIG_SYS_SDRAM_BASE + write_test_offset;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	for (ram_size = SDRAM_MAX_SIZE; ram_size > SDRAM_MIN_SIZE;
+ 	     ram_size >>= 1) {
+ 		writel(test_pattern, write_addr_base + (ram_size >> 1));
+@@ -700,6 +710,7 @@ static int ast2600_sdrammc_init_ddr4(struct dram_info *info)
+ 			       MCR34_MREQ_BYPASS_DIS | MCR34_RESETN_DIS |
+ 			       MCR34_ODT_EN | MCR34_ODT_AUTO_ON |
+ 			       (0x1 << MCR34_ODT_EXT_SHIFT);
++    printf("%s\n", __FUNCTION__);
+ 
+ 	/* init SDRAM-PHY only on real chip */
+ 	ast2600_sdramphy_init(ast2600_sdramphy_config, info);
+@@ -758,6 +769,7 @@ static int ast2600_sdrammc_init_ddr4(struct dram_info *info)
+ 
+ static void ast2600_sdrammc_unlock(struct dram_info *info)
+ {
++    printf("%s\n", __FUNCTION__);
+ 	writel(SDRAM_UNLOCK_KEY, &info->regs->protection_key);
+ 	while (!readl(&info->regs->protection_key))
+ 		;
+@@ -765,6 +777,7 @@ static void ast2600_sdrammc_unlock(struct dram_info *info)
+ 
+ static void ast2600_sdrammc_lock(struct dram_info *info)
+ {
++    printf("%s\n", __FUNCTION__);
+ 	writel(~SDRAM_UNLOCK_KEY, &info->regs->protection_key);
+ 	while (readl(&info->regs->protection_key))
+ 		;
+@@ -774,6 +787,7 @@ static void ast2600_sdrammc_common_init(struct ast2600_sdrammc_regs *regs)
+ {
+ 	int i;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	writel(MCR34_MREQI_DIS | MCR34_RESETN_DIS, &regs->power_ctrl);
+ 	writel(SDRAM_VIDEO_UNLOCK_KEY, &regs->gm_protection_key);
+ 	/* [6:0] : Group 1 request queued number = 16
+@@ -831,6 +845,7 @@ static void ast2600_sdrammc_update_size(struct dram_info *info)
+ 	size_t ram_size = SDRAM_MAX_SIZE;
+ 	u32 cap_param;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	cap_param = (readl(&info->regs->config) & SDRAM_CONF_CAP_MASK) >> SDRAM_CONF_CAP_SHIFT;
+ 	switch (cap_param)
+ 	{
+@@ -866,6 +881,7 @@ static void ast2600_sdrammc_ecc_enable(struct dram_info *info, u32 conf_size_mb)
+ 	size_t conf_size;
+ 	u32 reg;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	conf_size = conf_size_mb * SDRAM_SIZE_1MB;
+ 	if (conf_size > info->info.size) {
+ 		printf("warning: ECC configured %dMB but actual size is %dMB\n",
+@@ -899,6 +915,7 @@ static bool ast2600_sdrammc_init_required(struct udevice *dev)
+ 	bool ecc_enabled;
+ 	bool dram_ready;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	ecc_requested = dev_read_bool(dev, "aspeed,ecc-enabled");
+ 	ecc_enabled = readl(&regs->config) & SDRAM_CONF_ECC_SETUP;
+ 	dram_ready  = readl(priv->scu + AST_SCU_HANDSHAKE) & SCU_SDRAM_INIT_READY_MASK;
+@@ -923,6 +940,7 @@ static int ast2600_sdrammc_probe(struct udevice *dev)
+ 	int ret;
+ 	volatile uint32_t reg;
+ 
++    printf("%s\n", __FUNCTION__);
+ 	/* find SCU base address from clock device */
+ 	ret = uclass_get_device_by_driver(UCLASS_CLK, DM_GET_DRIVER(aspeed_scu),
+ 					  &clk_dev);
+@@ -1027,6 +1045,7 @@ static int ast2600_sdrammc_ofdata_to_platdata(struct udevice *dev)
+ {
+ 	struct dram_info *priv = dev_get_priv(dev);
+ 
++    printf("%s\n", __FUNCTION__);
+ 	priv->regs = (void *)(uintptr_t)devfdt_get_addr_index(dev, 0);
+ 	priv->phy_setting = (void *)(uintptr_t)devfdt_get_addr_index(dev, 1);
+ 	priv->phy_status = (void *)(uintptr_t)devfdt_get_addr_index(dev, 2);
+@@ -1045,6 +1064,7 @@ static int ast2600_sdrammc_get_info(struct udevice *dev, struct ram_info *info)
+ {
+ 	struct dram_info *priv = dev_get_priv(dev);
+ 
++    printf("%s\n", __FUNCTION__);
+ 	*info = priv->info;
+ 
+ 	return 0;
+diff --git a/include/log.h b/include/log.h
+index 7566ba7f2d..973abb6581 100644
+--- a/include/log.h
++++ b/include/log.h
+@@ -117,10 +117,12 @@ int _log(enum log_category_t cat, enum log_level_t level, const char *file,
+ #define _LOG_DEBUG	0
+ #endif
+ 
++// KITSOK
++#define _LOG_DEBUG 1
+ /* Emit a log record if the level is less that the maximum */
+ #define log(_cat, _level, _fmt, _args...) ({ \
+ 	int _l = _level; \
+-	if (CONFIG_IS_ENABLED(LOG) && (_l <= _LOG_MAX_LEVEL || _LOG_DEBUG)) \
++	if (1 || CONFIG_IS_ENABLED(LOG) && (_l <= _LOG_MAX_LEVEL || _LOG_DEBUG)) \
+ 		_log((enum log_category_t)(_cat), _l, __FILE__, __LINE__, \
+ 		      __func__, \
+ 		      pr_fmt(_fmt), ##_args); \
+@@ -135,6 +137,8 @@ int _log(enum log_category_t cat, enum log_level_t level, const char *file,
+ #define _DEBUG	0
+ #endif
+ 
++#define _DEBUG 1
++
+ #ifdef CONFIG_SPL_BUILD
+ #define _SPL_BUILD	1
+ #else

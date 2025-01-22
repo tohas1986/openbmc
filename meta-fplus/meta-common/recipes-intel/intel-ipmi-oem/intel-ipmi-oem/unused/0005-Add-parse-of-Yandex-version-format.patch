@@ -1,0 +1,42 @@
+From 329121838d868245be14159a4cb99c4d6860f6a8 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 7 Apr 2021 16:04:35 +0000
+Subject: [PATCH] Add parse of Yandex version format
+
+---
+ src/appcommands.cpp | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/src/appcommands.cpp b/src/appcommands.cpp
+index 1d61889..6462e66 100644
+--- a/src/appcommands.cpp
++++ b/src/appcommands.cpp
+@@ -253,6 +253,28 @@ std::optional<MetaRevision> convertIntelVersion(std::string& s)
+         }
+     }
+ 
++    std::regex pattern3("(\\d+?).(\\d+?).\\d+?-\\w*?-(\\d+?)-g(\\w+?)");
++    constexpr size_t matchedYandexPhosphor = 5;
++    if (std::regex_match(s, results, pattern3))
++    {
++        if (results.size() == matchedYandexPhosphor)
++        {
++            rev.platform = "whtref";
++            rev.major = static_cast<uint8_t>(std::stoi(results[1]));
++            rev.minor = static_cast<uint8_t>(std::stoi(results[2]));
++            rev.buildNo = static_cast<uint32_t>(std::stoi(results[3]));
++            rev.openbmcHash = results[4];
++            rev.metaHash = results[5];
++            std::string versionString =
++                rev.platform + ":" + std::to_string(rev.major) + ":" +
++                std::to_string(rev.minor) + ":" + std::to_string(rev.buildNo) +
++                ":" + rev.openbmcHash + ":" + rev.metaHash;
++            phosphor::logging::log<phosphor::logging::level::DEBUG>(
++                "Get BMC version",
++                phosphor::logging::entry("VERSION=%s", versionString.c_str()));
++            return rev;
++        }
++    }
+     return std::nullopt;
+ }
+ 

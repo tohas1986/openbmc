@@ -1,0 +1,26 @@
+From d32d350e02c5d3ed17120f1f88df1660521a1a0e Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 15 Sep 2020 13:34:44 +0000
+Subject: [PATCH 1/1] networkd-wait-online: Get online if any interface is
+ online
+
+---
+ units/systemd-networkd-wait-online.service.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/units/systemd-networkd-wait-online.service.in b/units/systemd-networkd-wait-online.service.in
+index 7666e16..0d4f09e 100644
+--- a/units/systemd-networkd-wait-online.service.in
++++ b/units/systemd-networkd-wait-online.service.in
+@@ -18,7 +18,7 @@ Before=network-online.target shutdown.target
+ 
+ [Service]
+ Type=oneshot
+-ExecStart={{ROOTLIBEXECDIR}}/systemd-networkd-wait-online
++ExecStart={{ROOTLIBEXECDIR}}/systemd-networkd-wait-online --any --timeout 30
+ RemainAfterExit=yes
+ 
+ [Install]
+-- 
+2.7.4
+

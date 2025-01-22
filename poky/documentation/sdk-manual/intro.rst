@@ -66,7 +66,7 @@ The SDK development environment consists of the following:
 
 In summary, the extensible and standard SDK share many features.
 However, the extensible SDK has powerful development tools to help you
-more quickly develop applications. Here is a table that summarizes
+more quickly develop applications. Following is a table that summarizes
 the primary differences between the standard and extensible SDK types
 when considering which to build:
 
@@ -164,11 +164,11 @@ image.
 
 You just need to follow these general steps:
 
-#. *Install the SDK for your target hardware:* For information on how to
+1. *Install the SDK for your target hardware:* For information on how to
    install the SDK, see the ":ref:`sdk-manual/using:installing the sdk`"
    section.
 
-#. *Download or Build the Target Image:* The Yocto Project supports
+2. *Download or Build the Target Image:* The Yocto Project supports
    several target architectures and has many pre-built kernel images and
    root filesystem images.
 
@@ -195,7 +195,7 @@ You just need to follow these general steps:
       ":ref:`sdk-manual/appendix-obtain:extracting the root filesystem`"
       section for information on how to do this extraction.
 
-#. *Develop and Test your Application:* At this point, you have the
+3. *Develop and Test your Application:* At this point, you have the
    tools to develop your application. If you need to separately install
    and use the QEMU emulator, you can go to `QEMU Home
    Page <https://wiki.qemu.org/Main_Page>`__ to download and learn about

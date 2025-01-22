@@ -1,0 +1,81 @@
+From 696f28c096c49142290a9a303ae90e6530e3f8ed Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 28 Oct 2020 16:16:27 +0000
+Subject: [PATCH] Add debug output
+
+---
+ ipmbbridged.cpp | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)
+
+diff --git a/ipmbbridged.cpp b/ipmbbridged.cpp
+index d9e91a4..d62224f 100644
+--- a/ipmbbridged.cpp
++++ b/ipmbbridged.cpp
+@@ -26,6 +26,8 @@
+ #include <phosphor-logging/log.hpp>
+ #include <tuple>
+ #include <unordered_map>
++#include <iostream>
++#include <CLI/CLI.hpp>
+ 
+ /**
+  * @brief Dbus
+@@ -34,6 +36,8 @@ static constexpr const char *ipmbBus = "xyz.openbmc_project.Ipmi.Channel.Ipmb";
+ static constexpr const char *ipmbObj = "/xyz/openbmc_project/Ipmi/Channel/Ipmb";
+ static constexpr const char *ipmbDbusIntf = "org.openbmc.Ipmb";
+ 
++bool DEBUG = false;
++
+ boost::asio::io_service io;
+ auto conn = std::make_shared<sdbusplus::asio::connection>(io);
+ 
+@@ -60,6 +64,19 @@ IpmbRequest::IpmbRequest(uint8_t address, uint8_t netFn, uint8_t rsLun,
+     data.reserve(ipmbMaxDataSize);
+     state = ipmbRequestState::invalid;
+ 
++    if (DEBUG)
++    {
++        std::cerr << " >>>> 0x" << std::hex << std::setfill('0') << std::setw(2) << +netFn;
++        std::cerr << std::hex << std::setfill('0') << std::setw(2) << +cmd;
++        for (auto b : inputData)
++        {
++            std::cerr << std::hex << std::setfill('0') << std::setw(2) << +b;
++        }
++        std::cerr << " rqSA:0x" << std::hex << std::setfill('0') << std::setw(2) << +rqSA;
++        std::cerr << "\n";
++    }
++
++
+     if (inputData.size() > 0)
+     {
+         data = std::move(inputData);
+@@ -162,6 +179,18 @@ IpmbResponse::IpmbResponse(uint8_t address, uint8_t netFn, uint8_t rqLun,
+ {
+     data.reserve(ipmbMaxDataSize);
+ 
++    if (DEBUG)
++    {
++        std::cerr << " <<<< 0x" << std::hex << std::setfill('0') << std::setw(2) << +(netFn & 0xfe);
++        std::cerr << std::hex << std::setfill('0') << std::setw(2) << +cmd;
++        for (auto b : inputData)
++        {
++            std::cerr << std::hex << std::setfill('0') << std::setw(2) << +b;
++        }
++        std::cerr << " cc=0x" << std::hex << std::setfill('0') << std::setw(2) << +completionCode;
++        std::cerr << " rsSA=0x" << std::hex << std::setfill('0') << std::setw(2) << +rsSA << "\n";
++    }
++
+     if (inputData.size() > 0)
+     {
+         data = std::move(inputData);
+@@ -964,6 +993,10 @@ void addSendBroadcastHandler()
+  */
+ int main(int argc, char *argv[])
+ {
++    CLI::App app("IPMB (ME) sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     conn->request_name(ipmbBus);
+ 
+     auto server = sdbusplus::asio::object_server(conn);

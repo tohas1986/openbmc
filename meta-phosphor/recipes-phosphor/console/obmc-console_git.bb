@@ -4,45 +4,33 @@ HOMEPAGE = "http://github.com/openbmc/obmc-console"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=fa818a259cbed7ce8bc2a22d35a464fc"
 DEPENDS += "autoconf-archive-native \
-            iniparser \
             systemd \
-            libgpiod \
            "
-SRCREV = "6498f9fa9792ef0c14dab4aca3d38a674f6402cd"
-PACKAGECONFIG ??= "udev ssh"
-PACKAGECONFIG[udev] = "-Dudev=enabled,-Dudev=disabled,udev"
-PACKAGECONFIG[concurrent-servers] = "-Dconcurrent-servers=true,-Dconcurrent-servers=false,"
-PACKAGECONFIG[ssh] = "-Dssh=enabled,-Dssh=disabled"
-EXTRA_OEMESON = "-Dtests=false"
+SRCREV = "ed04991236db13e25bc50cd613c348cd94fe0a83"
+PACKAGECONFIG ??= "udev ${@bb.utils.filter('DISTRO_FEATURES', 'systemd', d)}"
+PACKAGECONFIG[udev] = "--with-udevdir=`pkg-config --variable=udevdir udev`,\
+                       --without-udevdir,udev"
+PACKAGECONFIG[systemd] = "--with-systemdsystemunitdir=${systemd_system_unitdir}, \
+                          --without-systemdsystemunitdir"
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
-SRC_URI = "git://github.com/openbmc/obmc-console;branch=master;protocol=https"
+SRC_URI += "git://github.com/openbmc/obmc-console;branch=master;protocol=https"
 SRC_URI += "file://${BPN}.conf"
-SRC_URI += "file://dropbear.env"
 
 S = "${WORKDIR}/git"
-SYSTEMD_SERVICE:${PN} += " obmc-console@.service"
+SYSTEMD_SERVICE:${PN} += "obmc-console-ssh@.service \
+                obmc-console-ssh.socket \
+                obmc-console@.service \
+                "
 
-# Include ssh service if `ssh` is in PACKAGECONFIG.
-# Only install the ssh socket if we are not enabling
-#   `concurrent-servers` in PACKAGECONFIG.
-SYSTEMD_SERVICE:${PN} += "${@bb.utils.contains('PACKAGECONFIG', 'ssh', 'obmc-console-ssh@.service', '', d)}"
-SSH_SYSTEMD_SOCKET = "${@bb.utils.contains('PACKAGECONFIG', 'ssh', 'obmc-console-ssh.socket', '', d)}"
-SYSTEMD_SERVICE:${PN} += "${@bb.utils.contains('PACKAGECONFIG', 'concurrent-servers', '', '${SSH_SYSTEMD_SOCKET}', d)}"
-
-inherit meson pkgconfig
+inherit autotools pkgconfig
 inherit obmc-phosphor-discovery-service
 inherit systemd
 
 do_install:append() {
         # Install the server configuration
         install -m 0755 -d ${D}${sysconfdir}/${BPN}
-
-        if ${@bb.utils.contains('PACKAGECONFIG', 'ssh', 'true', 'false', d)} ; then
-                install -m 0644 ${WORKDIR}/dropbear.env ${D}${sysconfdir}/${BPN}/
-        fi
-
         # If the OBMC_CONSOLE_TTYS variable is used without the default OBMC_CONSOLE_HOST_TTY
         # the port specific config file should be provided. If it is just OBMC_CONSOLE_HOST_TTY,
         # use the old style which supports both port specific or obmc-console.conf method.
@@ -74,18 +62,18 @@ do_install:append() {
                         # Link the custom configuration to the required location
                         ln -sr ${D}${sysconfdir}/${BPN}.conf ${D}${sysconfdir}/${BPN}/server.${OBMC_CONSOLE_TTYS}.conf
                 else
-                        # Otherwise, remove console-id from the shipped configuration to
+                        # Otherwise, remove socket-id from the shipped configuration to
                         # align with the lack of a client configuration file
-                        sed -ri '/^console-id =/d' ${D}${sysconfdir}/${BPN}/server.${OBMC_CONSOLE_TTYS}.conf
+                        sed -ri '/^socket-id =/d' ${D}${sysconfdir}/${BPN}/server.${OBMC_CONSOLE_TTYS}.conf
                 fi
         fi
 }
 
-FILES:${PN} += "${systemd_system_unitdir}"
+FILES:${PN} += "${systemd_system_unitdir}/obmc-console-ssh@.service.d/use-socket.conf"
 
 TARGET_CFLAGS += "-fpic -O2"
 
-REGISTERED_SERVICES:${PN} += "${@bb.utils.contains('PACKAGECONFIG', 'ssh', 'obmc_console:tcp:2200:', '', d)}"
+REGISTERED_SERVICES:${PN} += "obmc_console:tcp:2200:"
 OBMC_CONSOLE_HOST_TTY ?= "ttyVUART0"
 # Support multiple TTY ports using space separated list.
 # Ex. OBMC_CONSOLE_TTYS = "ttyS1 ttyS2"

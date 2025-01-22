@@ -10,6 +10,7 @@ inherit autotools-brokensep update-alternatives
 DEPENDS += "libtirpc"
 CFLAGS += "-I${STAGING_INCDIR}/tirpc"
 
+PR = "r2"
 
 SRC_URI = "${SOURCEFORGE_MIRROR}/lmbench/lmbench-${PV}.tgz \
            file://lmbench-run \
@@ -98,6 +99,6 @@ pkg_postinst:${PN} () {
 RDEPENDS:${PN} = "perl"
 FILES:${PN} += "${datadir}/lmbench"
 
-ALTERNATIVE:${PN} = "stream hello"
+ALTERNATIVE:${PN} = "stream"
 ALTERNATIVE_LINK_NAME[stream] = "${bindir}/stream"
-ALTERNATIVE_LINK_NAME[hello] = "${bindir}/hello"
+

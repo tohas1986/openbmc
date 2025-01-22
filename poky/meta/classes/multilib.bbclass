@@ -30,9 +30,6 @@ python multilib_virtclass_handler () {
         if val:
             e.data.setVar(name + "_MULTILIB_ORIGINAL", val)
 
-    # We nearly don't need this but dependencies on NON_MULTILIB_RECIPES don't work without it
-    d.setVar("SSTATE_ARCHS_TUNEPKG", "${@all_multilib_tune_values(d, 'TUNE_PKGARCH')}")
-
     overrides = e.data.getVar("OVERRIDES", False)
     pn = e.data.getVar("PN", False)
     overrides = overrides.replace("pn-${PN}", "pn-${PN}:pn-" + pn)
@@ -54,7 +51,6 @@ python multilib_virtclass_handler () {
         e.data.setVar("RECIPE_SYSROOT", "${WORKDIR}/recipe-sysroot")
         e.data.setVar("STAGING_DIR_TARGET", "${WORKDIR}/recipe-sysroot")
         e.data.setVar("STAGING_DIR_HOST", "${WORKDIR}/recipe-sysroot")
-        e.data.setVar("RECIPE_SYSROOT_MANIFEST_SUBDIR", "nativesdk-" + variant)
         e.data.setVar("MLPREFIX", variant + "-")
         override = ":virtclass-multilib-" + variant
         e.data.setVar("OVERRIDES", e.data.getVar("OVERRIDES", False) + override)
@@ -140,7 +136,6 @@ python multilib_virtclass_handler_postkeyexp () {
         return
 
     clsextend.map_depends_variable("DEPENDS")
-    clsextend.map_depends_variable("PACKAGE_WRITE_DEPS")
     clsextend.map_variable("PROVIDES")
 
     if bb.data.inherits_class('cross-canadian', d):

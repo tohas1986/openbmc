@@ -1,0 +1,29 @@
+From e0b057299fc561cb6899b37443a9634f9170bd7a Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 3 Oct 2022 08:25:45 +0000
+Subject: [PATCH] Restart service on sensors restart
+
+---
+ include/sdrutils.hpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/sdrutils.hpp b/include/sdrutils.hpp
+index f5a6f7e..47013cd 100644
+--- a/include/sdrutils.hpp
++++ b/include/sdrutils.hpp
+@@ -234,13 +234,13 @@ inline static uint16_t getSensorSubtree(std::shared_ptr<SensorSubTree>& subtree)
+         dbus,
+         "type='signal',member='InterfacesAdded',arg0path='/xyz/openbmc_project/"
+         "sensors/'",
+-        [](sdbusplus::message_t& m) { sensorTreePtr.reset(); });
++        [](sdbusplus::message_t& m) { exit(0); sensorTreePtr.reset(); });
+ 
+     static sdbusplus::bus::match_t sensorRemoved(
+         dbus,
+         "type='signal',member='InterfacesRemoved',arg0path='/xyz/"
+         "openbmc_project/sensors/'",
+-        [](sdbusplus::message_t& m) { sensorTreePtr.reset(); });
++        [](sdbusplus::message_t& m) { exit(0); sensorTreePtr.reset(); });
+ 
+     if (sensorTreePtr)
+     {

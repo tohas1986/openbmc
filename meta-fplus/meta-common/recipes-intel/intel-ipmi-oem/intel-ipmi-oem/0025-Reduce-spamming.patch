@@ -1,0 +1,31 @@
+From 76f79a35a8fc3d7669cce2ff7d8ee6a9524dad69 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 28 Oct 2022 09:04:03 +0000
+Subject: [PATCH] Reduce spamming
+
+---
+ src/sensorcommands.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/sensorcommands.cpp b/src/sensorcommands.cpp
+index 98b4804..0d57c34 100644
+--- a/src/sensorcommands.cpp
++++ b/src/sensorcommands.cpp
+@@ -141,7 +141,7 @@ static sdbusplus::bus::match_t thresholdChanged(
+             }
+             if (*ptr)
+             {
+-                phosphor::logging::log<phosphor::logging::level::INFO>(
++                phosphor::logging::log<phosphor::logging::level::DEBUG>(
+                     "thresholdChanged: Assert",
+                     phosphor::logging::entry("SENSOR=%s", m.get_path()));
+                 thresholdDeassertMap[m.get_path()][findAssert->first] = *ptr;
+@@ -152,7 +152,7 @@ static sdbusplus::bus::match_t thresholdChanged(
+                     thresholdDeassertMap[m.get_path()][findAssert->first];
+                 if (value)
+                 {
+-                    phosphor::logging::log<phosphor::logging::level::INFO>(
++                    phosphor::logging::log<phosphor::logging::level::DEBUG>(
+                         "thresholdChanged: deassert",
+                         phosphor::logging::entry("SENSOR=%s", m.get_path()));
+                     value = *ptr;

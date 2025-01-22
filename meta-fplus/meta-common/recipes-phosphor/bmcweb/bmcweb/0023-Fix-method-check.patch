@@ -1,0 +1,22 @@
+From 08696124e9ae73016154b631942f63f2fa1309c2 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 20 Dec 2022 13:10:51 +0000
+Subject: [PATCH] Fix method check
+
+---
+ http/routing.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/http/routing.hpp b/http/routing.hpp
+index ed1b7e48..00283524 100644
+--- a/http/routing.hpp
++++ b/http/routing.hpp
+@@ -1267,7 +1267,7 @@ class Router
+         }
+ 
+         if ((rules[ruleIndex]->getMethods() &
+-             (1U << static_cast<size_t>(req.method()))) == 0)
++             static_cast<size_t>(req.method())) == 0)
+         {
+             BMCWEB_LOG_DEBUG << "Rule found but method mismatch: " << req.url
+                              << " with " << req.methodString() << "("

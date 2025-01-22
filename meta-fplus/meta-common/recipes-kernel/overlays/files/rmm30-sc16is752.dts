@@ -1,0 +1,42 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/aspeed-gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	compatible = "aspeed,ast2400";
+	fragment@0 {
+		target-path="/";
+		__overlay__ {
+			status = "okay";
+			sc16is752_clk: sc16is752_clk {
+					compatible = "fixed-clock";
+					#clock-cells = <0>;
+					clock-frequency = <14745600>;
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c1>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			bus-frequency = <400000>;
+			status = "okay";
+			cs16is752@4d {
+				compatible = "nxp,sc16is752";
+				reg = <0x4d>;
+				clocks = <&sc16is752_clk>;
+				interrupt-parent = <&gpio>;
+				interrupts = <ASPEED_GPIO(I, 3) IRQ_TYPE_EDGE_FALLING>;
+				i2c-max-frequency = <400000>;
+				status = "okay";
+				gpio-controller;
+				#gpio-cells = <0>;
+			};
+		};
+	};
+};

@@ -1,0 +1,22 @@
+From 300f2e2ab5d0e531cd2b5695f447aa14a40e074c Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 4 Jun 2020 10:27:46 +0000
+Subject: [PATCH] Enable default NVME sensor
+
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2715c4e..1ebafdd 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -45,7 +45,7 @@ option (DISABLE_INTRUSION "Disable installing intrusion sensor" OFF)
+ option (DISABLE_IPMB "Disable installing IPMB sensor" OFF)
+ option (DISABLE_MCUTEMP "Disable installing MCU temperature sensor" OFF)
+ option (DISABLE_PSU "Disable installing PSU sensor" OFF)
+-option (DISABLE_NVME "Disable installing NVME sensor" ON)
++option (DISABLE_NVME "Disable installing NVME sensor" OFF)
+ 
+ include ("cmake/HunterGate.cmake")
+ 

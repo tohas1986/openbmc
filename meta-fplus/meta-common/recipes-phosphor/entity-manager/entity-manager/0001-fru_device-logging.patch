@@ -1,0 +1,171 @@
+From d66340a69da6019741dc33701250045126fce4e6 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 29 Sep 2022 08:32:18 +0000
+Subject: [PATCH] fru_device logging
+
+- Report bus and address of EEPROM device
+- Introduce -v CLI flag
+- Add processing debug
+
+---
+ src/fru_device.cpp | 23 ++++++++++++++++-------
+ src/fru_utils.cpp  | 10 +++++-----
+ 2 files changed, 21 insertions(+), 12 deletions(-)
+
+diff --git a/src/fru_device.cpp b/src/fru_device.cpp
+index 1e668ba..fe89eba 100644
+--- a/src/fru_device.cpp
++++ b/src/fru_device.cpp
+@@ -21,6 +21,7 @@
+ #include <fcntl.h>
+ #include <sys/inotify.h>
+ #include <sys/ioctl.h>
++#include <CLI/CLI.hpp>
+ 
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/asio/deadline_timer.hpp>
+@@ -59,7 +60,7 @@ extern "C"
+ }
+ 
+ namespace fs = std::filesystem;
+-static constexpr bool debug = false;
++volatile bool DEBUG = false;
+ constexpr size_t maxFruSize = 512;
+ constexpr size_t maxEepromPageIndex = 255;
+ constexpr size_t busTimeoutSeconds = 5;
+@@ -348,6 +349,7 @@ std::set<int> findI2CEeproms(int i2cBus,
+ 
+         // There is an eeprom file at this address, it may have invalid
+         // contents, but we found it.
++        std::cerr << "Found loaded EEPROM Bus:" << +i2cBus << " Addr:0x" << addressString << std::endl;
+         foundList.insert(address);
+ 
+         std::vector<uint8_t> device = processEeprom(i2cBus, address);
+@@ -421,7 +423,7 @@ int getBusFRUs(int file, int first, int last, int bus,
+                 continue;
+             }
+ 
+-            if (debug)
++            if (DEBUG)
+             {
+                 std::cout << "something at bus " << bus << " addr " << ii
+                           << "\n";
+@@ -432,6 +434,7 @@ int getBusFRUs(int file, int first, int last, int bus,
+             if (failedItems.find(ii) != failedItems.end())
+             {
+                 // if we failed to read it once, unlikely we can read it later
++                std::cerr << "Skipping failed device bus:" << bus << " addr " << ii << "\n";
+                 continue;
+             }
+ 
+@@ -468,9 +471,11 @@ int getBusFRUs(int file, int first, int last, int bus,
+             std::vector<uint8_t> device = readFRUContents(reader, errorMessage);
+             if (device.empty())
+             {
++                std::cerr << "Skipping empty device bus:" << bus << " addr " << ii << "\n";
+                 continue;
+             }
+ 
++            std::cerr << "Found EEPROM device bus:" << bus << " addr 0x" << std::hex << std::setfill('0') << std::setw(2) << +ii << "\n";
+             devices->emplace(ii, device);
+             fruAddresses[bus].insert(ii);
+         }
+@@ -499,7 +504,7 @@ void loadBlacklist(const char* path)
+     if (!blacklistStream.good())
+     {
+         // File is optional.
+-        std::cerr << "Cannot open blacklist file.\n\n";
++        if (DEBUG) std::cerr << "Cannot open blacklist file.\n\n";
+         return;
+     }
+ 
+@@ -604,7 +609,7 @@ static void findI2CDevices(const std::vector<fs::path>& i2cBuses,
+         //  i2cdetect by default uses the range 0x03 to 0x77, as
+         //  this is  what we have tested with, use this range. Could be
+         //  changed in future.
+-        if (debug)
++        if (DEBUG)
+         {
+             std::cerr << "Scanning bus " << bus << "\n";
+         }
+@@ -612,7 +617,7 @@ static void findI2CDevices(const std::vector<fs::path>& i2cBuses,
+         // fd is closed in this function in case the bus locks up
+         getBusFRUs(file, 0x03, 0x77, bus, device, powerIsOn, objServer);
+ 
+-        if (debug)
++        if (DEBUG)
+         {
+             std::cerr << "Done scanning bus " << bus << "\n";
+         }
+@@ -780,7 +785,7 @@ void addFruObjectToDbus(
+         {
+             std::cerr << "illegal key: " << key << "\n";
+         }
+-        if (debug)
++        if (DEBUG)
+         {
+             std::cout << property.first << ": " << property.second << "\n";
+         }
+@@ -1246,8 +1251,12 @@ bool updateFRUProperty(
+     return true;
+ }
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++    CLI::App app("FRU EEPROM read service");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     sdbusplus::asio::object_server objServer(systemBus);
+ 
+diff --git a/src/fru_utils.cpp b/src/fru_utils.cpp
+index bfcbdba..51f5963 100644
+--- a/src/fru_utils.cpp
++++ b/src/fru_utils.cpp
+@@ -33,7 +33,7 @@ extern "C"
+ #include <linux/i2c.h>
+ }
+ 
+-static constexpr bool debug = false;
++extern bool DEBUG;
+ constexpr size_t fruVersion = 1; // Current FRU spec version number is 1
+ 
+ std::tm intelEpoch(void)
+@@ -534,7 +534,7 @@ bool validateHeader(const std::array<uint8_t, I2C_SMBUS_BLOCK_MAX>& blockData)
+     // ipmi spec format version number is currently at 1, verify it
+     if (blockData[0] != fruVersion)
+     {
+-        if (debug)
++        if (DEBUG)
+         {
+             std::cerr << "FRU spec version " << (int)(blockData[0])
+                       << " not supported. Supported version is "
+@@ -546,7 +546,7 @@ bool validateHeader(const std::array<uint8_t, I2C_SMBUS_BLOCK_MAX>& blockData)
+     // verify pad is set to 0
+     if (blockData[6] != 0x0)
+     {
+-        if (debug)
++        if (DEBUG)
+         {
+             std::cerr << "PAD value in header is non zero, value is "
+                       << (int)(blockData[6]) << "\n";
+@@ -579,7 +579,7 @@ bool validateHeader(const std::array<uint8_t, I2C_SMBUS_BLOCK_MAX>& blockData)
+ 
+     if (sum != blockData[7])
+     {
+-        if (debug)
++        if (DEBUG)
+         {
+             std::cerr << "Checksum " << (int)(blockData[7])
+                       << " is invalid. calculated checksum is " << (int)(sum)
+@@ -625,7 +625,7 @@ bool findFRUHeader(FRUReader& reader, const std::string& errorHelp,
+         return findFRUHeader(reader, errorHelp, blockData, baseOffset);
+     }
+ 
+-    if (debug)
++    if (DEBUG)
+     {
+         std::cerr << "Illegal header " << errorHelp << " base offset "
+                   << baseOffset << "\n";

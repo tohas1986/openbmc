@@ -1,0 +1,35 @@
+From 969b50f2d6a5c2be2fa976ec39e593e44d834459 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 10 Jan 2022 09:23:33 +0000
+Subject: [PATCH] Change useradd/userdel parameters order
+
+---
+ user_mgr.cpp | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/user_mgr.cpp b/user_mgr.cpp
+index 8fc899f..16cb029 100644
+--- a/user_mgr.cpp
++++ b/user_mgr.cpp
+@@ -322,10 +322,10 @@ void UserMgr::createUser(std::string userName,
+     {
+         // set EXPIRE_DATE to 0 to disable user, PAM takes 0 as expire on
+         // 1970-01-01, that's an implementation-defined behavior
+-        executeCmd("/usr/sbin/useradd", userName.c_str(), "-G", groups.c_str(),
++        executeCmd("/usr/sbin/useradd", "-G", groups.c_str(),
+                    "-m", "-N", "-s",
+                    (sshRequested ? "/bin/sh" : "/bin/nologin"), "-e",
+-                   (enabled ? "" : "1970-01-01"));
++                   (enabled ? "" : "1970-01-01"), userName.c_str());
+     }
+     catch (const InternalFailure& e)
+     {
+@@ -354,7 +354,7 @@ void UserMgr::deleteUser(std::string userName)
+     throwForUserDoesNotExist(userName);
+     try
+     {
+-        executeCmd("/usr/sbin/userdel", userName.c_str(), "-r");
++        executeCmd("/usr/sbin/userdel", "-r", userName.c_str());
+     }
+     catch (const InternalFailure& e)
+     {

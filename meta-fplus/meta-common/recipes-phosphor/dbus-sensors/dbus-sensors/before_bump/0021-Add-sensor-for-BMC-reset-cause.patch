@@ -1,0 +1,200 @@
+From 57929f5c0fbaabda1b14f81d4d56b2925576e665 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 11 Aug 2021 09:04:08 +0000
+Subject: [PATCH] Add sensor for BMC reset cause
+
+%% original patch: 0021-Add-sensor-for-BMC-reset-cause.patch
+---
+ meson_options.txt                                  |   1 +
+ service_files/meson.build                          |   1 +
+ ...xyz.openbmc_project.bmcresetcausesensor.service |  13 +++
+ src/BMCResetCauseMain.cpp                          | 109 +++++++++++++++++++++
+ src/meson.build                                    |  18 ++++
+ 5 files changed, 142 insertions(+)
+ create mode 100644 service_files/xyz.openbmc_project.bmcresetcausesensor.service
+ create mode 100644 src/BMCResetCauseMain.cpp
+
+diff --git a/meson_options.txt b/meson_options.txt
+index 1a9dda9..d4e5d44 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -15,3 +15,4 @@ option('health', type: 'feature', value: 'enabled', description: 'BMC Health sen
+ option('sysfs', type: 'feature', value: 'enabled', description: 'Enable sysfs generic sensor.',)
+ option('gpu', type: 'feature', value: 'enabled', description: 'Enable GPU SMBPBI sensor.',)
+ option('i2c', type: 'feature', value: 'enabled', description: 'Enable I2C bus state sensor.',)
++option('bmcresetcause', type: 'feature', value: 'enabled', description: 'Enable BMC reset cause sensor.',)
+diff --git a/service_files/meson.build b/service_files/meson.build
+index db8bf2f..2377eb6 100644
+--- a/service_files/meson.build
++++ b/service_files/meson.build
+@@ -15,6 +15,7 @@ unit_files = [
+     ['sysfs', 'xyz.openbmc_project.sysfssensor.service'],
+     ['gpu', 'xyz.openbmc_project.gpusensor.service'],
+     ['i2c', 'xyz.openbmc_project.i2csensor.service'],
++    ['bmcresetcause', 'xyz.openbmc_project.bmcresetcausesensor.service']
+ ]
+ 
+ foreach tuple : unit_files
+diff --git a/service_files/xyz.openbmc_project.bmcresetcausesensor.service b/service_files/xyz.openbmc_project.bmcresetcausesensor.service
+new file mode 100644
+index 0000000..4b6ef09
+--- /dev/null
++++ b/service_files/xyz.openbmc_project.bmcresetcausesensor.service
+@@ -0,0 +1,13 @@
++[Unit]
++Description=BMC reset cause Sensor
++StopWhenUnneeded=false
++Requires=xyz.openbmc_project.EntityManager.service
++After=xyz.openbmc_project.EntityManager.service
++
++[Service]
++Restart=always
++RestartSec=5
++ExecStart=/usr/bin/bmcresetcausesensor
++
++[Install]
++WantedBy=multi-user.target
+diff --git a/src/BMCResetCauseMain.cpp b/src/BMCResetCauseMain.cpp
+new file mode 100644
+index 0000000..e70f2e0
+--- /dev/null
++++ b/src/BMCResetCauseMain.cpp
+@@ -0,0 +1,109 @@
++/*
++// Copyright (c) 2021 Yandex LLC
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#include <Utils.hpp>
++#include <boost/algorithm/string/predicate.hpp>
++#include <boost/container/flat_map.hpp>
++#include <boost/asio/steady_timer.hpp>
++#include <boost/asio.hpp>
++#include <boost/algorithm/string.hpp>
++#include <chrono>
++#include <ctime>
++#include <regex>
++#include <iostream>
++#include <ios>
++#include <sdbusplus/asio/connection.hpp>
++#include <sdbusplus/asio/object_server.hpp>
++#include <sdbusplus/asio/sd_event.hpp>
++#include <sdbusplus/bus.hpp>
++#include <sdbusplus/exception.hpp>
++#include <sdbusplus/server.hpp>
++#include <sdbusplus/timer.hpp>
++#include <sensor.hpp>
++#include <systemd/sd-journal.h>
++#include <sys/mman.h>
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++
++#include <CLI/CLI.hpp>
++bool DEBUG = false;
++
++int get_reset_cause(void)
++{
++    int rc = -1;
++
++    std::ifstream fileCmdline("/proc/cmdline");
++    if (!fileCmdline.is_open())
++        {
++            std::cerr << "/proc/cmdline file not available\n";
++            return -1;
++        }
++    std::string cmdline;
++    std::getline(fileCmdline, cmdline);
++    fileCmdline.close();
++
++    std::regex regex(".*resetreason=(\\w+).*");
++    std::smatch match;
++
++    if (std::regex_search(cmdline, match, regex))
++    {
++        const std::string s = boost::algorithm::to_lower_copy(std::string(match[1]));
++        rc = std::stoi(s, 0, 16);
++        if (s != "0x0" && s != "0x00" && rc == 0)
++        {
++            rc = -1;
++        }
++        if (DEBUG) std::cerr << "Match found:" << s << "(" << +rc << ")\n";
++    }
++
++    return rc;
++}
++
++boost::asio::io_service io;
++
++int main(int argc, char* argv[])
++{
++    CLI::App app("BMC reset cause sensors");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
++    auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
++    auto objServer = sdbusplus::asio::object_server(systemBus);
++
++    // setup object server, define interface
++    systemBus->request_name("xyz.openbmc_project.BMCResetCauseSensor");
++
++    std::string sensorPath = "/xyz/openbmc_project/sensors/bmc/BMC_RESET_CAUSE";
++
++    // add interface into sensor tree
++    std::shared_ptr<sdbusplus::asio::dbus_interface> iface =
++        objServer.add_interface(sensorPath, sensorValueInterface);
++
++    double cause = get_reset_cause();
++    if (cause == -1)
++    {
++        cause = std::numeric_limits<double>::quiet_NaN();
++    }
++
++    iface->register_property("Value", cause);
++    iface->initialize();
++
++    io.run();
++
++    return 0;
++}
+diff --git a/src/meson.build b/src/meson.build
+index 8f6f39e..ff9e191 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -303,3 +303,21 @@ if get_option('i2c').enabled()
+         ],
+     )
+ endif
++
++if get_option('bmcresetcause').enabled()
++    executable(
++        'bmcresetcausesensor',
++        'BMCResetCauseMain.cpp',
++        dependencies: [
++            sdbusplus,
++            gpiodcxx,
++        ],
++        implicit_include_directories: false,
++        include_directories: '../include',
++        install: true,
++        link_with: [
++            thresholds_a,
++            utils_a,
++        ],
++    )
++endif
+-- 
+2.7.4
+

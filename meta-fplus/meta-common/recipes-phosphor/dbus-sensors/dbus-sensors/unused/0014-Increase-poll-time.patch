@@ -1,0 +1,22 @@
+From 9a779b9487f88a440696d9ed3da6d1b3568017e2 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 20 Jul 2020 07:58:24 +0000
+Subject: [PATCH] Increase poll time
+
+---
+ include/PSUSensor.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/PSUSensor.hpp b/include/PSUSensor.hpp
+index 23c3853..644eede 100644
+--- a/include/PSUSensor.hpp
++++ b/include/PSUSensor.hpp
+@@ -141,7 +141,7 @@ class PSUSensor : public Sensor, public std::enable_shared_from_this<PSUSensor>
+     void updateMinMaxValues(void);
+ 
+     int fd;
+-    static constexpr unsigned int sensorPollMs = 1000;
++    static constexpr unsigned int sensorPollMs = 5000;
+     static constexpr unsigned int gpioBridgeEnableMs = 100;
+     static constexpr size_t warnAfterErrorCount = 10;
+ };

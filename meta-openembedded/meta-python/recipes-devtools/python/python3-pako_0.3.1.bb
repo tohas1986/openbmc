@@ -11,10 +11,3 @@ do_install:append() {
   rm -rf ${D}${prefix}/pako/LICENSE
   rm -rf ${D}${prefix}/pako
 }
-
-RDEPENDS:${PN} += " \
-    python3-appdirs \
-    python3-io \
-    python3-json \
-    python3-logging \
-"

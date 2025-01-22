@@ -1,0 +1,121 @@
+From 37c1e9c9c7a78013364fd4a9912153a212ca485f Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Mon, 5 Apr 2021 10:03:08 +0000
+Subject: [PATCH] fansensor-add-debug
+
+---
+ src/FanMain.cpp    | 20 +++++++++++++++++---
+ src/TachSensor.cpp |  9 +++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/src/FanMain.cpp b/src/FanMain.cpp
+index e04bdb2..cec2230 100644
+--- a/src/FanMain.cpp
++++ b/src/FanMain.cpp
+@@ -39,7 +39,10 @@
+ #include <variant>
+ #include <vector>
+ 
+-static constexpr bool debug = false;
++#include <CLI/CLI.hpp>
++
++//static constexpr bool debug = false;
++bool DEBUG = false;
+ 
+ namespace fs = std::filesystem;
+ 
+@@ -69,18 +72,22 @@ std::optional<RedundancySensor> systemRedundancy;
+ 
+ FanTypes getFanType(const fs::path& parentPath)
+ {
++    if (DEBUG) std::cerr << __FUNCTION__ << " path:" << parentPath << "\n";
+     fs::path linkPath = parentPath / "device";
+     std::string canonical = fs::read_symlink(linkPath);
+     if (boost::ends_with(canonical, "1e786000.pwm-tacho-controller") ||
+         boost::ends_with(canonical, "1e610000.pwm-tacho-controller"))
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << " Aspeed found\n";
+         return FanTypes::aspeed;
+     }
+     if (boost::ends_with(canonical, "f0103000.pwm-fan-controller"))
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << " Nuvoton found\n";
+         return FanTypes::nuvoton;
+     }
+     // todo: will we need to support other types?
++    if (DEBUG) std::cerr << __FUNCTION__ << " I2C found\n";
+     return FanTypes::i2c;
+ }
+ 
+@@ -164,11 +171,13 @@ void createSensors(
+             // configuration
+             for (const auto& path : paths)
+             {
++                if (DEBUG) std::cerr << __FUNCTION__ << " Checking path:" << path << "\n";
+                 std::smatch match;
+                 std::string pathStr = path.string();
+ 
+                 std::regex_search(pathStr, match, inputRegex);
+                 std::string indexStr = *(match.begin() + 1);
++                if (DEBUG) std::cerr << __FUNCTION__ << " indexStr:" << indexStr << "\n";
+ 
+                 fs::path directory = path.parent_path();
+                 FanTypes fanType = getFanType(directory);
+@@ -180,6 +189,7 @@ void createSensors(
+                 const SensorData* sensorData = nullptr;
+                 const std::string* interfacePath = nullptr;
+                 const SensorBaseConfiguration* baseConfiguration = nullptr;
++                if (DEBUG) std::cerr << __FUNCTION__ << " path:" << path << " index:" << +index << " indexStr:" << indexStr << "\n";
+                 for (const std::pair<sdbusplus::message::object_path,
+                                      SensorData>& sensor : sensorConfigurations)
+                 {
+@@ -343,7 +353,7 @@ void createSensors(
+                     redundancy = &systemRedundancy;
+                 }
+ 
+-                PowerState powerState = PowerState::on;
++                PowerState powerState = PowerState::always;
+                 auto findPower = baseConfiguration->second.find("PowerState");
+                 if (findPower != baseConfiguration->second.end())
+                 {
+@@ -435,8 +445,12 @@ void createSensors(
+         retries);
+ }
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++    CLI::App app("Fan sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     systemBus->request_name("xyz.openbmc_project.FanSensor");
+diff --git a/src/TachSensor.cpp b/src/TachSensor.cpp
+index 6c6ddf5..6c9866c 100644
+--- a/src/TachSensor.cpp
++++ b/src/TachSensor.cpp
+@@ -39,6 +39,7 @@
+ 
+ static constexpr unsigned int pwmPollMs = 500;
+ static constexpr size_t warnAfterErrorCount = 10;
++extern bool DEBUG;
+ 
+ TachSensor::TachSensor(const std::string& path, const std::string& objectType,
+                        sdbusplus::asio::object_server& objectServer,
+@@ -59,6 +60,14 @@ TachSensor::TachSensor(const std::string& path, const std::string& objectType,
+     inputDev(io, open(path.c_str(), O_RDONLY)), waitTimer(io), path(path),
+     led(ledIn)
+ {
++
++    if (DEBUG)
++    {   
++        std::cerr << "Constructed sensor: path " << path << " type "
++                  << objectType << " config " << sensorConfiguration
++                  << " name \"" << fanName << "\n";
++    }
++
+     sensorInterface = objectServer.add_interface(
+         "/xyz/openbmc_project/sensors/fan_tach/" + name,
+         "xyz.openbmc_project.Sensor.Value");

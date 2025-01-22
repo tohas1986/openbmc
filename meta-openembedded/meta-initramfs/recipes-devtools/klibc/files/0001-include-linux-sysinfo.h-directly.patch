@@ -12,8 +12,6 @@ override to avoid this assumption
 Signed-off-by: Khem Raj <raj.khem@gmail.com>
 
 ---
-Upstream-Status: Pending
-
  usr/include/sys/sysinfo.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 

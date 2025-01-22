@@ -10,20 +10,21 @@ DEPENDS += "libunwind"
 
 SRC_URI = "git://github.com/ianlancetaylor/libbacktrace;protocol=https;branch=master"
 
-PV = "1.0+git"
-SRCREV = "9ae4f4ae4481b1e69d38ed810980d33103544613"
+PV = "1.0+git${SRCPV}"
+SRCREV = "4f57c999716847e45505b3df170150876b545088"
 
 S = "${WORKDIR}/git"
 
 inherit autotools
 
-EXTRA_OECONF += "--with-system-libunwind --enable-shared --disable-static"
+EXTR_OECONF += "--with-system-libunwind"
+
+CFLAGS += "-fPIC"
 
 do_configure() {
     oe_runconf
 }
 
-RDEPENDS:${PN}-dev = ""
-
-# libunwind does not support RISCV32 yet
+# libunwind does not support RISCV yet
+COMPATIBLE_HOST:riscv64 = "null"
 COMPATIBLE_HOST:riscv32 = "null"

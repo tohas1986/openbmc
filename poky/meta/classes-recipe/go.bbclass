@@ -37,7 +37,7 @@ GOMIPS:mips:class-target[export] = "1"
 
 DEPENDS_GOLANG:class-target = "virtual/${TUNE_PKGARCH}-go virtual/${TARGET_PREFIX}go-runtime"
 DEPENDS_GOLANG:class-native = "go-native"
-DEPENDS_GOLANG:class-nativesdk = "virtual/${TARGET_PREFIX}go virtual/${TARGET_PREFIX}go-runtime"
+DEPENDS_GOLANG:class-nativesdk = "virtual/${TARGET_PREFIX}go-crosssdk virtual/${TARGET_PREFIX}go-runtime"
 
 DEPENDS:append = " ${DEPENDS_GOLANG}"
 
@@ -78,7 +78,6 @@ GO_INSTALL_FILTEROUT ?= "${GO_IMPORT}/vendor/"
 B = "${WORKDIR}/build"
 export GOPATH = "${B}"
 export GOENV = "off"
-export GOPROXY ??= "https://proxy.golang.org,direct"
 export GOTMPDIR ?= "${WORKDIR}/build-tmp"
 GOTMPDIR[vardepvalue] = ""
 
@@ -133,7 +132,7 @@ go_do_install() {
 	tar -C ${B} -cf - --exclude-vcs --exclude '*.test' --exclude 'testdata' pkg | \
 		tar -C ${D}${libdir}/go --no-same-owner -xf -
 
-	if ls ${B}/${GO_BUILD_BINDIR}/* >/dev/null 2>/dev/null ; then
+	if [ -n "`ls ${B}/${GO_BUILD_BINDIR}/`" ]; then
 		install -d ${D}${bindir}
 		install -m 0755 ${B}/${GO_BUILD_BINDIR}/* ${D}${bindir}/
 	fi

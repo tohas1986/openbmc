@@ -1,0 +1,37 @@
+From c59d5f0e819a293df1efcc967f53d36a37c23902 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 17 Dec 2021 07:14:49 +0000
+Subject: [PATCH] Remove Intel OEM (NodeManager) SDR record from output of
+ ipmitool sdr
+
+---
+ include/storagecommands.hpp | 2 +-
+ src/sensorcommands.cpp      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/storagecommands.hpp b/include/storagecommands.hpp
+index 42cc85b..9ce0e12 100644
+--- a/include/storagecommands.hpp
++++ b/include/storagecommands.hpp
+@@ -157,7 +157,7 @@ namespace ipmi
+ namespace storage
+ {
+ 
+-constexpr const size_t nmDiscoverySDRCount = 1;
++constexpr const size_t nmDiscoverySDRCount = 0;
+ constexpr const size_t type12Count = 2;
+ ipmi_ret_t getFruSdrs(ipmi::Context::ptr ctx, size_t index,
+                       get_sdr::SensorDataFruRecord& resp);
+diff --git a/src/sensorcommands.cpp b/src/sensorcommands.cpp
+index f02d081..1875d99 100644
+--- a/src/sensorcommands.cpp
++++ b/src/sensorcommands.cpp
+@@ -1230,7 +1230,7 @@ static int getSensorDataRecord(ipmi::Context::ptr ctx,
+         size_t fruIndex = recordID - getNumberOfSensors();
+         size_t type12End = fruCount + ipmi::storage::type12Count;
+ 
+-        if (fruIndex >= type12End)
++        if (fruIndex >= type12End && ipmi::storage::nmDiscoverySDRCount != 0)
+         {
+             // NM discovery SDR
+             size_t nmDiscoveryIndex = fruIndex - type12End;

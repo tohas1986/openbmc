@@ -152,7 +152,6 @@ python systemd_populate_packages() {
     def systemd_check_services():
         searchpaths = [oe.path.join(d.getVar("sysconfdir"), "systemd", "system"),]
         searchpaths.append(d.getVar("systemd_system_unitdir"))
-        searchpaths.append(d.getVar("systemd_user_unitdir"))
         systemd_packages = d.getVar('SYSTEMD_PACKAGES')
 
         keys = 'Also'
@@ -170,7 +169,7 @@ python systemd_populate_packages() {
                     base = service[:at] + '@' + service[ext:]
 
                 for path in searchpaths:
-                    if os.path.lexists(oe.path.join(d.getVar("D"), path, service)):
+                    if os.path.exists(oe.path.join(d.getVar("D"), path, service)):
                         path_found = path
                         break
                     elif base is not None:
@@ -206,7 +205,7 @@ python systemd_populate_packages() {
         systemd_check_services()
 }
 
-PACKAGESPLITFUNCS =+ "systemd_populate_packages"
+PACKAGESPLITFUNCS:prepend = "systemd_populate_packages "
 
 python rm_systemd_unitdir (){
     import shutil

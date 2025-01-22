@@ -2,8 +2,6 @@ require ${BPN}.inc
 
 DEPENDS = "zlib-native jpeg-native libpng-native libxext-native libxft-native"
 
-SRC_URI += "file://fltk-native-link-libdl.patch"
-
 inherit native
 
 EXTRA_OECMAKE += " \
@@ -16,6 +14,9 @@ EXTRA_OECMAKE += " \
     -DOPTION_USE_XFIXES=OFF \
     -DOPTION_USE_XCURSOR=OFF \
 "
+
+# lib/libfltk.a(Fl_Native_File_Chooser.cxx.o): undefined reference to symbol 'dlsym@@GLIBC_2.2.5'
+LDFLAGS += "-ldl"
 
 do_install:append() {
     # make sure native fltk-config is not used accidentaly

@@ -1,0 +1,17 @@
+[Unit]
+Description=OpenBMC Fan Control Daemon
+Requires=multi-user.target
+Wants=xyz.openbmc_project.Chassis.Control.Power.service
+After=xyz.openbmc_project.Chassis.Control.Power.service
+Wants=xyz.openbmc_project.EntityManager.service
+After=xyz.openbmc_project.EntityManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/swampd
+Restart=always
+RestartSec=5
+StartLimitInterval=0
+
+[Install]
+WantedBy=basic.target

@@ -1,7 +1,5 @@
 DISTROOVERRIDES .= ":facebook"
 
-require conf/distro/include/phosphor-no-webui.inc
-
 MACHINE_FEATURES += "\
         obmc-bmc-state-mgmt \
         obmc-phosphor-fan-mgmt \
@@ -21,10 +19,3 @@ IMAGE_FEATURES:append = " allow-root-login"
 
 # Most of our hardware uses the default ttyS4 but at 57600.
 SERIAL_CONSOLES:facebook = "57600;ttyS4"
-
-OBMC_ORG_YAML_SUBDIRS:append:facebook = " com/meta"
-
-# Remove some common features we have no use for.
-DISTRO_FEATURES:remove = "avahi"
-DISTRO_FEATURES:remove = "ldap"
-DISTRO_FEATURES:remove = "slp"

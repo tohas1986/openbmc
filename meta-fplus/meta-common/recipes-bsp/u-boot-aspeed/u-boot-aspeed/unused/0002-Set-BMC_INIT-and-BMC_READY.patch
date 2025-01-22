@@ -1,0 +1,44 @@
+From 6b7529d1fff16df0717659523f98846d1ef6c0a6 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 6 Nov 2020 11:02:53 +0000
+Subject: [PATCH] Set BMC_INIT and BMC_READY
+
+
+---
+ board/aspeed/ast-g5/ast-g5.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index c712f32..5f78d2c 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -15,11 +15,29 @@
+ #include <asm/io.h>
+ 
+ DECLARE_GLOBAL_DATA_PTR;
++/*--------------------------------------------------------------------
++ * @fn set_bmc_init_gpio
++ * @brief Pull low BMC_INIT GPIO line (GPIOE1)
++ *        Pull high BMC_READY GPIO line (GPIOE2)
++ * Author Kitsok
++ *--------------------------------------------------------------------*/
++void set_bmc_gpios(void)
++{
++	puts("BMC_INIT  -> 0\n");
++	puts("BMC_READY -> 1\n");
++	/* First set data register, then direction */
++	*(volatile ulong *)(0x1E780020) &= 0xfffffffd;
++	*(volatile ulong *)(0x1E780020) |= 0x00000004;
++	*(volatile ulong *)(0x1E780024) |= 0x00000006;
++}
+ 
+ int board_init(void)
+ {
+ 	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
+ 	gd->flags = 0;
++#ifdef MACHINE_ai1
++	set_bmc_gpios();
++#endif
+ 
+ 	return 0;
+ }

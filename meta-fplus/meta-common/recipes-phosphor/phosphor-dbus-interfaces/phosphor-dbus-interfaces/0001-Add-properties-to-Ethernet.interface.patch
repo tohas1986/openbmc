@@ -1,0 +1,36 @@
+From fd5fea7eea9b1e04068210e143ce001c7b2f1e60 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 18 Jun 2020 13:55:03 +0000
+Subject: [PATCH 1/1] Add properties to Ethernet.interface
+
+---
+ .../Inventory/Item/Ethernet.interface.yaml              | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/yaml/xyz/openbmc_project/Inventory/Item/Ethernet.interface.yaml b/yaml/xyz/openbmc_project/Inventory/Item/Ethernet.interface.yaml
+index 365fa33..e079fce 100644
+--- a/yaml/xyz/openbmc_project/Inventory/Item/Ethernet.interface.yaml
++++ b/yaml/xyz/openbmc_project/Inventory/Item/Ethernet.interface.yaml
+@@ -1,2 +1,19 @@
+ description: >
+     Implement to provide Ethernet card attributes.
++properties:
++    - name: nicMACAddress
++      type: string
++      description: >
++          MAC address of the item
++    - name: nicManufacturerID
++      type: string
++      description: >
++          The manufacturer ID of this NIC module.
++    - name: nicVendorID
++      type: string
++      description: >
++          The vendor ID of this NIC.
++    - name: nicProductID
++      type: string
++      description: >
++          The product ID of this NIC.
+-- 
+2.7.4
+

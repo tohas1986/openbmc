@@ -1,0 +1,299 @@
+From 971a4d3591b5d845271a934b7a99ad73671dae6b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 1 Feb 2022 08:46:21 +0000
+Subject: [PATCH] Implement TPM parsing
+
+---
+ CMakeLists.txt           |   2 +-
+ include/mdrv2.hpp        |   2 +
+ include/smbios_mdrv2.hpp |   4 ++
+ include/tpm.hpp          |  81 ++++++++++++++++++++++++++++
+ src/mdrv2.cpp            |  14 +++++
+ src/tpm.cpp              | 110 +++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 212 insertions(+), 1 deletion(-)
+ create mode 100644 include/tpm.hpp
+ create mode 100644 src/tpm.cpp
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 80f91a7..d884351 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -40,7 +40,7 @@ add_definitions (-DBOOST_NO_TYPEID)
+ add_definitions (-DBOOST_ASIO_DISABLE_THREADS)
+ 
+ set (SRC_FILES src/mdrv2.cpp src/mdrv2_main.cpp src/cpu.cpp src/dimm.cpp
+-     src/system.cpp src/pcieslot.cpp src/nic.cpp src/drive.cpp)
++     src/system.cpp src/pcieslot.cpp src/nic.cpp src/drive.cpp src/tpm.cpp)
+ 
+ include_directories (${CMAKE_CURRENT_BINARY_DIR})
+ 
+diff --git a/include/mdrv2.hpp b/include/mdrv2.hpp
+index 857857d..9e0e2a8 100644
+--- a/include/mdrv2.hpp
++++ b/include/mdrv2.hpp
+@@ -22,6 +22,7 @@
+ #include "system.hpp"
+ #include "nic.hpp"
+ #include "drive.hpp"
++#include "tpm.hpp"
+ 
+ #include <sys/stat.h>
+ #include <sys/types.h>
+@@ -148,6 +149,7 @@ class MDR_V2 :
+     std::unique_ptr<System> system;
+     std::vector<std::unique_ptr<NIC>> nics;
+     std::vector<std::unique_ptr<Drive>> drives;
++    std::vector<std::unique_ptr<TPM>> tpms;
+     std::shared_ptr<sdbusplus::asio::dbus_interface> smbiosInterface;
+ };
+ 
+diff --git a/include/smbios_mdrv2.hpp b/include/smbios_mdrv2.hpp
+index 3452e51..68661d0 100644
+--- a/include/smbios_mdrv2.hpp
++++ b/include/smbios_mdrv2.hpp
+@@ -177,6 +177,9 @@ static constexpr const char* nicPath =
+ static constexpr const char* drivePath =
+     "/xyz/openbmc_project/inventory/system/chassis/motherboard/drive";
+ 
++static constexpr const char* tpmPath =
++    "/xyz/openbmc_project/inventory/system/chassis/motherboard/tpm";
++
+ typedef enum
+ {
+     biosType = 0,
+@@ -197,6 +200,7 @@ typedef enum
+     systemEventLogType = 15,
+     physicalMemoryArrayType = 16,
+     memoryDeviceType = 17,
++    tpmType = 43,
+     oemNICTypeAsus = 80,
+     oemDriveType = 129,
+     oemNICTypeGBT = 131,
+diff --git a/include/tpm.hpp b/include/tpm.hpp
+new file mode 100644
+index 0000000..a998174
+--- /dev/null
++++ b/include/tpm.hpp
+@@ -0,0 +1,81 @@
++/*
++// Copyright (c) 2018 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#pragma once
++#include <iostream>
++
++#include "smbios_mdrv2.hpp"
++
++#include <xyz/openbmc_project/Inventory/Item/Tpm/server.hpp>
++
++namespace phosphor
++{
++
++namespace smbios
++{
++
++class TPM:
++    sdbusplus::server::object::object<
++        sdbusplus::xyz::openbmc_project::Inventory::Item::server::Tpm>
++{
++  public:
++    TPM() = delete;
++    ~TPM() = default;
++    TPM(const TPM&) = delete;
++    TPM& operator=(const TPM&) = delete;
++    TPM(TPM&&) = default;
++    TPM& operator=(TPM&&) = default;
++
++    TPM(sdbusplus::bus::bus& bus, const std::string& objPath, uint8_t index, uint8_t* smbiosTableStorage) :
++        sdbusplus::server::object::object<sdbusplus::xyz::openbmc_project::Inventory::Item::server::Tpm>(
++            bus, objPath.c_str()),
++        storage(smbiosTableStorage), index(index)
++    {
++        tpmInfoUpdate();
++    }
++
++    void tpmInfoUpdate();
++
++    bool        tpmIsPresent(bool value);
++    std::string tpmSpecificationVersion(std::string value);
++    std::string tpmFirmwareVersion(std::string value);
++    std::string tpmVendorName(std::string value);
++    std::string tpmVendorId(std::string value);
++
++  private:
++    uint8_t  index;
++    uint8_t* storage;
++
++    struct TPMInfo
++    {
++        uint8_t type;
++        uint8_t length;
++        uint16_t handle;
++
++        char     vendorID[4];
++        uint8_t  specMajor;
++        uint8_t  specMinor;
++        uint8_t  fwVer1[4];
++        uint32_t fwVer2;
++        uint8_t  strDescription;
++        uint64_t chars;
++        uint16_t oem;
++    } __attribute__((packed));
++};
++
++} // namespace smbios
++
++} // namespace phosphor
+diff --git a/src/mdrv2.cpp b/src/mdrv2.cpp
+index 69bb57e..a474c32 100644
+--- a/src/mdrv2.cpp
++++ b/src/mdrv2.cpp
+@@ -507,6 +507,20 @@ void MDR_V2::systemInfoUpdate()
+         drives.emplace_back(std::make_unique<phosphor::smbios::Drive>(
+             bus, path, index, smbiosDir.dir[smbiosDirIndex].dataStorage));
+     }
++
++    tpms.clear();
++    num = getRecordsNumByType(tpmType);
++    if (num == -1)
++    {
++        std::cerr << __FUNCTION__ << " get TPM record failed\n";
++    }
++
++    for (int index = 0; index < num; index++)
++    {
++        std::string path = tpmPath + std::to_string(index);
++        tpms.emplace_back(std::make_unique<phosphor::smbios::TPM>(
++            bus, path, index, smbiosDir.dir[smbiosDirIndex].dataStorage));
++    }
+ }
+ 
+ int MDR_V2::getTotalCpuSlot()
+diff --git a/src/tpm.cpp b/src/tpm.cpp
+new file mode 100644
+index 0000000..3e8d23f
+--- /dev/null
++++ b/src/tpm.cpp
+@@ -0,0 +1,110 @@
++/*
++// Copyright (c) 2018 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#include "tpm.hpp"
++
++#include <map>
++#include <sstream>
++#include <iostream>
++#include <iomanip>
++
++extern bool DEBUG;
++
++namespace phosphor
++{
++namespace smbios
++{
++
++bool TPM::tpmIsPresent(bool value)
++{
++    return sdbusplus::xyz::openbmc_project::Inventory::Item::server::Tpm::isPresent(value);
++}
++
++std::string TPM::tpmSpecificationVersion(std::string value)
++{
++    return sdbusplus::xyz::openbmc_project::Inventory::Item::server::Tpm::specificationVersion(value);
++}
++
++std::string TPM::tpmFirmwareVersion(std::string value)
++{
++    return sdbusplus::xyz::openbmc_project::Inventory::Item::server::Tpm::firmwareVersion(value);
++}
++
++std::string TPM::tpmVendorName(std::string value)
++{
++    return sdbusplus::xyz::openbmc_project::Inventory::Item::server::Tpm::vendorName(value);
++}
++
++std::string TPM::tpmVendorId(std::string value)
++{
++    return sdbusplus::xyz::openbmc_project::Inventory::Item::server::Tpm::vendorId(value);
++}
++
++void TPM::tpmInfoUpdate()
++{
++    uint8_t* dataIn = storage;
++
++    dataIn = getSMBIOSTypePtr(dataIn, tpmType);
++    if (dataIn == nullptr)
++    {
++        return;
++    }
++
++    auto tpmInfo = reinterpret_cast<struct TPMInfo*>(dataIn);
++
++    std::string Description = positionToString(tpmInfo->strDescription, tpmInfo->length, dataIn);
++    std::string vendorId(tpmInfo->vendorID);
++
++    std::stringstream ssSpecification;
++    ssSpecification << +tpmInfo->specMajor << "." << +tpmInfo->specMinor;
++
++    std::stringstream ssFirmwareVersion;
++    if (tpmInfo->specMajor == 0x01)
++    {
++       ssFirmwareVersion << +tpmInfo->fwVer1[2] << "." << +tpmInfo->fwVer1[3];
++    }
++
++    if (tpmInfo->specMajor == 0x02)
++    {
++        uint16_t major = tpmInfo->fwVer1[2] + (tpmInfo->fwVer1[3] << 8) ;
++        uint16_t minor = tpmInfo->fwVer1[0] + (tpmInfo->fwVer1[1] << 8) ;
++        ssFirmwareVersion << +major << "." << +minor;
++    }
++
++    tpmIsPresent(true);
++    tpmSpecificationVersion(ssSpecification.str());
++    tpmFirmwareVersion(ssFirmwareVersion.str());
++    tpmVendorName(Description);
++    tpmVendorId(vendorId);
++
++    if (DEBUG)
++    {
++        std::stringstream ss;
++        for (uint8_t i = 0; i<32; i++)
++        {
++            ss << std::hex << std::setfill('0') << std::setw(2) << +(*(dataIn + i)) << " ";
++        }
++
++        std::cerr << __FUNCTION__ << " HEX dump:0x" << ss.str() << "\n";
++        std::cerr << __FUNCTION__ << " Description:" << Description << "\n";
++        std::cerr << __FUNCTION__ << " VendorID:" << vendorId << "\n";
++        std::cerr << __FUNCTION__ << " Specification:" << ssSpecification.str() << "\n";
++        std::cerr << __FUNCTION__ << " firmwareVersion:" << ssFirmwareVersion.str() << "\n";
++    }
++}
++
++} // namespace smbios
++} // namespace phosphor

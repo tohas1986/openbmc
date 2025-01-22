@@ -1,0 +1,32 @@
+From 4ef79d3f4af171bfb136bd807374f9bee767a62f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 16 Feb 2022 13:12:06 +0000
+Subject: [PATCH] Append a random number after the original version hash
+
+---
+ image_manager.cpp | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/image_manager.cpp b/image_manager.cpp
+index 604b952..759c1bb 100644
+--- a/image_manager.cpp
++++ b/image_manager.cpp
+@@ -15,6 +15,7 @@
+ #include <phosphor-logging/elog.hpp>
+ #include <phosphor-logging/lg2.hpp>
+ #include <xyz/openbmc_project/Software/Image/error.hpp>
++#include <time.h>
+ 
+ #include <algorithm>
+ #include <cstring>
+@@ -191,6 +192,10 @@ int Manager::processImage(const std::string& tarFilePath)
+     // Compute id
+     auto salt = std::to_string(randomGen());
+     auto id = Version::getId(version + salt);
++    // Append a random number after the original version hash
++    // This will allow forcing image update onto the same version
++    srand(time(NULL));
++    id = id + "_" + std::to_string(rand());
+ 
+     fs::path imageDirPath = std::string{IMG_UPLOAD_DIR};
+     imageDirPath /= id;

@@ -18,7 +18,7 @@ python() {
 
 python write_package_manifest() {
     # Get list of installed packages
-    license_image_dir = d.expand('${LICENSE_DIRECTORY}/${SSTATE_PKGARCH}/${IMAGE_NAME}')
+    license_image_dir = d.expand('${LICENSE_DIRECTORY}/${IMAGE_NAME}')
     bb.utils.mkdirhier(license_image_dir)
     from oe.rootfs import image_list_installed_packages
     from oe.utils import format_pkg_list
@@ -49,7 +49,7 @@ python license_create_manifest() {
             pkg_dic[pkg_name]["LICENSE"] = pkg_dic[pkg_name][pkg_lic_name]
 
     rootfs_license_manifest = os.path.join(d.getVar('LICENSE_DIRECTORY'),
-                        d.getVar('SSTATE_PKGARCH'), d.getVar('IMAGE_NAME'), 'license.manifest')
+                        d.getVar('IMAGE_NAME'), 'license.manifest')
     write_license_files(d, rootfs_license_manifest, pkg_dic, rootfs=True)
 }
 
@@ -59,8 +59,6 @@ def write_license_files(d, license_manifest, pkg_dic, rootfs=True):
 
     bad_licenses = (d.getVar("INCOMPATIBLE_LICENSE") or "").split()
     bad_licenses = expand_wildcard_licenses(d, bad_licenses)
-    pkgarchs = d.getVar("SSTATE_ARCHS").split()
-    pkgarchs.reverse()
 
     exceptions = (d.getVar("INCOMPATIBLE_LICENSE_EXCEPTIONS") or "").split()
     with open(license_manifest, "w") as license_file:
@@ -100,13 +98,9 @@ def write_license_files(d, license_manifest, pkg_dic, rootfs=True):
                 license_file.write("FILES: %s\n\n" % pkg_dic[pkg]["FILES"])
 
             for lic in pkg_dic[pkg]["LICENSES"]:
-                for pkgarch in pkgarchs:
-                    lic_file = os.path.join(d.getVar('LICENSE_DIRECTORY'),
-                                            pkgarch,
-                                            pkg_dic[pkg]["PN"], "generic_%s" %
-                                            re.sub(r'\+', '', lic))
-                    if os.path.exists(lic_file):
-                        break
+                lic_file = os.path.join(d.getVar('LICENSE_DIRECTORY'),
+                                        pkg_dic[pkg]["PN"], "generic_%s" % 
+                                        re.sub(r'\+', '', lic))
                 # add explicity avoid of CLOSED license because isn't generic
                 if lic == "CLOSED":
                    continue
@@ -136,13 +130,8 @@ def write_license_files(d, license_manifest, pkg_dic, rootfs=True):
             for pkg in sorted(pkg_dic):
                 pkg_rootfs_license_dir = os.path.join(rootfs_license_dir, pkg)
                 bb.utils.mkdirhier(pkg_rootfs_license_dir)
-                for pkgarch in pkgarchs:
-                    pkg_license_dir = os.path.join(d.getVar('LICENSE_DIRECTORY'),
-                                                   pkgarch, pkg_dic[pkg]["PN"])
-                    if os.path.exists(pkg_license_dir):
-                        break
-                if not os.path.exists(pkg_license_dir ):
-                    bb.fatal("Couldn't find license information for dependency %s" % pkg)
+                pkg_license_dir = os.path.join(d.getVar('LICENSE_DIRECTORY'),
+                                            pkg_dic[pkg]["PN"]) 
 
                 pkg_manifest_licenses = [canonical_license(d, lic) \
                         for lic in pkg_dic[pkg]["LICENSES"]]
@@ -194,7 +183,7 @@ def write_license_files(d, license_manifest, pkg_dic, rootfs=True):
                     os.lchown(p, 0, 0)
                     os.chmod(p, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
 
-write_license_files[vardepsexclude] = "SSTATE_ARCHS"
+
 
 def license_deployed_manifest(d):
     """
@@ -206,8 +195,6 @@ def license_deployed_manifest(d):
     dep_dic = {}
     man_dic = {}
     lic_dir = d.getVar("LICENSE_DIRECTORY")
-    pkgarchs = d.getVar("SSTATE_ARCHS").split()
-    pkgarchs.reverse()
 
     dep_dic = get_deployed_dependencies(d)
     for dep in dep_dic.keys():
@@ -217,19 +204,12 @@ def license_deployed_manifest(d):
         man_dic[dep]["PN"] = dep
         man_dic[dep]["FILES"] = \
             " ".join(get_deployed_files(dep_dic[dep]))
-
-        for pkgarch in pkgarchs:
-            licfile = os.path.join(lic_dir, pkgarch, dep, "recipeinfo")
-            if os.path.exists(licfile):
-                break
-        if not os.path.exists(licfile):
-            bb.fatal("Couldn't find license information for dependency %s" % dep)
-        with open(licfile, "r") as f:
+        with open(os.path.join(lic_dir, dep, "recipeinfo"), "r") as f:
             for line in f.readlines():
                 key,val = line.split(": ", 1)
                 man_dic[dep][key] = val[:-1]
 
-    lic_manifest_dir = os.path.join(d.getVar('LICENSE_DIRECTORY'), d.getVar('SSTATE_PKGARCH'),
+    lic_manifest_dir = os.path.join(d.getVar('LICENSE_DIRECTORY'),
                                     d.getVar('IMAGE_NAME'))
     bb.utils.mkdirhier(lic_manifest_dir)
     image_license_manifest = os.path.join(lic_manifest_dir, 'image_license.manifest')
@@ -237,7 +217,7 @@ def license_deployed_manifest(d):
 
     link_name = d.getVar('IMAGE_LINK_NAME')
     if link_name:
-        lic_manifest_symlink_dir = os.path.join(d.getVar('LICENSE_DIRECTORY'), d.getVar('SSTATE_PKGARCH'),
+        lic_manifest_symlink_dir = os.path.join(d.getVar('LICENSE_DIRECTORY'),
                                     link_name)
         # remove old symlink
         if os.path.islink(lic_manifest_symlink_dir):
@@ -247,8 +227,6 @@ def license_deployed_manifest(d):
         if lic_manifest_dir != lic_manifest_symlink_dir:
             os.symlink(lic_manifest_dir, lic_manifest_symlink_dir)
 
-license_deployed_manifest[vardepsexclude] = "SSTATE_ARCHS"
-
 def get_deployed_dependencies(d):
     """
     Get all the deployed dependencies of an image
@@ -257,7 +235,7 @@ def get_deployed_dependencies(d):
     deploy = {}
     # Get all the dependencies for the current task (rootfs).
     taskdata = d.getVar("BB_TASKDEPDATA", False)
-    pn = d.getVar("PN")
+    pn = d.getVar("PN", True)
     depends = list(set([dep[0] for dep
                     in list(taskdata.values())
                     if not dep[0].endswith("-native") and not dep[0] == pn]))
@@ -277,7 +255,7 @@ def get_deployed_dependencies(d):
                 break
 
     return deploy
-get_deployed_dependencies[vardepsexclude] = "BB_TASKDEPDATA SSTATE_ARCHS"
+get_deployed_dependencies[vardepsexclude] = "BB_TASKDEPDATA"
 
 def get_deployed_files(man_file):
     """
@@ -294,7 +272,7 @@ def get_deployed_files(man_file):
             dep_files.append(os.path.basename(f))
     return dep_files
 
-ROOTFS_POSTPROCESS_COMMAND:prepend = "write_package_manifest license_create_manifest "
+ROOTFS_POSTPROCESS_COMMAND:prepend = "write_package_manifest; license_create_manifest; "
 do_rootfs[recrdeptask] += "do_populate_lic"
 
 python do_populate_lic_deploy() {

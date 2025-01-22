@@ -30,35 +30,21 @@ IMAGE_FEATURES += " \
         obmc-leds \
         obmc-logging-mgmt \
         obmc-remote-logging-mgmt \
+        obmc-rng \
         obmc-net-ipmi \
         obmc-sensors \
         obmc-software \
         obmc-system-mgmt \
         obmc-user-mgmt \
         obmc-user-mgmt-ldap \
-        ${@bb.utils.contains_any('DISTRO_FEATURES', \
-            'obmc-ubi-fs phosphor-mmc obmc-static-norootfs', \
-            'read-only-rootfs overlayfs-etc', '', d)} \
+        ${@bb.utils.contains('DISTRO_FEATURES', 'obmc-ubi-fs', 'read-only-rootfs', '', d)} \
+        ${@bb.utils.contains('DISTRO_FEATURES', 'phosphor-mmc', 'read-only-rootfs', '', d)} \
         ssh-server-dropbear \
         obmc-debug-collector \
         obmc-network-mgmt \
         obmc-settings-mgmt \
         obmc-telemetry \
-        obmc-dmtf-pmci \
-        obmc-webui \
         "
 # The shadow recipe provides the binaries(like useradd, usermod) needed by the
 # phosphor-user-manager.
 ROOTFS_RO_UNNEEDED:remove = "shadow"
-
-# We need to set overlayfs-etc so that the dropbear/openssh keys don't end up
-# in a volatile file system, but we always have our own init that sets these
-# up.  Add enough bogus values here that rootfs-postcommands.bbclass does what
-# we want without overlayfs-etc.bbclass messing things up.
-OVERLAYFS_ETC_USE_ORIG_INIT_NAME="0"
-OVERLAYFS_ETC_MOUNT_POINT = "/this/is/unused"
-OVERLAYFS_ETC_FSTYPE = "not_a_fs_type"
-OVERLAYFS_ETC_DEVICE = "/dev/null"
-python create_overlayfs_etc_preinit:append() {
-    os.unlink(preinitPath)
-}

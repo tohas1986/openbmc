@@ -22,10 +22,10 @@ if [ -z "$target_pwm" ]; then
   exit 1
 fi
 
-zone_num="$(busctl tree xyz.openbmc_project.State.FanCtrl | grep -c -E 'zone[0-9]$')"
+zone_num="$(busctl tree xyz.openbmc_project.State.FanCtrl | grep zone | wc -l)"
 result=0
 
-for (( i = 0; i < zone_num; i++ )); do
+for (( i = 0; i < ${zone_num}; i++ )); do
   retries=4
   busctl_error=-1
 
@@ -39,7 +39,7 @@ for (( i = 0; i < zone_num; i++ )); do
       sleep 1
     fi
 
-    (( retries-=1 )) || true
+    let retries-=1
   done
 
   if (( busctl_error != 0 )); then

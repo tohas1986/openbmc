@@ -1,0 +1,21 @@
+From f3a78072e644a7d65d89b9cd61a079e99135c1a7 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 5 Oct 2020 14:07:00 +0000
+Subject: [PATCH] Add power2 label
+
+---
+ src/PSUSensorMain.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index 8fb389e..e9e0b0c 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -921,6 +921,7 @@ void propertyInitialize(void)
+                   {"pout2", PSUProperty("Output Power", 3000, 0, 6)},
+                   {"pout3", PSUProperty("Output Power", 3000, 0, 6)},
+                   {"power1", PSUProperty("Output Power", 3000, 0, 6)},
++                  {"power2", PSUProperty("Output Power", 3000, 0, 6)},
+                   {"maxpin", PSUProperty("Max Input Power", 3000, 0, 6)},
+                   {"vin", PSUProperty("Input Voltage", 300, 0, 3)},
+                   {"maxvin", PSUProperty("Max Input Voltage", 300, 0, 3)},

@@ -1,0 +1,81 @@
+From f00a42b4d97d89286ca6ebd0080d1d485140701b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 11 Sep 2020 06:33:17 +0000
+Subject: [PATCH] Add get set SNMP community string
+
+---
+ transporthandler.cpp | 41 +++++++++++++++++++++++++++++++++++++++++
+ transporthandler.hpp |  1 +
+ 2 files changed, 42 insertions(+)
+
+diff --git a/transporthandler.cpp b/transporthandler.cpp
+index ba4e4b0..79a7fd0 100644
+--- a/transporthandler.cpp
++++ b/transporthandler.cpp
+@@ -1029,6 +1029,27 @@ RspType<> setLan(Context::ptr ctx, uint4_t channelBits, uint4_t reserved1,
+             channelCall<reconfigureGatewayMAC<AF_INET>>(channel, gatewayMAC);
+             return responseSuccess();
+         }
++        case LanParam::SNMPCommunity:
++        {
++            std::array<uint8_t, 18> bytes;
++            if (req.unpack(bytes) != 0 || !req.fullyUnpacked())
++            {
++                return responseReqDataLenInvalid();
++            }
++
++            std::string communityString(std::begin(bytes), std::end(bytes));
++            std::ofstream communityFile("/etc/snmp_community_string", std::ofstream::out);
++            if (!communityFile.good())
++            {
++                return responseUnspecifiedError();
++            }
++
++            communityFile << communityString;
++            communityFile.flush();
++            communityFile.close();
++
++            return responseSuccess();
++        }
+         case LanParam::VLANId:
+         {
+             uint12_t vlanData = 0;
+@@ -1378,6 +1399,26 @@ RspType<message::Payload> getLan(Context::ptr ctx, uint4_t channelBits,
+             ret.pack(dataRef(mac));
+             return responseSuccess(std::move(ret));
+         }
++        case LanParam::SNMPCommunity:
++        {
++            std::string communityString;
++
++            std::ifstream communityFile("/etc/snmp_community_string", std::ifstream::binary);
++            if (!communityFile.good())
++            {
++                communityString = "public";
++            } else
++            {
++                std::getline(communityFile, communityString);
++            }
++            communityFile.close();
++
++            communityString.resize(18);
++
++            ret.pack(std::string_view(communityString));
++
++            return ipmi::responseSuccess(std::move(ret));
++        }
+         case LanParam::VLANId:
+         {
+             uint16_t vlan = channelCall<getVLANProperty>(channel);
+diff --git a/transporthandler.hpp b/transporthandler.hpp
+index 537ddc5..7b78961 100644
+--- a/transporthandler.hpp
++++ b/transporthandler.hpp
+@@ -67,6 +67,7 @@ enum class LanParam : uint8_t
+     SubnetMask = 6,
+     Gateway1 = 12,
+     Gateway1MAC = 13,
++    SNMPCommunity = 16,
+     VLANId = 20,
+     CiphersuiteSupport = 22,
+     CiphersuiteEntries = 23,

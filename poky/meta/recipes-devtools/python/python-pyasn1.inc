@@ -1,15 +1,16 @@
 SUMMARY = "Python library implementing ASN.1 types."
 HOMEPAGE = "http://pyasn1.sourceforge.net/"
 LICENSE = "BSD-2-Clause"
-LIC_FILES_CHKSUM = "file://LICENSE.rst;md5=190f79253908c986e6cacf380c3a5f6d"
+LIC_FILES_CHKSUM = "file://LICENSE.rst;md5=a14482d15c2249de3b6f0e8a47e021fd"
 
-SRC_URI[sha256sum] = "3a35ab2c4b5ef98e17dfdec8ab074046fbda76e281c5a706ccd82328cfc8f64c"
+SRC_URI[md5sum] = "dffae4ff9f997a83324b3f33fe62be54"
+SRC_URI[sha256sum] = "aef77c9fb94a3ac588e87841208bdec464471d9871bd5050a287cc9a475cd0ba"
 
 RDEPENDS:${PN}:class-target += " \
-    python3-codecs \
-    python3-logging \
-    python3-math \
-    python3-shell \
+    ${PYTHON_PN}-codecs \
+    ${PYTHON_PN}-logging \
+    ${PYTHON_PN}-math \
+    ${PYTHON_PN}-shell \
 "
 
 BBCLASSEXTEND = "native nativesdk"
@@ -17,12 +18,12 @@ BBCLASSEXTEND = "native nativesdk"
 inherit ptest
 
 SRC_URI += " \
-       file://run-ptest \
-           "
+	file://run-ptest \
+	file://0001-Fix-DeprecationWarning-__int__-returned-non-int-on-P.patch \
+"
 
 RDEPENDS:${PN}-ptest += " \
-	python3-pytest \
-	python3-unittest-automake-output \
+	${PYTHON_PN}-pytest \
 "
 
 do_install_ptest() {

@@ -1,0 +1,41 @@
+From 7ba541c8b791782d2ad7c5e42dc441b1a98e3dd5 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 29 Nov 2021 08:43:02 +0000
+Subject: [PATCH] Add TPM properties
+
+%% original patch: 0007-Add-TPM-properties.patch
+---
+ .../Inventory/Item/Tpm.interface.yaml         | 21 +++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+diff --git a/yaml/xyz/openbmc_project/Inventory/Item/Tpm.interface.yaml b/yaml/xyz/openbmc_project/Inventory/Item/Tpm.interface.yaml
+index c03acbe..d687600 100644
+--- a/yaml/xyz/openbmc_project/Inventory/Item/Tpm.interface.yaml
++++ b/yaml/xyz/openbmc_project/Inventory/Item/Tpm.interface.yaml
+@@ -1,2 +1,23 @@
+ description: >
+     Implement to provide Trusted Platform Module(TPM) attributes.
++properties:
++    - name: IsPresent
++      type: boolean
++      description: >
++          An indication of whether TPM device is present.
++    - name: SpecificationVersion
++      type: string
++      description: >
++          TPM specification version.
++    - name: FirmwareVersion
++      type: string
++      description: >
++          TPM firmware version.
++    - name: VendorName
++      type: string
++      description: >
++          TPM vendor name.
++    - name: VendorId
++      type: string
++      description: >
++          TPM vendor ID.
+-- 
+2.33.1
+

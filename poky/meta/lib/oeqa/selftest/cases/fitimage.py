@@ -5,7 +5,7 @@
 #
 
 from oeqa.selftest.case import OESelftestTestCase
-from oeqa.utils.commands import runCmd, bitbake, get_bb_var, get_bb_vars
+from oeqa.utils.commands import runCmd, bitbake, get_bb_var
 import os
 import re
 
@@ -33,8 +33,6 @@ KERNEL_CLASSES = " kernel-fitimage "
 # RAM disk variables including load address and entrypoint for kernel and RAM disk
 IMAGE_FSTYPES += "cpio.gz"
 INITRAMFS_IMAGE = "core-image-minimal"
-# core-image-minimal is used as initramfs here, drop the rootfs suffix
-IMAGE_NAME_SUFFIX:pn-core-image-minimal = ""
 UBOOT_RD_LOADADDRESS = "0x88000000"
 UBOOT_RD_ENTRYPOINT = "0x88000000"
 UBOOT_LOADADDRESS = "0x80080000"
@@ -44,14 +42,15 @@ FIT_DESC = "A model description"
         self.write_config(config)
 
         # fitImage is created as part of linux recipe
-        image = "virtual/kernel"
-        bitbake(image)
-        bb_vars = get_bb_vars(['DEPLOY_DIR_IMAGE', 'INITRAMFS_IMAGE_NAME', 'KERNEL_FIT_LINK_NAME'], image)
+        bitbake("virtual/kernel")
 
-        fitimage_its_path = os.path.join(bb_vars['DEPLOY_DIR_IMAGE'],
-            "fitImage-its-%s-%s" % (bb_vars['INITRAMFS_IMAGE_NAME'], bb_vars['KERNEL_FIT_LINK_NAME']))
-        fitimage_path = os.path.join(bb_vars['DEPLOY_DIR_IMAGE'],
-            "fitImage-%s-%s" % (bb_vars['INITRAMFS_IMAGE_NAME'], bb_vars['KERNEL_FIT_LINK_NAME']))
+        image_type = "core-image-minimal"
+        deploy_dir_image = get_bb_var('DEPLOY_DIR_IMAGE')
+        machine = get_bb_var('MACHINE')
+        fitimage_its_path = os.path.join(deploy_dir_image,
+            "fitImage-its-%s-%s-%s" % (image_type, machine, machine))
+        fitimage_path = os.path.join(deploy_dir_image,
+            "fitImage-%s-%s-%s" % (image_type, machine, machine))
 
         self.assertTrue(os.path.exists(fitimage_its_path),
             "%s image tree source doesn't exist" % (fitimage_its_path))
@@ -124,14 +123,15 @@ UBOOT_MKIMAGE_SIGN_ARGS = "-c 'a smart comment'"
         self.write_config(config)
 
         # fitImage is created as part of linux recipe
-        image = "virtual/kernel"
-        bitbake(image)
-        bb_vars = get_bb_vars(['DEPLOY_DIR_IMAGE', 'KERNEL_FIT_LINK_NAME'], image)
+        bitbake("virtual/kernel")
 
-        fitimage_its_path = os.path.join(bb_vars['DEPLOY_DIR_IMAGE'],
-            "fitImage-its-%s" % (bb_vars['KERNEL_FIT_LINK_NAME']))
-        fitimage_path = os.path.join(bb_vars['DEPLOY_DIR_IMAGE'],
-            "fitImage-%s.bin" % (bb_vars['KERNEL_FIT_LINK_NAME']))
+        image_type = "core-image-minimal"
+        deploy_dir_image = get_bb_var('DEPLOY_DIR_IMAGE')
+        machine = get_bb_var('MACHINE')
+        fitimage_its_path = os.path.join(deploy_dir_image,
+            "fitImage-its-%s" % (machine,))
+        fitimage_path = os.path.join(deploy_dir_image,
+            "fitImage-%s.bin" % (machine,))
 
         self.assertTrue(os.path.exists(fitimage_its_path),
             "%s image tree source doesn't exist" % (fitimage_its_path))
@@ -204,7 +204,7 @@ UBOOT_MKIMAGE_SIGN_ARGS = "-c 'a smart comment'"
         signed_sections = {}
         for line in result.output.splitlines():
             if line.startswith((' Configuration', ' Image')):
-                in_signed = re.search(r'\((.*)\)', line).groups()[0]
+                in_signed = re.search('\((.*)\)', line).groups()[0]
             elif re.match('^ *', line) in (' ', ''):
                 in_signed = None
             elif in_signed:
@@ -525,7 +525,7 @@ UBOOT_FIT_HASH_ALG = "sha256"
         signed_sections = {}
         for line in result.output.splitlines():
             if line.startswith((' Image')):
-                in_signed = re.search(r'\((.*)\)', line).groups()[0]
+                in_signed = re.search('\((.*)\)', line).groups()[0]
             elif re.match(' \w', line):
                 in_signed = None
             elif in_signed:
@@ -680,7 +680,7 @@ FIT_SIGN_INDIVIDUAL = "1"
         signed_sections = {}
         for line in result.output.splitlines():
             if line.startswith((' Image')):
-                in_signed = re.search(r'\((.*)\)', line).groups()[0]
+                in_signed = re.search('\((.*)\)', line).groups()[0]
             elif re.match(' \w', line):
                 in_signed = None
             elif in_signed:

@@ -1,0 +1,112 @@
+From d7b81308353317cfbfb3ea2a58a9595d5263def9 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 8 Sep 2020 07:14:09 +0000
+Subject: [PATCH] Exit if unable to connect to dbus or entity manager
+
+---
+ src/ADCSensorMain.cpp     | 2 +-
+ src/ExitAirTempSensor.cpp | 4 ++--
+ src/IpmbSensor.cpp        | 4 ++--
+ src/MCUTempSensor.cpp     | 4 ++--
+ src/PSUSensorMain.cpp     | 4 ++--
+ 5 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/ADCSensorMain.cpp b/src/ADCSensorMain.cpp
+index 9024eb9..d6a5133 100644
+--- a/src/ADCSensorMain.cpp
++++ b/src/ADCSensorMain.cpp
+@@ -83,7 +83,7 @@ void createSensors(
+                            paths))
+             {
+                 std::cerr << "No temperature sensors in system\n";
+-                return;
++                exit(-1);
+             }
+ 
+             // iterate through all found adc sensors, and try to match them with
+diff --git a/src/ExitAirTempSensor.cpp b/src/ExitAirTempSensor.cpp
+index 41d9a19..e7503b6 100644
+--- a/src/ExitAirTempSensor.cpp
++++ b/src/ExitAirTempSensor.cpp
+@@ -825,14 +825,14 @@ void createSensor(sdbusplus::asio::object_server& objectServer,
+     if (!dbusConnection)
+     {
+         std::cerr << "Connection not created\n";
+-        return;
++        exit(-1);
+     }
+     dbusConnection->async_method_call(
+         [&](boost::system::error_code ec, const ManagedObjectType& resp) {
+             if (ec)
+             {
+                 std::cerr << "Error contacting entity manager\n";
+-                return;
++                exit(-1);
+             }
+ 
+             cfmSensors.clear();
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index dccdffb..6bb49e9 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -378,14 +378,14 @@ void createSensors(
+     if (!dbusConnection)
+     {
+         std::cerr << "Connection not created\n";
+-        return;
++        exit(-1);
+     }
+     dbusConnection->async_method_call(
+         [&](boost::system::error_code ec, const ManagedObjectType& resp) {
+             if (ec)
+             {
+                 std::cerr << "Error contacting entity manager\n";
+-                return;
++                exit(-1);
+             }
+             for (const auto& pathPair : resp)
+             {
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index afc6f49..3b3d618 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -205,7 +205,7 @@ void createSensors(
+     if (!dbusConnection)
+     {
+         std::cerr << "Connection not created\n";
+-        return;
++        exit(-1);
+     }
+ 
+     dbusConnection->async_method_call(
+@@ -214,7 +214,7 @@ void createSensors(
+             if (ec)
+             {
+                 std::cerr << "Error contacting entity manager\n";
+-                return;
++                exit(-1);
+             }
+             for (const auto& pathPair : resp)
+             {
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index 70c150d..b47e7a7 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -248,7 +248,7 @@ void createSensors(boost::asio::io_service& io,
+                                     useCache))
+         {
+             std::cerr << "error get sensor config from entity manager\n";
+-            return;
++            exit(-1);
+         }
+         useCache = true;
+     }
+@@ -257,7 +257,7 @@ void createSensors(boost::asio::io_service& io,
+     if (!findFiles(fs::path("/sys/class/hwmon"), "name", pmbusPaths))
+     {
+         std::cerr << "No PSU sensors in system\n";
+-        return;
++        exit(-1);
+     }
+ 
+     boost::container::flat_set<std::string> directories;

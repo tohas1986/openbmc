@@ -1,0 +1,25 @@
+From 5ebe1d7a594e05f6df1303a17aeca4677bd21846 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 9 Dec 2022 09:24:45 +0000
+Subject: [PATCH] [WIP] ina2xx calibration value tune
+
+---
+ drivers/hwmon/ina2xx.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/hwmon/ina2xx.c b/drivers/hwmon/ina2xx.c
+index fd38c053aea8..27c54e2121a5 100644
+--- a/drivers/hwmon/ina2xx.c
++++ b/drivers/hwmon/ina2xx.c
+@@ -187,7 +187,7 @@ static const struct ina2xx_config ina2xx_config[] = {
+ 					INA219_CONFIG_BADC_12B_128S | \
+ 					INA219_CONFIG_SADC_12B_128S | \
+ 					INA219_CONFIG_MODE_ALL_CONT,
+-		.calibration_value = 4096,
++		.calibration_value = 40960,
+ 		.registers = INA219_REGISTERS,
+ 		.shunt_div = 100,
+ 		.bus_voltage_shift = 3,
+-- 
+2.36.1
+

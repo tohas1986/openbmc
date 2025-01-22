@@ -5,8 +5,6 @@ Subject: [PATCH 3/5] Dont include stab.h
 
 Signed-off-by: Khem Raj <raj.khem@gmail.com>
 ---
-Upstream-Status: Pending
-
  src/common/stabs_reader.cc          |  1 -
  src/common/stabs_reader.h           | 12 +++++++++++-
  src/common/stabs_reader_unittest.cc |  1 -
@@ -14,7 +12,7 @@ Upstream-Status: Pending
 
 --- a/src/common/stabs_reader.cc
 +++ b/src/common/stabs_reader.cc
-@@ -38,7 +38,9 @@
+@@ -34,7 +34,9 @@
  #include "common/stabs_reader.h"
  
  #include <assert.h>
@@ -26,7 +24,7 @@ Upstream-Status: Pending
  #include <string>
 --- a/src/common/stabs_reader.h
 +++ b/src/common/stabs_reader.h
-@@ -54,6 +54,30 @@
+@@ -58,6 +58,30 @@
  #elif defined(HAVE_A_OUT_H)
  #include <a.out.h>
  #endif
@@ -59,7 +57,7 @@ Upstream-Status: Pending
  #include <vector>
 --- a/src/common/stabs_reader_unittest.cc
 +++ b/src/common/stabs_reader_unittest.cc
-@@ -36,7 +36,9 @@
+@@ -33,7 +33,9 @@
  
  #include <assert.h>
  #include <errno.h>
@@ -71,8 +69,8 @@ Upstream-Status: Pending
  #include <string.h>
 --- a/configure.ac
 +++ b/configure.ac
-@@ -61,7 +61,7 @@ fi
- 
+@@ -72,7 +72,7 @@ AC_ARG_ENABLE(m32,
+ AC_HEADER_STDC
  AC_SYS_LARGEFILE
  AX_PTHREAD
 -AC_CHECK_HEADERS([a.out.h sys/mman.h sys/random.h])

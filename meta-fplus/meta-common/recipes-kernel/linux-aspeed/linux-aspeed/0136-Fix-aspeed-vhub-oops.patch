@@ -1,0 +1,32 @@
+From fc5b4822b32f901c2a0326586fcca94f63e884eb Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 9 Apr 2021 14:49:25 +0000
+Subject: [PATCH] Fix aspeed vhub oops
+
+Origin: https://github.com/facebook/openbmc-linux/commit/83153bda736b26a07a376529941906f0a825862e#diff-d44e373511270207f6d3dc1f1081834d0b7cd91ffa086c86a999a3dd753cc744
+ usb: gadget: aspeed: set port_dev dma mask
+
+ Reviewed By: benwei13
+
+ Differential Revision: D25851037
+
+ fbshipit-source-id: 419bad3ca5
+---
+ drivers/usb/gadget/udc/aspeed-vhub/dev.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/usb/gadget/udc/aspeed-vhub/dev.c b/drivers/usb/gadget/udc/aspeed-vhub/dev.c
+index d268306..9eb3904 100644
+--- a/drivers/usb/gadget/udc/aspeed-vhub/dev.c
++++ b/drivers/usb/gadget/udc/aspeed-vhub/dev.c
+@@ -569,6 +569,7 @@ int ast_vhub_init_dev(struct ast_vhub *vhub, unsigned int idx)
+ 	device_initialize(d->port_dev);
+ 	d->port_dev->release = ast_vhub_dev_release;
+ 	d->port_dev->parent = parent;
++	d->port_dev->dma_mask = parent->dma_mask;
+ 	dev_set_name(d->port_dev, "%s:p%d", dev_name(parent), idx + 1);
+ 	rc = device_add(d->port_dev);
+ 	if (rc)
+-- 
+2.7.4
+

@@ -1,0 +1,102 @@
+{
+  "gpio_configs":[
+    {
+        "Name" : "cpu1Mismatch",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu2Mismatch",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpuCatter",
+        "LineName" : "CPU_CATERR",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpuErr0",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpuErr1",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpuErr2",
+        "LineName" : "CPU_ERR2",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "smi",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu1FIVRfault",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu1ThermTrip",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu2FIVRfault",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu2ThermTrip",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu1VrHot",
+        "LineName" : "CPU1_VRHOT",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpu1MemEFGHVrHot",
+        "LineName" : "CPU1_MEM_EFGH_VRHOT",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpu2VrHot",
+        "LineName" : "CPU2_VRHOT",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpu2MemABCDVrHot",
+        "LineName" : "CPU2_MEM_ABCD_VRHOT",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpu2MemEFGHVrHot",
+        "LineName" : "CPU2_MEM_EFGH_VRHOT",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "pchBmcThermTrip",
+        "LineName" : "PCH_BMC_THERMTRIP",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpu1MemThermEvent",
+        "LineName" : "CPU1_MEM_THERM_EVENT",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpu2MemThermEvent",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    }
+],
+  "timing_configs":{
+        "DefaultTimeOut" : 10
+    }
+}

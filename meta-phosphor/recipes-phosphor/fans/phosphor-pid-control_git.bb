@@ -17,7 +17,7 @@ DEPENDS += "cli11"
 DEPENDS += "boost"
 # We depend on this to be built first so we can build our providers.
 DEPENDS += "phosphor-ipmi-host"
-SRCREV = "bd63bcaca2ac9edf1778136cf240e3bbe8b31566"
+SRCREV = "5897fcc104df9d07e41f0b71d52b273b6c46f901"
 PV = "0.1+git${SRCPV}"
 PR = "r1"
 
@@ -28,14 +28,14 @@ SERVICE_FILE = "phosphor-pid-control.service"
 SYSTEMD_PACKAGES = "${PN}"
 SYSTEMD_SERVICE:${PN} = "${SERVICE_FILE}"
 
-inherit meson pkgconfig
+inherit autotools pkgconfig
 inherit obmc-phosphor-ipmiprovider-symlink
 inherit systemd
 
-EXTRA_OEMESON = " \
-  -Dtests=disabled \
-  -Dsystemd_target="multi-user.target" \
-  "
+EXTRA_OECONF = " \
+  SYSTEMD_TARGET="multi-user.target" \
+  --disable-tests \
+       "
 
 FILES:${PN} = "${bindir}/swampd ${bindir}/setsensor"
 # The following installs the OEM IPMI handler for the fan controls.

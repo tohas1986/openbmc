@@ -57,13 +57,12 @@ if [ -n "$TEMPLATECONF" ]; then
     fi
     OECORELAYERCONF="$TEMPLATECONF/bblayers.conf.sample"
     OECORELOCALCONF="$TEMPLATECONF/local.conf.sample"
-    OECORESUMMARYCONF="$TEMPLATECONF/conf-summary.txt"
     OECORENOTESCONF="$TEMPLATECONF/conf-notes.txt"
 fi
 
 unset SHOWYPDOC
 if [ -z "$OECORELOCALCONF" ]; then
-    OECORELOCALCONF="$OEROOT/meta/conf/templates/default/local.conf.sample"
+    OECORELOCALCONF="$OEROOT/meta/conf/local.conf.sample"
 fi
 if [ ! -r "$BUILDDIR/conf/local.conf" ]; then
     cat <<EOM
@@ -78,7 +77,7 @@ EOM
 fi
 
 if [ -z "$OECORELAYERCONF" ]; then
-    OECORELAYERCONF="$OEROOT/meta/conf/templates/default/bblayers.conf.sample"
+    OECORELAYERCONF="$OEROOT/meta/conf/bblayers.conf.sample"
 fi
 if [ ! -r "$BUILDDIR/conf/bblayers.conf" ]; then
     cat <<EOM
@@ -99,25 +98,9 @@ EOM
     SHOWYPDOC=yes
 fi
 
-if [ -z "$OECORESUMMARYCONF" ]; then
-    OECORESUMMARYCONF="$OEROOT/meta/conf/templates/default/conf-summary.txt"
-fi
-if [ ! -r "$BUILDDIR/conf/conf-summary.txt" ]; then
-    [ ! -r "$OECORESUMMARYCONF" ] || cp "$OECORESUMMARYCONF" "$BUILDDIR/conf/conf-summary.txt"
-fi
-
-if [ -z "$OECORENOTESCONF" ]; then
-    OECORENOTESCONF="$OEROOT/meta/conf/templates/default/conf-notes.txt"
-fi
-if [ ! -r "$BUILDDIR/conf/conf-notes.txt" ]; then
-    [ ! -r "$OECORENOTESCONF" ] || cp "$OECORENOTESCONF" "$BUILDDIR/conf/conf-notes.txt"
-fi
-
 # Prevent disturbing a new GIT clone in same console
 unset OECORELOCALCONF
 unset OECORELAYERCONF
-unset OECORESUMMARYCONF
-unset OECORENOTESCONF
 
 # Ending the first-time run message. Show the YP Documentation banner.
 if [ -n "$SHOWYPDOC" ]; then
@@ -133,8 +116,11 @@ EOM
 #    unset SHOWYPDOC
 fi
 
-[ ! -r "$BUILDDIR/conf/conf-summary.txt" ] || cat "$BUILDDIR/conf/conf-summary.txt"
-[ ! -r "$BUILDDIR/conf/conf-notes.txt" ] || cat "$BUILDDIR/conf/conf-notes.txt"
+if [ -z "$OECORENOTESCONF" ]; then
+    OECORENOTESCONF="$OEROOT/meta/conf/conf-notes.txt"
+fi
+[ ! -r "$OECORENOTESCONF" ] || cat "$OECORENOTESCONF"
+unset OECORENOTESCONF
 
 if [ ! -f "$BUILDDIR/conf/templateconf.cfg" ]; then
     echo "$ORG_TEMPLATECONF" >"$BUILDDIR/conf/templateconf.cfg"

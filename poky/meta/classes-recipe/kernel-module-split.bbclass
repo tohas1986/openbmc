@@ -30,11 +30,12 @@ fi
 
 PACKAGE_WRITE_DEPS += "kmod-native depmodwrapper-cross"
 
-modulesloaddir ??= "${@bb.utils.contains('DISTRO_FEATURES', 'systemd', '${nonarch_libdir}', '${sysconfdir}', d)}/modules-load.d"
-modprobedir ??= "${@bb.utils.contains('DISTRO_FEATURES', 'systemd', '${nonarch_base_libdir}', '${sysconfdir}', d)}/modprobe.d"
+do_install:append() {
+	install -d ${D}${sysconfdir}/modules-load.d/ ${D}${sysconfdir}/modprobe.d/
+}
 
 KERNEL_SPLIT_MODULES ?= "1"
-PACKAGESPLITFUNCS =+ "split_kernel_module_packages"
+PACKAGESPLITFUNCS:prepend = "split_kernel_module_packages "
 
 KERNEL_MODULES_META_PACKAGE ?= "${@ d.getVar("KERNEL_PACKAGE_NAME") or "kernel" }-modules"
 
@@ -67,13 +68,14 @@ python split_kernel_module_packages () {
             else:
                 msg = "Cannot decompress '%s'" % file
                 raise msg
-            cmd = "%s -j .modinfo -O binary %s %s" % (d.getVar("OBJCOPY"), tmpkofile, tmpfile)
+            cmd = "%sobjcopy -j .modinfo -O binary %s %s" % (d.getVar("HOST_PREFIX") or "", tmpkofile, tmpfile)
         else:
-            cmd = "%s -j .modinfo -O binary %s %s" % (d.getVar("OBJCOPY"), file, tmpfile)
+            cmd = "%sobjcopy -j .modinfo -O binary %s %s" % (d.getVar("HOST_PREFIX") or "", file, tmpfile)
         subprocess.check_call(cmd, shell=True)
         # errors='replace': Some old kernel versions contain invalid utf-8 characters in mod descriptions (like 0xf6, 'ö')
-        with open(tmpfile, errors='replace') as f:
-            l = f.read().split("\000")
+        f = open(tmpfile, errors='replace')
+        l = f.read().split("\000")
+        f.close()
         os.close(tf[0])
         os.unlink(tmpfile)
         if compressed:
@@ -91,7 +93,7 @@ python split_kernel_module_packages () {
 
         dvar = d.getVar('PKGD')
 
-        # If autoloading is requested, output ${modulesloaddir}/<name>.conf and append
+        # If autoloading is requested, output /etc/modules-load.d/<name>.conf and append
         # appropriate modprobe commands to the postinst
         autoloadlist = (d.getVar("KERNEL_MODULE_AUTOLOAD") or "").split()
         autoload = d.getVar('module_autoload_%s' % basename)
@@ -100,18 +102,14 @@ python split_kernel_module_packages () {
         if autoload and basename not in autoloadlist:
             bb.warn("module_autoload_%s is defined but '%s' isn't included in KERNEL_MODULE_AUTOLOAD, please add it there" % (basename, basename))
         if basename in autoloadlist:
-            conf = '%s/%s.conf' % (d.getVar('modulesloaddir'), basename)
-            name = '%s%s' % (dvar, conf)
-            os.makedirs(os.path.dirname(name), exist_ok=True)
-            with open(name, 'w') as f:
-                if autoload:
-                    for m in autoload.split():
-                        f.write('%s\n' % m)
-                else:
-                    f.write('%s\n' % basename)
-            conf2append = ' %s' % conf
-            d.appendVar('FILES:%s' % pkg, conf2append)
-            d.appendVar('CONFFILES:%s' % pkg, conf2append)
+            name = '%s/etc/modules-load.d/%s.conf' % (dvar, basename)
+            f = open(name, 'w')
+            if autoload:
+                for m in autoload.split():
+                    f.write('%s\n' % m)
+            else:
+                f.write('%s\n' % basename)
+            f.close()
             postinst = d.getVar('pkg_postinst:%s' % pkg)
             if not postinst:
                 bb.fatal("pkg_postinst:%s not defined" % pkg)
@@ -122,17 +120,20 @@ python split_kernel_module_packages () {
         modconflist = (d.getVar("KERNEL_MODULE_PROBECONF") or "").split()
         modconf = d.getVar('module_conf_%s' % basename)
         if modconf and basename in modconflist:
-            conf = '%s/%s.conf' % (d.getVar('modprobedir'), basename)
-            name = '%s%s' % (dvar, conf)
-            os.makedirs(os.path.dirname(name), exist_ok=True)
-            with open(name, 'w') as f:
-                f.write("%s\n" % modconf)
-            conf2append = ' %s' % conf
-            d.appendVar('FILES:%s' % pkg, conf2append)
-            d.appendVar('CONFFILES:%s' % pkg, conf2append)
-
+            name = '%s/etc/modprobe.d/%s.conf' % (dvar, basename)
+            f = open(name, 'w')
+            f.write("%s\n" % modconf)
+            f.close()
         elif modconf:
             bb.error("Please ensure module %s is listed in KERNEL_MODULE_PROBECONF since module_conf_%s is set" % (basename, basename))
+
+        files = d.getVar('FILES:%s' % pkg)
+        files = "%s /etc/modules-load.d/%s.conf /etc/modprobe.d/%s.conf" % (files, basename, basename)
+        d.setVar('FILES:%s' % pkg, files)
+
+        conffiles = d.getVar('CONFFILES:%s' % pkg)
+        conffiles = "%s /etc/modules-load.d/%s.conf /etc/modprobe.d/%s.conf" % (conffiles, basename, basename)
+        d.setVar('CONFFILES:%s' % pkg, conffiles)
 
         if "description" in vals:
             old_desc = d.getVar('DESCRIPTION:' + pkg) or ""
@@ -168,8 +169,8 @@ python split_kernel_module_packages () {
     postrm = d.getVar('pkg_postrm:modules')
 
     if splitmods != '1':
-        d.appendVar('FILES:' + metapkg, '%s %s %s/modules' %
-            (d.getVar('modulesloaddir'), d.getVar('modprobedir'), d.getVar("nonarch_base_libdir")))
+        etcdir = d.getVar('sysconfdir')
+        d.appendVar('FILES:' + metapkg, '%s/modules-load.d/ %s/modprobe.d/ %s/modules/' % (etcdir, etcdir, d.getVar("nonarch_base_libdir")))
         d.appendVar('pkg_postinst:%s' % metapkg, postinst)
         d.prependVar('pkg_postrm:%s' % metapkg, postrm);
         return
@@ -183,6 +184,14 @@ python split_kernel_module_packages () {
     modules = do_split_packages(d, root='${nonarch_base_libdir}/modules', file_regex=module_regex, output_pattern=module_pattern, description='%s kernel module', postinst=postinst, postrm=postrm, recursive=True, hook=frob_metadata, extra_depends='%s-%s' % (kernel_package_name, kernel_version))
     if modules:
         d.appendVar('RDEPENDS:' + metapkg, ' '+' '.join(modules))
+
+    # If modules-load.d and modprobe.d are empty at this point, remove them to
+    # avoid warnings. removedirs only raises an OSError if an empty
+    # directory cannot be removed.
+    dvar = d.getVar('PKGD')
+    for dir in ["%s/etc/modprobe.d" % (dvar), "%s/etc/modules-load.d" % (dvar), "%s/etc" % (dvar)]:
+        if len(os.listdir(dir)) == 0:
+            os.rmdir(dir)
 }
 
 do_package[vardeps] += '${@" ".join(map(lambda s: "module_conf_" + s, (d.getVar("KERNEL_MODULE_PROBECONF") or "").split()))}'

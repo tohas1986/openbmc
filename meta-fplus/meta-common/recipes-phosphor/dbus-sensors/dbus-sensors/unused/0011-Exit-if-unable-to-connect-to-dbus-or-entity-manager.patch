@@ -1,0 +1,95 @@
+From 5bfd95a35d175912f5464d7e17d7b7f76756240a Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 1 Apr 2021 14:30:18 +0000
+Subject: [PATCH] Exit-if-unable-to-connect-to-dbus-or-entity-manager
+
+---
+ src/ADCSensorMain.cpp     | 2 +-
+ src/ExitAirTempSensor.cpp | 2 +-
+ src/IpmbSensor.cpp        | 4 ++--
+ src/MCUTempSensor.cpp     | 4 ++--
+ src/PSUSensorMain.cpp     | 2 +-
+ 5 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/ADCSensorMain.cpp b/src/ADCSensorMain.cpp
+index 5265321..84d403e 100644
+--- a/src/ADCSensorMain.cpp
++++ b/src/ADCSensorMain.cpp
+@@ -82,7 +82,7 @@ void createSensors(
+                            paths))
+             {
+                 std::cerr << "No temperature sensors in system\n";
+-                return;
++                exit(-1);
+             }
+ 
+             // iterate through all found adc sensors, and try to match them with
+diff --git a/src/ExitAirTempSensor.cpp b/src/ExitAirTempSensor.cpp
+index 725cb12..c85b352 100644
+--- a/src/ExitAirTempSensor.cpp
++++ b/src/ExitAirTempSensor.cpp
+@@ -824,7 +824,7 @@ void createSensor(sdbusplus::asio::object_server& objectServer,
+     if (!dbusConnection)
+     {
+         std::cerr << "Connection not created\n";
+-        return;
++        exit(-1);
+     }
+     auto getter = std::make_shared<GetSensorConfiguration>(
+         dbusConnection,
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 2d40dc3..7883660 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -400,14 +400,14 @@ void createSensors(
+     if (!dbusConnection)
+     {
+         std::cerr << "Connection not created\n";
+-        return;
++        exit(-1);
+     }
+     dbusConnection->async_method_call(
+         [&](boost::system::error_code ec, const ManagedObjectType& resp) {
+             if (ec)
+             {
+                 std::cerr << "Error contacting entity manager\n";
+-                return;
++                exit(-1);
+             }
+             for (const auto& pathPair : resp)
+             {
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index 454ea68..c85543e 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -199,7 +199,7 @@ void createSensors(
+     if (!dbusConnection)
+     {
+         std::cerr << "Connection not created\n";
+-        return;
++        exit(-1);
+     }
+ 
+     dbusConnection->async_method_call(
+@@ -208,7 +208,7 @@ void createSensors(
+             if (ec)
+             {
+                 std::cerr << "Error contacting entity manager\n";
+-                return;
++                exit(-1);
+             }
+             for (const auto& pathPair : resp)
+             {
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index 9b1dfe7..f46a585 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -272,7 +272,7 @@ static void createSensorsCallback(
+     if (!findFiles(fs::path("/sys/class/hwmon"), "name", pmbusPaths))
+     {
+         std::cerr << "No PSU sensors in system\n";
+-        return;
++        exit(-1);
+     }
+ 
+     boost::container::flat_set<std::string> directories;

@@ -1,0 +1,63 @@
+From 075f8cfaecff1b44b604ac42761243d7a349b7ba Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 24 Jun 2021 13:34:44 +0000
+Subject: [PATCH] Fix unmount
+
+---
+ src/system.hpp | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/system.hpp b/src/system.hpp
+index 74f9b1f..225efc0 100644
+--- a/src/system.hpp
++++ b/src/system.hpp
+@@ -541,6 +541,7 @@ struct UsbGadget
+                 for (const auto& port : fs::directory_iterator(
+                          "/sys/bus/platform/devices/1e6a0000.usb-vhub"))
+                 {
++                    LogMsg(Logger::Debug, "Checking port:", port.path().filename());
+                     if (fs::is_directory(port) && !fs::is_symlink(port) &&
+                         !fs::exists(port.path() / "gadget/suspended"))
+                     {
+@@ -569,24 +570,30 @@ struct UsbGadget
+         // earlier. We'll get here only for removed, or cleanup
+ 
+         const std::array<const char*, 6> dirs = {
+-            massStorageDir.c_str(),   funcMassStorageDir.c_str(),
+-            configStringsDir.c_str(), configDir.c_str(),
+-            stringsDir.c_str(),       gadgetDir.c_str()};
++            configStringsDir.c_str(), massStorageDir.c_str(),
++            configDir.c_str(),        funcMassStorageDir.c_str(),
++            stringsDir.c_str(),       gadgetDir.c_str() };
++
++        // First of all, disconnect device
++        LogMsg(Logger::Debug, "Disconnecting USB device");
++        echoToFile(gadgetDir / "UDC", "");
++
+         for (const char* dir : dirs)
+         {
+-            fs::remove_all(dir, ec);
++            LogMsg(Logger::Debug, "Trying to remove ", dir);
++            fs::remove(dir, ec);
+             if (ec)
+             {
+-                success = false;
+                 LogMsg(Logger::Error, "[App]: UsbGadget ", ec.message());
+             }
+         }
+ 
+-        if (success)
++        if (fs::exists(gadgetDir.c_str()))
+         {
+-            return 0;
++            return -1;
+         }
+-        return -1;
++
++        return 0;
+     }
+ 
+     static std::optional<std::string> getStats(const std::string& name)
+-- 
+2.7.4
+

@@ -24,7 +24,6 @@ enclosure_identify:
         Action: 'Blink'
         DutyOn: 50
         Period: 1000
-        Priority: 'Blink'
 
 # The Op Panel on the Romulus system holds a multicolor LED.
 # Both the 'fault' and 'identify' gpios are wired to the same LED.
@@ -38,7 +37,6 @@ lamp_test:
         Priority: 'Blink'
     identify:
         Action: 'On'
-        Priority: 'Blink'
 
 # All kinds of faults using the same action as enclosure_fault
 Fan0Fault:

@@ -1,0 +1,77 @@
+From ec01abc13bc25f8ab095a5a58880cdf319dd6290 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 14 Feb 2023 14:54:53 +0000
+Subject: [PATCH] aspeed-video: Reduce spam on switched on host
+
+---
+ drivers/media/platform/aspeed/aspeed-video.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/media/platform/aspeed/aspeed-video.c b/drivers/media/platform/aspeed/aspeed-video.c
+index 20f795ccc11b..aa4f0a744c83 100644
+--- a/drivers/media/platform/aspeed/aspeed-video.c
++++ b/drivers/media/platform/aspeed/aspeed-video.c
+@@ -549,13 +549,13 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
+ 	u32 seq_ctrl = aspeed_video_read(video, VE_SEQ_CTRL);
+ 
+ 	if (video->v4l2_input_status) {
+-		v4l2_warn(&video->v4l2_dev, "No signal; don't start frame\n");
++		v4l2_dbg(2, debug, &video->v4l2_dev, "No signal; don't start frame\n");
+ 		return 0;
+ 	}
+ 
+ 	if (!(seq_ctrl & VE_SEQ_CTRL_COMP_BUSY) ||
+ 	    !(seq_ctrl & VE_SEQ_CTRL_CAP_BUSY)) {
+-		v4l2_warn(&video->v4l2_dev, "Engine busy; don't start frame\n");
++		v4l2_dbg(2, debug, &video->v4l2_dev, "Engine busy; don't start frame\n");
+ 		return -EBUSY;
+ 	}
+ 
+@@ -564,7 +564,7 @@ static int aspeed_video_start_frame(struct aspeed_video *video)
+ 				       struct aspeed_video_buffer, link);
+ 	if (!buf) {
+ 		spin_unlock_irqrestore(&video->lock, flags);
+-		v4l2_warn(&video->v4l2_dev, "No buffers; don't start frame\n");
++		v4l2_dbg(2, debug, &video->v4l2_dev, "No buffers; don't start frame\n");
+ 		return -EPROTO;
+ 	}
+ 
+@@ -977,7 +977,7 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
+ 						      res_check(video),
+ 						      MODE_DETECT_TIMEOUT);
+ 		if (!rc) {
+-			v4l2_warn(&video->v4l2_dev, "Timed out; first mode detect\n");
++			v4l2_dbg(2, debug, &video->v4l2_dev, "Timed out; first mode detect\n");
+ 			clear_bit(VIDEO_RES_DETECT, &video->flags);
+ 			return;
+ 		}
+@@ -998,7 +998,7 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
+ 						      MODE_DETECT_TIMEOUT);
+ 		clear_bit(VIDEO_RES_DETECT, &video->flags);
+ 		if (!rc) {
+-			v4l2_warn(&video->v4l2_dev, "Timed out; second mode detect\n");
++			v4l2_dbg(2, debug, &video->v4l2_dev, "Timed out; second mode detect\n");
+ 			return;
+ 		}
+ 
+@@ -1021,7 +1021,7 @@ static void aspeed_video_get_resolution(struct aspeed_video *video)
+ 	} while (invalid_resolution && (tries++ < INVALID_RESOLUTION_RETRIES));
+ 
+ 	if (invalid_resolution) {
+-		v4l2_warn(&video->v4l2_dev, "Invalid resolution detected\n");
++		v4l2_dbg(2, debug, &video->v4l2_dev, "Invalid resolution detected\n");
+ 		return;
+ 	}
+ 
+@@ -1683,7 +1683,7 @@ static void aspeed_video_stop_streaming(struct vb2_queue *q)
+ 				!test_bit(VIDEO_FRAME_INPRG, &video->flags),
+ 				STOP_TIMEOUT);
+ 	if (!rc) {
+-		v4l2_warn(&video->v4l2_dev, "Timed out when stopping streaming\n");
++		v4l2_dbg(2, debug, &video->v4l2_dev, "Timed out when stopping streaming\n");
+ 
+ 		/*
+ 		 * Need to force stop any DMA and try and get HW into a good
+-- 
+2.36.0
+

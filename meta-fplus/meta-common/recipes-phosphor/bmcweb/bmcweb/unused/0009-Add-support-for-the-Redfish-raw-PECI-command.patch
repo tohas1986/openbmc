@@ -1,0 +1,120 @@
+From 8a06c24a50903fa97f82bb8709548d3442215288 Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
+Date: Mon, 29 Mar 2021 16:41:22 -0700
+Subject: [PATCH] Add support for the Redfish raw PECI command
+
+Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
+---
+ redfish-core/include/redfish.hpp  |  1 +
+ redfish-core/lib/log_services.hpp | 76 +++++++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+)
+
+diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
+index 1c7b695..ff0a24d 100644
+--- a/redfish-core/include/redfish.hpp
++++ b/redfish-core/include/redfish.hpp
+@@ -133,6 +133,7 @@ class RedfishService
+         requestRoutesCrashdumpFile(app);
+         requestRoutesCrashdumpClear(app);
+         requestRoutesCrashdumpCollect(app);
++        requestRoutesSendRawPECI(app);
+ #endif // BMCWEB_ENABLE_REDFISH_CPU_LOG
+ 
+         requestRoutesProcessorCollection(app);
+diff --git a/redfish-core/lib/log_services.hpp b/redfish-core/lib/log_services.hpp
+index 31f046e..774df6a 100644
+--- a/redfish-core/lib/log_services.hpp
++++ b/redfish-core/lib/log_services.hpp
+@@ -2349,6 +2349,11 @@ inline void requestRoutesCrashdumpService(App& app)
+                 {"#LogService.CollectDiagnosticData",
+                  {{"target", "/redfish/v1/Systems/system/LogServices/Crashdump/"
+                              "Actions/LogService.CollectDiagnosticData"}}}};
++
++            asyncResp->res.jsonValue["Actions"]["Oem"] = {
++                {"#Crashdump.SendRawPeci",
++                 {{"target", "/redfish/v1/Systems/system/LogServices/Crashdump/"
++                             "Actions/Oem/Crashdump.SendRawPeci"}}}};
+         });
+ }
+ 
+@@ -2716,6 +2721,77 @@ inline void requestRoutesCrashdumpCollect(App& app)
+         });
+ }
+ 
++inline void requestRoutesSendRawPECI(App& app)
++{
++    BMCWEB_ROUTE(app, "/redfish/v1/Systems/system/LogServices/Crashdump/"
++                      "Actions/Oem/Crashdump.SendRawPeci/")
++        .privileges({{"ConfigureComponents"}})
++        .methods(boost::beast::http::verb::post)(
++            [](const crow::Request& req,
++               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
++                std::vector<std::vector<uint8_t>> peciCommands;
++
++                if (!json_util::readJson(req, asyncResp->res, "PECICommands",
++                                         peciCommands))
++                {
++                    return;
++                }
++                uint32_t idx = 0;
++                for (auto const& cmd : peciCommands)
++                {
++                    if (cmd.size() < 3)
++                    {
++                        std::string s("[");
++                        for (auto const& val : cmd)
++                        {
++                            if (val != *cmd.begin())
++                            {
++                                s += ",";
++                            }
++                            s += std::to_string(val);
++                        }
++                        s += "]";
++                        messages::actionParameterValueFormatError(
++                            asyncResp->res, s,
++                            "PECICommands[" + std::to_string(idx) + "]",
++                            "SendRawPeci");
++                        return;
++                    }
++                    idx++;
++                }
++                std::chrono::steady_clock::time_point commandStart =
++                    std::chrono::steady_clock::now();
++                // Callback to return the Raw PECI response
++                auto sendRawPECICallback =
++                    [asyncResp, commandStart](
++                        const boost::system::error_code ec,
++                        const std::vector<std::vector<uint8_t>>& resp) {
++                        if (ec)
++                        {
++                            BMCWEB_LOG_DEBUG
++                                << "failed to process PECI commands ec: "
++                                << ec.message();
++                            messages::internalError(asyncResp->res);
++                            return;
++                        }
++                        auto commandTimeMs =
++                            std::chrono::duration_cast<
++                                std::chrono::milliseconds>(
++                                std::chrono::steady_clock::now() - commandStart)
++                                .count();
++                        asyncResp->res.jsonValue = {
++                            {"Name", "PECI Command Response"},
++                            {"PECIResponse", resp},
++                            {"ElapsedTimeMs", commandTimeMs}};
++                    };
++                // Call the SendRawPECI command with the provided data
++                crow::connections::systemBus->async_method_call(
++                    std::move(sendRawPECICallback), crashdumpObject,
++                    crashdumpPath, "com.intel.crashdump.SendRawPeci",
++                    "SendRawPeci", peciCommands);
++            });
++};
++
+ /**
+  * DBusLogServiceActionsClear class supports POST method for ClearLog action.
+  */
+-- 
+2.17.1
+

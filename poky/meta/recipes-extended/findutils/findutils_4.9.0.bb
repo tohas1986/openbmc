@@ -14,8 +14,7 @@ CACHED_CONFIGUREVARS += "gl_cv_func_wcwidth_works=yes"
 
 EXTRA_OECONF += "ac_cv_path_SORT=${bindir}/sort"
 
-# need od from coreutils for -t option
-RDEPENDS:${PN}-ptest += "bash sed grep coreutils"
+RDEPENDS:${PN}-ptest += "bash sed grep"
 
 do_install_ptest:class-target() {
 	mkdir -p ${D}${PTEST_PATH}/tests/

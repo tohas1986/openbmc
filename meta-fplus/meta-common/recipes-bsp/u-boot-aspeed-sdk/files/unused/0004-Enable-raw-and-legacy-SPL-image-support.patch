@@ -1,0 +1,27 @@
+From 3444f32c80bb5b6bee81719d87fb55ef041ffa7d Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 19 Oct 2022 10:04:36 +0000
+Subject: [PATCH] Enable raw and legacy SPL image support
+
+---
+ configs/yandex_ast2600_defconfig | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/configs/yandex_ast2600_defconfig b/configs/yandex_ast2600_defconfig
+index 29e6af1ea1..75b35f2ea9 100644
+--- a/configs/yandex_ast2600_defconfig
++++ b/configs/yandex_ast2600_defconfig
+@@ -42,8 +42,8 @@ CONFIG_SYS_CONSOLE_ENV_OVERWRITE=y
+ CONFIG_DISPLAY_BOARDINFO_LATE=y
+ CONFIG_ARCH_EARLY_INIT_R=y
+ CONFIG_BOARD_EARLY_INIT_F=y
+-# CONFIG_SPL_RAW_IMAGE_SUPPORT is not set
+-# CONFIG_SPL_LEGACY_IMAGE_SUPPORT is not set
++CONFIG_SPL_RAW_IMAGE_SUPPORT=y
++CONFIG_SPL_LEGACY_IMAGE_SUPPORT=y
+ CONFIG_SPL_SYS_MALLOC_SIMPLE=y
+ CONFIG_SPL_STACK_R=y
+ CONFIG_SPL_SEPARATE_BSS=y
+-- 
+2.36.1
+

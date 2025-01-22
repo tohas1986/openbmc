@@ -1,0 +1,27 @@
+From e0859dd8baaeefe97807d0c32210932dbceb0895 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 3 Jun 2020 14:32:04 +0000
+Subject: [PATCH 1/1] ntpd: Remove spam to log in IPv6-only environment
+
+---
+ ntpd/ntp_io.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/ntpd/ntp_io.c b/ntpd/ntp_io.c
+index ed5f0dc..4e765cd 100644
+--- a/ntpd/ntp_io.c
++++ b/ntpd/ntp_io.c
+@@ -2647,8 +2647,8 @@ io_setbclient(void)
+ 		DPRINTF(1, ("io_setbclient: listening to %d broadcast addresses\n", nif));
+ 	} else {
+ 		broadcast_client_enabled = ISC_FALSE;
+-		msyslog(LOG_ERR,
+-			"Unable to listen for broadcasts, no broadcast interfaces available");
++		/* msyslog(LOG_ERR,
++			"Unable to listen for broadcasts, no broadcast interfaces available"); */
+ 	}
+ #else
+ 	msyslog(LOG_ERR,
+-- 
+2.7.4
+

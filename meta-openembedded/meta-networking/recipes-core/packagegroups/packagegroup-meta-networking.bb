@@ -1,6 +1,5 @@
 SUMMARY = "Meta-networking packagegroups"
 
-PACKAGE_ARCH = "${MACHINE_ARCH}"
 inherit packagegroup
 
 PROVIDES = "${PACKAGES}"
@@ -13,6 +12,7 @@ PACKAGES = ' \
     packagegroup-meta-networking-filter \
     packagegroup-meta-networking-irc \
     packagegroup-meta-networking-kernel \
+    packagegroup-meta-networking-netkit \
     packagegroup-meta-networking-protocols \
     packagegroup-meta-networking-support \
 '
@@ -25,6 +25,7 @@ RDEPENDS:packagegroup-meta-networking = "\
     packagegroup-meta-networking-filter \
     packagegroup-meta-networking-irc \
     packagegroup-meta-networking-kernel \
+    packagegroup-meta-networking-netkit \
     packagegroup-meta-networking-protocols \
     packagegroup-meta-networking-support \
     "
@@ -132,17 +133,32 @@ RDEPENDS:packagegroup-meta-networking-kernel = "\
     wireguard-tools \
 "
 
+RDEPENDS:packagegroup-meta-networking-netkit = "\
+    netkit-rwho-client \
+    netkit-rwho-server \
+    netkit-rsh-client \
+    netkit-rsh-server \
+    netkit-telnet \
+    netkit-tftp-client \
+    netkit-tftp-server \
+    netkit-ftp \
+    netkit-rpc \
+    "
+
+RDEPENDS:packagegroup-meta-networking-netkit:remove:libc-musl = " \
+    netkit-rsh-client netkit-rsh-server netkit-telnet"
+
 RDEPENDS:packagegroup-meta-networking-protocols = "\
     babeld \
     ${@bb.utils.contains("DISTRO_FEATURES", "pam", "dante", "", d)} \
     freediameter \
-    frr \
     net-snmp \
     openflow \
     openflow \
     openl2tp \
     mdns \
     nopoll \
+    quagga \
     radiusclient-ng \
     tsocks \
     openlldp \
@@ -198,7 +214,7 @@ RDEPENDS:packagegroup-meta-networking-support = "\
     yp-tools \
     mtr \
     netsniff-ng \
-    ntp sntp ntpdc ntpq ntp-tickadj ntp-utils \
+    ntp ntpdate sntp ntpdc ntpq ntp-tickadj ntp-utils \
     ${@bb.utils.contains("DISTRO_FEATURES", "x11", "ntpsec", "", d)} \
     nbd-client \
     nbd-server \
@@ -241,10 +257,8 @@ RDEPENDS:packagegroup-meta-networking-support = "\
     vnstat \
     wpan-tools \
     ettercap \
-    libcpr \
 "
 RDEPENDS:packagegroup-meta-networking-support:remove:mipsarch = "memcached"
-RDEPENDS:packagegroup-meta-networking-support:remove:riscv64 = "memcached"
 RDEPENDS:packagegroup-meta-networking-support:remove:libc-musl = "ypbind-mt"
 
 EXCLUDE_FROM_WORLD = "1"

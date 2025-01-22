@@ -13,7 +13,6 @@ START_TGTFMT = "obmc-host-startmin@{1}.target"
 START_INSTFMT = "op-start-host@{0}.service"
 START_FMT = "../${START_TMPL}:${START_TGTFMT}.requires/${START_INSTFMT}"
 SYSTEMD_LINK:${PN} += "${@compose_list_zip(d, 'START_FMT', 'OBMC_HOST_INSTANCES', 'OBMC_CHASSIS_INSTANCES')}"
-SYSTEMD_LINK[vardeps] += "OBMC_HOST_INSTANCES OBMC_CHASSIS_INSTANCES"
 
 inherit skeleton-gdbus
 inherit obmc-phosphor-dbus-service
@@ -21,8 +20,5 @@ inherit pkgconfig
 
 RPROVIDES:${PN} += "virtual-obmc-host-ctl"
 
-DBUS_SERVICE:${PN} += "org.openbmc.control.Host@.service"
-OBMC_CONTROL_INST = "org.openbmc.control.Host@{0}.service"
-OBMC_CONTROL_SVC = "org.openbmc.control.Host@.service"
-OBMC_CONTROL_FMT = "../${OBMC_CONTROL_SVC}:multi-user.target.wants/${OBMC_CONTROL_INST}"
-SYSTEMD_LINK:${PN} += "${@compose_list(d, 'OBMC_CONTROL_FMT', 'OBMC_HOST_INSTANCES')}"
+FMT = "org.openbmc.control.Host@{0}.service"
+DBUS_SERVICE:${PN} += "${@compose_list(d, 'FMT', 'OBMC_HOST_INSTANCES')}"

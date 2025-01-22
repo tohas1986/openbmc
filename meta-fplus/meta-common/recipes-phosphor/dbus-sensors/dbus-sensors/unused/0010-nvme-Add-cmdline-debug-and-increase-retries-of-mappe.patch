@@ -1,0 +1,129 @@
+From a5ffaee5e777d24a7f06f581719776bb93d414ad Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 1 Apr 2021 14:05:20 +0000
+Subject: [PATCH] nvme-Add-cmdline-debug-and-increase-retries-of-mappe
+
+---
+ include/Utils.hpp      |  4 ++--
+ src/NVMeSensor.cpp     |  5 +++--
+ src/NVMeSensorMain.cpp | 14 ++++++++++++--
+ 3 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/include/Utils.hpp b/include/Utils.hpp
+index d2ab5ca..8ef33a2 100644
+--- a/include/Utils.hpp
++++ b/include/Utils.hpp
+@@ -238,7 +238,7 @@ struct GetSensorConfiguration :
+     }
+ 
+     void getConfiguration(const std::vector<std::string>& interfaces,
+-                          size_t retries = 0)
++                          size_t retries = 5)
+     {
+         if (retries > 5)
+         {
+@@ -251,7 +251,7 @@ struct GetSensorConfiguration :
+                                         const GetSubTreeType& ret) {
+                 if (ec)
+                 {
+-                    std::cerr << "Error calling mapper\n";
++                    std::cerr << "Error calling mapper, "<< retries << " tries left\n";
+                     if (!retries)
+                     {
+                         return;
+diff --git a/src/NVMeSensor.cpp b/src/NVMeSensor.cpp
+index 5119ab9..77067b0 100644
+--- a/src/NVMeSensor.cpp
++++ b/src/NVMeSensor.cpp
+@@ -27,8 +27,7 @@
+ static constexpr double maxReading = 127;
+ static constexpr double minReading = 0;
+ 
+-static constexpr bool debug = false;
+-
++extern bool DEBUG;
+ void rxMessage(uint8_t eid, void* data, void* msg, size_t len);
+ 
+ namespace nvmeMCTP
+@@ -211,6 +210,7 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
+ 
+     if (nvmeDevice->sensors.empty())
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << " sensors empty, exiting\n";
+         return;
+     }
+ 
+@@ -400,6 +400,7 @@ void NVMeContext::pollNVMeDevices()
+         [self{shared_from_this()}](const boost::system::error_code errorCode) {
+             if (errorCode == boost::asio::error::operation_aborted)
+             {
++                if (DEBUG) std::cerr << "pollNVMeDevices operation aborted\n";
+                 return; // we're being canceled
+             }
+             else if (errorCode)
+diff --git a/src/NVMeSensorMain.cpp b/src/NVMeSensorMain.cpp
+index 21e722f..9084941 100644
+--- a/src/NVMeSensorMain.cpp
++++ b/src/NVMeSensorMain.cpp
+@@ -15,6 +15,7 @@
+ */
+ 
+ #include <NVMeSensor.hpp>
++#include <CLI/CLI.hpp>
+ #include <boost/asio/deadline_timer.hpp>
+ 
+ #include <regex>
+@@ -24,7 +25,7 @@ static constexpr const char* sensorType =
+ 
+ static NVMEMap nvmeDeviceMap;
+ 
+-static constexpr bool debug = false;
++bool DEBUG = false;
+ 
+ NVMEMap& getNVMEMap()
+ {
+@@ -36,6 +37,8 @@ void createSensors(boost::asio::io_service& io,
+                    std::shared_ptr<sdbusplus::asio::connection>& dbusConnection)
+ {
+ 
++    if (DEBUG) std::cerr << __FUNCTION__ << " start\n";
++
+     auto getter = std::make_shared<GetSensorConfiguration>(
+         dbusConnection,
+         std::move([&io, &objectServer, &dbusConnection](
+@@ -70,11 +73,13 @@ void createSensors(boost::asio::io_service& io,
+ 
+                 if (baseConfiguration == nullptr)
+                 {
++                    if (DEBUG) std::cerr << __FUNCTION__ << " Unable to find base configuration for sensor\n";
+                     continue;
+                 }
+                 auto findBus = baseConfiguration->second.find("Bus");
+                 if (findBus == baseConfiguration->second.end())
+                 {
++                    if (DEBUG) std::cerr << __FUNCTION__ << " Unable to find bus for sensor\n";
+                     continue;
+                 }
+ 
+@@ -136,6 +141,7 @@ void createSensors(boost::asio::io_service& io,
+                         std::move(sensorThresholds), interfacePath, busNumber);
+ 
+                 context->sensors.emplace_back(sensorPtr);
++                if (DEBUG) std::cerr << __FUNCTION__ << " Emplacing sensor " << sensorName << " at bus " << +busNumber << "/" << +rootBus << "\n";
+             }
+             for (const auto& [_, context] : nvmeDeviceMap)
+             {
+@@ -145,8 +151,12 @@ void createSensors(boost::asio::io_service& io,
+     getter->getConfiguration(std::vector<std::string>{sensorType});
+ }
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++    CLI::App app("NVMe sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     systemBus->request_name("xyz.openbmc_project.NVMeSensor");

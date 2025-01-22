@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2046
 
 do_fru_upgrade() {
 	FRU_DEVICE="/sys/bus/i2c/devices/3-0050/eeprom"
@@ -12,6 +11,7 @@ do_fru_upgrade() {
 	ampere_fru_upgrade -d $FRU_DEVICE -f "$IMAGE"
 
 	systemctl restart xyz.openbmc_project.FruDevice.service
+	systemctl restart phosphor-ipmi-host.service
 }
 
 do_smpmpro_upgrade() {
@@ -31,43 +31,34 @@ do_smpmpro_upgrade() {
 	then
 		echo "Turning the Chassis off"
 		obmcutil chassisoff
-
-		# Wait 60s until Chassis is off
-		cnt=30
-		while [ "$cnt" -gt 0 ];
-		do
-			cnt=$((cnt - 1))
-			sleep 2
-			# Check if HOST was OFF
-			chassisstate_off=$(obmcutil chassisstate | awk -F. '{print $NF}')
-			if [ "$chassisstate_off" != 'On' ];
-			then
-				break
-			fi
-
-			if [ "$cnt" == "0" ];
-			then
-				echo "--- Error : Failed turning the Chassis off"
-				exit 1
-			fi
-		done
+		sleep 15
+		# Check if HOST was OFF
+		chassisstate_off=$(obmcutil chassisstate | awk -F. '{print $NF}')
+		if [ "$chassisstate_off" == 'On' ];
+		then
+			echo "Error : Failed turning the Chassis off"
+			exit
+		fi
 	fi
 
 	if [[ $SECPRO == 1 ]]; then
-		gpioset $(gpiofind host0-special-boot)=1
-		gpioset $(gpiofind s1-special-boot)=1
+		# 3 is S0_SPECIAL_BOOT
+		gpioset 0 3=1
+		# 66 is S1_SPECIAL_BOOT
+		gpioset 0 66=1
 	fi
 
 	# Switch EEPROM control to BMC AST2500 I2C
-	gpioset $(gpiofind spi0-program-sel)=0
+	# 226 is BMC_GPIOAC2_SPI0_PROGRAM_SEL
+	gpioset 0 226=0
 
 	# 08 is BMC_GPIOB0_I2C_BACKUP_SEL
 	if [[ $DEV_SEL == 1 ]]; then
 		echo "Run update primary Boot EEPROM"
-		gpioset $(gpiofind i2c-backup-sel)=1       # Main EEPROM
+		gpioset 0 8=1       # Main EEPROM
 	elif [[ $DEV_SEL == 2 ]]; then
 		echo "Run update secondary Boot EEPROM"
-		gpioset $(gpiofind i2c-backup-sel)=0       # Second EEPROM
+		gpioset 0 8=0       # Second EEPROM
 	else
 		echo "Please choose Main (1) or Second EEPROM (2)"
 		exit 0
@@ -78,15 +69,9 @@ do_smpmpro_upgrade() {
 
 	# Switch EEPROM control to Host
 	# 08 is BMC_GPIOB0_I2C_BACKUP_SEL
-	gpioset $(gpiofind i2c-backup-sel)=1
-	gpioset $(gpiofind spi0-program-sel)=1
-
-	# Deassert SECPRO GPIO PINs
-	if [[ $SECPRO == 1 ]]; then
-		echo "De-asserting special GPIO PINs"
-		gpioset $(gpiofind host0-special-boot)=0
-		gpioset $(gpiofind s1-special-boot)=0
-	fi
+	gpioset 0 8=1
+	# 226 is BMC_GPIOAC2_SPI0_PROGRAM_SEL
+	gpioset 0 226=1
 
 	if [ "$chassisstate" == 'On' ];
 	then
@@ -95,6 +80,20 @@ do_smpmpro_upgrade() {
 		obmcutil poweron
 	fi
 
+	# Deassert SECPRO GPIO PINs
+	if [[ $SECPRO == 1 ]]; then
+		chassisstate=$(obmcutil chassisstate | awk -F. '{print $NF}')
+		if [ "$chassisstate_off" == 'Off' ]; then
+			obmcutil poweron
+		fi
+
+		sleep 30s
+		echo "De-asserting special GPIO PINs"
+		# 3 is S0_SPECIAL_BOOT
+		gpioset 0 3=0
+		# 66 is S1_SPECIAL_BOOT
+		gpioset 0 66=0
+	fi
 }
 
 
@@ -102,8 +101,8 @@ if [ $# -eq 0 ]; then
 	echo "Usage:"
 	echo "      $(basename "$0") <Type> <Image file> <DEV_SEL> [SECPRO]"
 	echo "Where:"
-	echo "    <Type>: eeprom or fru"
-	echo "            If Type is eeprom, then DEV_SEL must is 1 (MAIN EEPROM), 2 (Failover)"
+	echo "    <Type>: smpmpro or fru"
+	echo "            If Type is smpmpro, then DEV_SEL must is 1 (MAIN EEPROM), 2 (Failover)"
 	echo "    SECPRO: Optional, input '1' to enter & flash secpro mode. Default: 0"
 	exit 0
 fi
@@ -138,11 +137,8 @@ if [ $SECPRO == 1 ] && [ "$DEV_SEL" == 2 ]; then
 	exit
 fi
 
-case $TYPE in
-	"smpmpro" | "eeprom")
-		do_smpmpro_upgrade
-		;;
-	"fru")
-		do_fru_upgrade
-		;;
-esac
+if [[ $TYPE == "smpmpro" ]]; then
+	do_smpmpro_upgrade
+elif [[ $TYPE == "fru" ]]; then
+	do_fru_upgrade
+fi

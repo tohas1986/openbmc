@@ -1,0 +1,27 @@
+From d9200a91845e05d30d63a57052bfc6eb5a5ddc20 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 29 Dec 2020 15:22:55 +0000
+Subject: [PATCH 1/1] Increase restart limit
+
+---
+ src/core/system.conf.in | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/core/system.conf.in b/src/core/system.conf.in
+index 5764f62..0f9a15f 100644
+--- a/src/core/system.conf.in
++++ b/src/core/system.conf.in
+@@ -43,8 +43,8 @@
+ #DefaultTimeoutStopSec=90s
+ #DefaultTimeoutAbortSec=
+ #DefaultRestartSec=100ms
+-#DefaultStartLimitIntervalSec=10s
+-#DefaultStartLimitBurst=5
++DefaultStartLimitIntervalSec=10s
++DefaultStartLimitBurst=50
+ #DefaultEnvironment=
+ #DefaultCPUAccounting=no
+ #DefaultIOAccounting=no
+-- 
+2.7.4
+

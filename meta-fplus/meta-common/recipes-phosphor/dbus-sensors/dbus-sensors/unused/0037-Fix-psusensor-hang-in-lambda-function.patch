@@ -1,0 +1,129 @@
+From ea12d29d36aded393c7a9392ec6cf12271b7b283 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Wed, 21 Apr 2021 12:28:20 +0000
+Subject: [PATCH] Fix psusensor hang in lambda function
+
+---
+ src/PSUSensor.cpp | 45 ++++++++++++++++++++++-----------------------
+ 1 file changed, 22 insertions(+), 23 deletions(-)
+
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index 73505ab..eca3f15 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -20,9 +20,11 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/read_until.hpp>
++#include <boost/asio/read.hpp>
+ #include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
++#include <boost/serialization/optional.hpp>
+ 
+ #include <iostream>
+ #include <istream>
+@@ -145,7 +147,7 @@ void PSUSensor::setupRead(void)
+         waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollPowerOffMs));
+         std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+         /* Check inputDev and open it if needed */
+-        if (! inputDev.is_open())
++        if (!inputDev.is_open())
+         {
+             //std::cerr << __FUNCTION__ << " inputDev is not open, opening\n";
+             std::cerr << __FUNCTION__ << " " << sensorName << " inputDev is not open, opening\n";
+@@ -162,12 +164,12 @@ void PSUSensor::setupRead(void)
+                 std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+                 waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+                     std::shared_ptr<PSUSensor> self = weakRef.lock();
+-                    /*if (ec == boost::asio::error::operation_aborted)
++                    if (ec == boost::asio::error::operation_aborted)
+                     {
+                         // TODO FIXME Silent exit
+-                        //return; // we're being canceled
+-                        exit(-1);
+-                    }*/
++                        return; // we're being canceled
++                        //exit(-1);
++                    }
+                     if (self)
+                     {
+                         self->setupRead();
+@@ -175,7 +177,8 @@ void PSUSensor::setupRead(void)
+                     else
+                     {
+                         std::cerr << "Sensor setupRead: Error occured, exiting\n";
+-                        exit(-1);
++                        //exit(-1);
++                        return;
+                     }
+                 });
+                 return;
+@@ -187,7 +190,7 @@ void PSUSensor::setupRead(void)
+             if (ec == boost::asio::error::operation_aborted)
+             {
+                 // TODO FIXME Silent exit
+-                exit(-1);
++                //exit(-1);
+                 return;
+             }
+             if (self)
+@@ -218,8 +221,7 @@ void PSUSensor::setupRead(void)
+                 if (ec == boost::asio::error::operation_aborted)
+                 {
+                     // TODO FIXME Silent exit
+-                    exit(-1);
+-                    exit(-1);
++                    //exit(-1);
+                     return; // we're being canceled
+                 }
+ 
+@@ -241,18 +243,14 @@ void PSUSensor::setupRead(void)
+     }
+     else
+     {
+-        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " Scheduling async read \n";
+-        boost::asio::async_read_until(
+-            inputDev, *buffer, '\n',
+-            [weakRef, buffer](const boost::system::error_code& ec,
+-                              std::size_t /*bytes_transfered*/) {
+-                    std::shared_ptr<PSUSensor> self = weakRef.lock();
+-                if (self)
+-                {
+-                    self->readBuf = buffer;
+-                    self->handleResponse(ec);
+-                }
+-            });
++        if (DEBUG) std::cerr << "SetupRead: " << sensorName << " Scheduling sensor read \n";
++
++        std::shared_ptr<PSUSensor> self = weakRef.lock();
++        boost::system::error_code ec;
++        inputDev.non_blocking(true);
++        boost::asio::read_until(self->inputDev, *buffer, '\n', ec);
++        self->readBuf = buffer;
++        self->handleResponse(ec);
+     }
+ }
+ 
+@@ -291,7 +289,8 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+             else
+             {
+                 std::cerr << "Sensor setupRead: Error occured, exiting\n";
+-                exit(-1);
++                //exit(-1);
++                return;
+             }
+         });
+         return;
+@@ -348,7 +347,7 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+         std::shared_ptr<PSUSensor> self = weakRef.lock();
+         if (ec == boost::asio::error::operation_aborted)
+         {
+-            //std::cerr << "Failed to reschedule\n";
++            if(DEBUG) std::cerr << "Failed to reschedule\n";
+             return;
+         }
+         if (self)
+-- 
+2.7.4
+

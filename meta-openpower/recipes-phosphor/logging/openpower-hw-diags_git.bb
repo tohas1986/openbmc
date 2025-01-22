@@ -15,7 +15,7 @@ PR = "r1"
 PV = "0.1+git${SRCPV}"
 
 SRC_URI = "git://github.com/openbmc/openpower-hw-diags;branch=master;protocol=https"
-SRCREV = "a0c724d3d425032213dbd48247d93cc76d61a331"
+SRCREV = "934635e04c6732db087771a1407fed1511edf556"
 
 S = "${WORKDIR}/git"
 
@@ -36,14 +36,3 @@ PACKAGECONFIG[phal] = "-Dphal=enabled, -Dphal=disabled, ipl pdata"
 # Don't build CI tests
 EXTRA_OEMESON = "-Dtests=disabled"
 
-pkg_postinst:${PN}() {
-    mkdir -p $D$systemd_system_unitdir/obmc-host-startmin@0.target.wants
-    LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.wants/attn_handler.service"
-    TARGET="../attn_handler.service"
-    ln -s $TARGET $LINK
-}
-
-pkg_prerm:${PN}() {
-    LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.wants/attn_handler.service"
-    rm $LINK
-}

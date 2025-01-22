@@ -1,0 +1,72 @@
+From 38cb0ade2511d8b77ded67433cbfc4adf088080d Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 1 Apr 2021 12:29:08 +0000
+Subject: [PATCH] Handle-PowerState-in-hwmontempsensor
+
+---
+ src/HwmonTempSensor.cpp | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)
+
+diff --git a/src/HwmonTempSensor.cpp b/src/HwmonTempSensor.cpp
+index 41fc357..a376d0d 100644
+--- a/src/HwmonTempSensor.cpp
++++ b/src/HwmonTempSensor.cpp
+@@ -31,6 +31,7 @@
+ #include <string>
+ #include <vector>
+ 
++static constexpr unsigned int sensorSetupRetryMs = 2000;
+ static constexpr unsigned int sensorScaleFactor = 1000;
+ static constexpr size_t warnAfterErrorCount = 10;
+ 
+@@ -86,6 +87,25 @@ HwmonTempSensor::~HwmonTempSensor()
+ 
+ void HwmonTempSensor::setupRead(void)
+ {
++    if (readState == PowerState::on && !isPowerOn())
++    {
++        updateValue(std::numeric_limits<double>::quiet_NaN());
++        waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorSetupRetryMs));
++        std::weak_ptr<HwmonTempSensor> weakRef = weak_from_this();
++        waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
++            std::shared_ptr<HwmonTempSensor> self = weakRef.lock();
++            if (ec == boost::asio::error::operation_aborted)
++            {
++                return; // we're being canceled
++            }
++            if (self)
++            {
++                self->setupRead();
++            }
++        });
++        return;
++    }
++
+     std::weak_ptr<HwmonTempSensor> weakRef = weak_from_this();
+ 
+     boost::asio::async_read_until(inputDev, readBuf, '\n',
+@@ -107,8 +127,24 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+     {
+         std::cerr << "Hwmon temp sensor " << name << " removed " << path
+                   << "\n";
++        updateValue(std::numeric_limits<double>::quiet_NaN());
+         return; // we're being destroyed
+     }
++
++    if (readState == PowerState::on && !isPowerOn())
++    {
++         errCount = 0;
++         updateValue(std::numeric_limits<double>::quiet_NaN());
++
++         std::weak_ptr<HwmonTempSensor> weakRef = weak_from_this();
++         std::shared_ptr<HwmonTempSensor> self = weakRef.lock();
++         if (self)
++         {
++              self->setupRead();
++              return;
++         }
++    }
++
+     std::istream responseStream(&readBuf);
+     if (!err)
+     {

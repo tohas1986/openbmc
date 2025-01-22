@@ -1,0 +1,63 @@
+From 1c4f01cd37d5d5769bfd7d5c2c49f9143f4d19db Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 6 Oct 2022 10:00:31 +0000
+Subject: [PATCH] Remove NMISource.interface.yaml as it conflicts with
+ phosphor-dbus-interfaces
+
+---
+ com/intel/Control/NMISource.interface.yaml | 46 ----------------------
+ 1 file changed, 46 deletions(-)
+ delete mode 100644 com/intel/Control/NMISource.interface.yaml
+
+diff --git a/com/intel/Control/NMISource.interface.yaml b/com/intel/Control/NMISource.interface.yaml
+deleted file mode 100644
+index a172159..0000000
+--- a/com/intel/Control/NMISource.interface.yaml
++++ /dev/null
+@@ -1,46 +0,0 @@
+-description: >
+-    An interface for NMI signal source.
+-properties:
+-    - name: BMCSource
+-      type: enum[self.BMCSourceSignal]
+-      description: >
+-          Keeps track of NMI signal source in BMC.
+-      default: 'None'
+-    - name: Enabled
+-      type: boolean
+-      description: >
+-          whether the BMC enables NMI event.
+-      default: true
+-
+-enumerations:
+-   - name: BMCSourceSignal
+-     description: >
+-       The type of NMI source.
+-     values:
+-       - name: None
+-         description: >
+-           NONE NMI signal.
+-       - name: FpBtn
+-         description: >
+-           Via Front Panel NMI button.
+-       - name: WdPreTimeout
+-         description: >
+-           Via watchdog pre-timeout.
+-       - name: PefMatch
+-         description: >
+-           Via PEF match.
+-       - name: ChassisCmd
+-         description: >
+-           Via Chassis command.
+-       - name: MemoryError
+-         description: >
+-           Via memory error.
+-       - name: PciSerrPerr
+-         description: >
+-           Via PCI SERR PERR.
+-       - name: SouthbridgeNmi
+-         description: >
+-           Via southbridge NMI.
+-       - name: ChipsetNmi
+-         description: >
+-           Via chipset NMI.

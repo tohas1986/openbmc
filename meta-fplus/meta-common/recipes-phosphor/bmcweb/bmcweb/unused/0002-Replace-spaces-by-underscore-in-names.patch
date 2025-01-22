@@ -1,0 +1,95 @@
+From 5f0d2bfd333f20bdd674c4eb811f84a96d959a8e Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 15:07:46 +0000
+Subject: [PATCH 1/1] Replace spaces by underscore in names
+
+---
+ redfish-core/lib/managers.hpp |  8 ++++----
+ redfish-core/lib/sensors.hpp  | 10 +++++-----
+ 2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/redfish-core/lib/managers.hpp b/redfish-core/lib/managers.hpp
+index ea0589e..878510e 100644
+--- a/redfish-core/lib/managers.hpp
++++ b/redfish-core/lib/managers.hpp
+@@ -723,7 +723,7 @@ inline bool getZonesFromJsonReq(const std::shared_ptr<AsyncResp>& response,
+                                                "Zones");
+             return false;
+         }
+-        boost::replace_all(input, "_", " ");
++        boost::replace_all(input, " ", "_");
+         zones.emplace_back(std::move(input));
+     }
+     return true;
+@@ -942,7 +942,7 @@ inline CreatePIDRet createPidInterface(
+ 
+                 for (std::string& value : *container)
+                 {
+-                    boost::replace_all(value, "_", " ");
++                    boost::replace_all(value, " ", "_");
+                 }
+                 std::string key;
+                 if (index == 0)
+@@ -1118,7 +1118,7 @@ inline CreatePIDRet createPidInterface(
+         {
+             for (std::string& value : *inputs)
+             {
+-                boost::replace_all(value, "_", " ");
++                boost::replace_all(value, " ", "_");
+             }
+             output["Inputs"] = std::move(*inputs);
+         }
+@@ -1610,7 +1610,7 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
+                     continue;
+                 }
+ 
+-                output["Name"] = boost::replace_all_copy(name, "_", " ");
++                output["Name"] = boost::replace_all_copy(name, " ", "_");
+ 
+                 std::string chassis;
+                 CreatePIDRet ret = createPidInterface(
+diff --git a/redfish-core/lib/sensors.hpp b/redfish-core/lib/sensors.hpp
+index 9f06d2f..25fbd76 100644
+--- a/redfish-core/lib/sensors.hpp
++++ b/redfish-core/lib/sensors.hpp
+@@ -913,7 +913,7 @@ inline void objectInterfacesToJson(
+         // For sensors in SensorCollection we set Id instead of MemberId,
+         // including power sensors.
+         sensorJson["Id"] = sensorName;
+-        sensorJson["Name"] = boost::replace_all_copy(sensorName, "_", " ");
++        sensorJson["Name"] = boost::replace_all_copy(sensorName, " ", "_");
+     }
+     else if (sensorType != "power")
+     {
+@@ -921,7 +921,7 @@ inline void objectInterfacesToJson(
+         // PowerControl, those properties have more general values because
+         // multiple sensors can be stored in the same JSON object.
+         sensorJson["MemberId"] = sensorName;
+-        sensorJson["Name"] = boost::replace_all_copy(sensorName, "_", " ");
++        sensorJson["Name"] = boost::replace_all_copy(sensorName, " ", "_");
+     }
+ 
+     sensorJson["Status"]["State"] = getState(inventoryItem);
+@@ -1253,8 +1253,8 @@ inline void populateFanRedundancy(
+                                         sensorsAsyncResp->res);
+                                     return;
+                                 }
+-                                std::replace(name.begin(), name.end(), '_',
+-                                             ' ');
++                                std::replace(name.begin(), name.end(), ' ',
++                                             '_');
+ 
+                                 std::string health;
+ 
+@@ -2465,7 +2465,7 @@ inline nlohmann::json& getPowerSupply(nlohmann::json& powerSupplyArray,
+     powerSupply["@odata.id"] =
+         "/redfish/v1/Chassis/" + chassisId + "/Power#/PowerSupplies/";
+     powerSupply["MemberId"] = inventoryItem.name;
+-    powerSupply["Name"] = boost::replace_all_copy(inventoryItem.name, "_", " ");
++    powerSupply["Name"] = boost::replace_all_copy(inventoryItem.name, " ", "_");
+     powerSupply["Manufacturer"] = inventoryItem.manufacturer;
+     powerSupply["Model"] = inventoryItem.model;
+     powerSupply["PartNumber"] = inventoryItem.partNumber;
+-- 
+2.7.4
+

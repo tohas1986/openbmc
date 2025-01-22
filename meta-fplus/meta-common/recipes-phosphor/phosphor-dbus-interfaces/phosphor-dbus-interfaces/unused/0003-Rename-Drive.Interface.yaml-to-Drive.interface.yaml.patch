@@ -1,0 +1,81 @@
+From b2491c64ec5307c87cc2409a2caff65fe67f8d92 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 19 Jun 2020 12:30:04 +0000
+Subject: [PATCH 1/1] Rename Drive.Interface.yaml to Drive.interface.yaml
+
+---
+ .../Inventory/Item/Drive.Interface.yaml            | 27 ----------------------
+ .../Inventory/Item/Drive.interface.yaml            | 27 ++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 27 deletions(-)
+ delete mode 100644 yaml/xyz/openbmc_project/Inventory/Item/Drive.Interface.yaml
+ create mode 100644 yaml/xyz/openbmc_project/Inventory/Item/Drive.interface.yaml
+
+diff --git a/yaml/xyz/openbmc_project/Inventory/Item/Drive.Interface.yaml b/yaml/xyz/openbmc_project/Inventory/Item/Drive.Interface.yaml
+deleted file mode 100644
+index 4ab7ab5..0000000
+--- a/yaml/xyz/openbmc_project/Inventory/Item/Drive.Interface.yaml
++++ /dev/null
+@@ -1,27 +0,0 @@
+-description: >
+-    Implement to provide drive attributes.
+-properties:
+-    - name: driveConnectedTo
+-      type: string
+-      description: >
+-          Drive connection interface
+-    - name: drivePortNumber
+-      type: uint16
+-      description: >
+-          Drive port number
+-    - name: driveSerial
+-      type: string
+-      description: >
+-          Drive serial number
+-    - name: driveFirmwareVersion
+-      type: string
+-      description: >
+-          Drive firmware version
+-    - name: driveProductName
+-      type: string
+-      description: >
+-          Drive product name
+-    - name: driveSizeInKB
+-      type: uint32
+-      description: >
+-          Drive size in Kilobytes.
+diff --git a/yaml/xyz/openbmc_project/Inventory/Item/Drive.interface.yaml b/yaml/xyz/openbmc_project/Inventory/Item/Drive.interface.yaml
+new file mode 100644
+index 0000000..4ab7ab5
+--- /dev/null
++++ b/yaml/xyz/openbmc_project/Inventory/Item/Drive.interface.yaml
+@@ -0,0 +1,27 @@
++description: >
++    Implement to provide drive attributes.
++properties:
++    - name: driveConnectedTo
++      type: string
++      description: >
++          Drive connection interface
++    - name: drivePortNumber
++      type: uint16
++      description: >
++          Drive port number
++    - name: driveSerial
++      type: string
++      description: >
++          Drive serial number
++    - name: driveFirmwareVersion
++      type: string
++      description: >
++          Drive firmware version
++    - name: driveProductName
++      type: string
++      description: >
++          Drive product name
++    - name: driveSizeInKB
++      type: uint64
++      description: >
++          Drive size in Kilobytes.
+-- 
+2.7.4
+

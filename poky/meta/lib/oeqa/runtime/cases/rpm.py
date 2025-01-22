@@ -51,20 +51,21 @@ class RpmBasicTest(OERuntimeTestCase):
             msg = 'status: %s. Cannot run rpm -qa: %s' % (status, output)
             self.assertEqual(status, 0, msg=msg)
 
-        def wait_for_no_process_for_user(u, timeout = 120):
-            timeout_at = time.time() + timeout
-            while time.time() < timeout_at:
-                _, output = self.target.run(self.tc.target_cmds['ps'])
-                if u + ' ' not in output:
-                    return
-                time.sleep(1)
-            user_pss = [ps for ps in output.split("\n") if u + ' ' in ps]
-            msg = "User %s has processes still running: %s" % (u, "\n".join(user_pss))
-            self.fail(msg=msg)
+        def check_no_process_for_user(u):
+            _, output = self.target.run(self.tc.target_cmds['ps'])
+            if u + ' ' in output:
+                return False
+            else:
+                return True
 
         def unset_up_test_user(u):
             # ensure no test1 process in running
-            wait_for_no_process_for_user(u)
+            timeout = time.time() + 30
+            while time.time() < timeout:
+                if check_no_process_for_user(u):
+                    break
+                else:
+                    time.sleep(1)
             status, output = self.target.run('userdel -r %s' % u)
             msg = 'Failed to erase user: %s' % output
             self.assertTrue(status == 0, msg=msg)
@@ -80,24 +81,21 @@ class RpmBasicTest(OERuntimeTestCase):
 
 class RpmInstallRemoveTest(OERuntimeTestCase):
 
-    def _find_test_file(self):
-        pkgarch = self.td['TUNE_PKGARCH'].replace('-', '_')
-        rpmdir = os.path.join(self.tc.td['DEPLOY_DIR'], 'rpm', pkgarch)
+    @classmethod
+    def setUpClass(cls):
+        pkgarch = cls.td['TUNE_PKGARCH'].replace('-', '_')
+        rpmdir = os.path.join(cls.tc.td['DEPLOY_DIR'], 'rpm', pkgarch)
         # Pick base-passwd-doc as a test file to get installed, because it's small
         # and it will always be built for standard targets
         rpm_doc = 'base-passwd-doc-*.%s.rpm' % pkgarch
         if not os.path.exists(rpmdir):
-            self.fail("Rpm directory {} does not exist".format(rpmdir))
+            return
         for f in fnmatch.filter(os.listdir(rpmdir), rpm_doc):
-            self.test_file = os.path.join(rpmdir, f)
-            break
-        else:
-            self.fail("Couldn't find the test rpm file {} in {}".format(rpm_doc, rpmdir))
-        self.dst = '/tmp/base-passwd-doc.rpm'
+            cls.test_file = os.path.join(rpmdir, f)
+        cls.dst = '/tmp/base-passwd-doc.rpm'
 
     @OETestDepends(['rpm.RpmBasicTest.test_rpm_query'])
     def test_rpm_install(self):
-        self._find_test_file()
         self.tc.target.copyTo(self.test_file, self.dst)
         status, output = self.target.run('rpm -ivh /tmp/base-passwd-doc.rpm')
         msg = 'Failed to install base-passwd-doc package: %s' % output
@@ -120,7 +118,6 @@ class RpmInstallRemoveTest(OERuntimeTestCase):
         Author:      Alexander Kanavin <alex.kanavin@gmail.com>
         AutomatedBy: Daniel Istrate <daniel.alexandrux.istrate@intel.com>
         """
-        self._find_test_file()
         db_files_cmd = 'ls /var/lib/rpm/rpmdb.sqlite*'
         check_log_cmd = "grep RPM /var/log/messages | wc -l"
 

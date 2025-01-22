@@ -1,0 +1,568 @@
+From 7312ac933d4f7ed14b4ab997d03651e117148778 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 22 Apr 2021 15:17:13 +0000
+Subject: [PATCH] Deep refactor of psusensor
+
+---
+ include/PSUSensor.hpp | 112 +----------------------
+ src/PSUSensor.cpp     | 247 ++++++++++++--------------------------------------
+ src/PSUSensorMain.cpp |  51 ++---------
+ 3 files changed, 69 insertions(+), 341 deletions(-)
+
+diff --git a/include/PSUSensor.hpp b/include/PSUSensor.hpp
+index 85dc2ac..870d295 100644
+--- a/include/PSUSensor.hpp
++++ b/include/PSUSensor.hpp
+@@ -14,104 +14,6 @@
+ #include <gpiod.hpp>
+ #include <map>
+ 
+-class BridgeGpio
+-{
+-
+-  public:
+-    static std::map<std::string, gpiod::line> lines;
+-    static std::map<std::string, int> usage;
+-    static std::map<std::string, int> requests;
+-    static std::map<std::string, int> releases;
+-    static bool debug;
+-
+-    BridgeGpio(const std::string& n, const int p)
+-    {
+-
+-        name = n;
+-        polarity = p;
+-        line = gpiod::find_line(n);
+-        if (!line)
+-        {
+-            std::cerr << "Error finding gpio: " << n << "\n";
+-            return;
+-        }
+-
+-        if (usage.count(name) != 1)
+-        {
+-            line.request({"psusensor",
+-                          gpiod::line_request::DIRECTION_OUTPUT,
+-                          polarity == gpiod::line::ACTIVE_HIGH
+-                              ? 0
+-                              : gpiod::line_request::FLAG_ACTIVE_LOW});
+-            lines.insert(std::make_pair(name, line));
+-            usage.insert(std::make_pair(name, 0));
+-            requests.insert(std::make_pair(name, 0));
+-            releases.insert(std::make_pair(name, 0));
+-        }
+-        line = lines[name];
+-        usage[name] ++;
+-        if (debug)
+-            std::cerr << "Instantiated line:" << name << " usage: " << usage[name] << "\n";
+-    }
+-
+-    void request()
+-    {
+-        if (line)
+-        {
+-            if (debug)
+-                std::cerr << "Request line:" << name << " reqs: " << requests[name]
+-                      << " releases:" << releases[name] << "\n";
+-            try
+-            {
+-                if (requests[name] == 0 )
+-                {
+-                   if (debug)
+-                       std::cerr << "Setting line: " << name << "\n";
+-                   line.set_value(1);
+-                }
+-                requests[name] ++;
+-            }
+-            catch (std::system_error& e)
+-            {
+-                std::cerr << "Error requesting bridge: " << name
+-                          << " error:" << e.what() << "\n";
+-            }
+-        }
+-    }
+-
+-    void release()
+-    {
+-        if (line)
+-        {
+-            try
+-            {
+-                releases[name] ++;
+-                if (debug)
+-                    std::cerr << "Release line:" << name << " reqs: "
+-                              << requests[name] << " releases:" << releases[name] << "\n";
+-                if (requests[name] == releases[name])
+-                {
+-                    if (debug)
+-                        std::cerr << "Unsetting line: " << name << "\n";
+-                    requests[name] = 0;
+-                    releases[name] = 0;
+-                    line.set_value(0);
+-                }
+-            }
+-            catch (std::system_error& e)
+-            {
+-                std::cerr << "Error releasing bridge: " << name
+-                          << " error:" << e.what() << "\n";
+-            }
+-        }
+-    }
+-
+-  private:
+-    gpiod::line line;
+-    std::string name;
+-    int  polarity;
+-};
+-
+ class PSUSensor : public Sensor, public std::enable_shared_from_this<PSUSensor>
+ {
+   public:
+@@ -123,8 +25,7 @@ class PSUSensor : public Sensor, public std::enable_shared_from_this<PSUSensor>
+               const std::string& sensorConfiguration,
+               std::string& sensorTypeName, unsigned int factor, double max,
+               double min, const std::string& label, size_t tSize,
+-              std::optional<BridgeGpio>&& bridgeGpio,
+-              const PowerState powerState);
++              PowerState powerState);
+     ~PSUSensor() override;
+     void setupRead(void);
+ 
+@@ -132,26 +33,19 @@ class PSUSensor : public Sensor, public std::enable_shared_from_this<PSUSensor>
+     sdbusplus::asio::object_server& objServer;
+     boost::asio::posix::stream_descriptor inputDev;
+     boost::asio::steady_timer waitTimer;
+-    std::shared_ptr<boost::asio::streambuf> readBuf;
+     std::string path;
+     std::string pathRatedMax;
+     std::string pathRatedMin;
+     size_t errCount;
+     unsigned int sensorFactor;
+     uint8_t minMaxReadCounter;
+-    void handleResponse(const boost::system::error_code& err);
+     void checkThresholds(void) override;
+     void updateMinMaxValues(void);
+-    PowerState powerState;
+     std::string sensorName;
++    PowerState powerState;
+ 
+-    int fd;
+-
+-    std::optional<BridgeGpio> bridgeGpio;
+-
+-    static constexpr unsigned int sensorPollMs = 5000;
++    static constexpr unsigned int sensorPollMs = 500;
+     static constexpr unsigned int sensorPollPowerOffMs = 5000;
+-    static constexpr unsigned int gpioBridgeEnableMs = 100;
+     static constexpr size_t warnAfterErrorCount = 10;
+ };
+ 
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index eca3f15..eabe567 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -45,36 +45,25 @@ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+                      const std::string& sensorConfiguration,
+                      std::string& sensorTypeName, unsigned int factor,
+                      double max, double min, const std::string& label,
+-                     size_t tSize, std::optional<BridgeGpio>&& bridgeGpio,
+-                     const PowerState powerState) :
++                     size_t tSize, PowerState powerState) :
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(thresholdsIn), sensorConfiguration, objectType, max, min,
+            conn, powerState),
+     std::enable_shared_from_this<PSUSensor>(), objServer(objectServer),
+     inputDev(io), waitTimer(io), path(path), pathRatedMax(""), pathRatedMin(""),
+-    sensorFactor(factor), minMaxReadCounter(0), bridgeGpio(std::move(bridgeGpio)),
+-    sensorName(sensorName)
++    sensorFactor(factor), minMaxReadCounter(0), sensorName(sensorName), powerState(powerState)
+ {
++    setupPowerMatch(conn);
+     if (DEBUG)
+     {
+         std::cerr << "Constructed sensor: path " << path << " type "
+                   << objectType << " config " << sensorConfiguration
+                   << " typename " << sensorTypeName << " factor " << factor
+                   << " min " << min << " max " << max << " name \""
+-                  << sensorName << "\"\n";
++                  << sensorName << "\"";
++        std::cerr << " PowerState:" << getPowerState(powerState) << "\n";
+     }
+ 
+-    fd = open(path.c_str(), O_RDONLY);
+-    if (fd > 0)
+-    {
+-        //std::cerr << "PSU sensor failed to open file\n";
+-        //return;
+-        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " file opened:"
+-                             << path << "\n";
+-        inputDev.assign(fd);
+-    }
+-    //inputDev.assign(fd);
+-
+     std::string dbusPath = sensorPathPrefix + sensorTypeName + name;
+ 
+     sensorInterface = objectServer.add_interface(
+@@ -128,132 +117,12 @@ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+ PSUSensor::~PSUSensor()
+ {
+     waitTimer.cancel();
+-    inputDev.close();
+     objServer.remove_interface(sensorInterface);
+     objServer.remove_interface(thresholdInterfaceWarning);
+     objServer.remove_interface(thresholdInterfaceCritical);
+     objServer.remove_interface(association);
+ }
+ 
+-void PSUSensor::setupRead(void)
+-{
+-    if (DEBUG)
+-        std::cerr << __FUNCTION__ << " " << sensorName << "\n";
+-    if (readState == PowerState::on && !isPowerOn())
+-    {
+-        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName
+-                    << " Power is off and PowerState is on, re-scheduling SetupRead\n";
+-        updateValue(std::numeric_limits<double>::quiet_NaN());
+-        waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollPowerOffMs));
+-        std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+-        /* Check inputDev and open it if needed */
+-        if (!inputDev.is_open())
+-        {
+-            //std::cerr << __FUNCTION__ << " inputDev is not open, opening\n";
+-            std::cerr << __FUNCTION__ << " " << sensorName << " inputDev is not open, opening\n";
+-            fd = open(path.c_str(), O_RDONLY);
+-            if (fd > 0)
+-            {
+-                inputDev.assign(fd);
+-            }
+-            else
+-            {
+-                std::cerr << __FUNCTION__ << " " << sensorName << " Failed to open " << path << ", re-scheduling SetupRead\n";
+-                updateValue(std::numeric_limits<double>::quiet_NaN());
+-                waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+-                std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+-                waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+-                    std::shared_ptr<PSUSensor> self = weakRef.lock();
+-                    if (ec == boost::asio::error::operation_aborted)
+-                    {
+-                        // TODO FIXME Silent exit
+-                        return; // we're being canceled
+-                        //exit(-1);
+-                    }
+-                    if (self)
+-                    {
+-                        self->setupRead();
+-                    }
+-                    else
+-                    {
+-                        std::cerr << "Sensor setupRead: Error occured, exiting\n";
+-                        //exit(-1);
+-                        return;
+-                    }
+-                });
+-                return;
+-            }
+-        }
+-
+-        waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+-            std::shared_ptr<PSUSensor> self = weakRef.lock();
+-            if (ec == boost::asio::error::operation_aborted)
+-            {
+-                // TODO FIXME Silent exit
+-                //exit(-1);
+-                return;
+-            }
+-            if (self)
+-            {
+-                self->setupRead();
+-            }
+-        });
+-        return;
+-    }
+-
+-    if (DEBUG) std::cerr << __FUNCTION__ << " Going to read from file\n";
+-    std::shared_ptr<boost::asio::streambuf> buffer =
+-        std::make_shared<boost::asio::streambuf>();
+-    std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+-
+-    if (bridgeGpio.has_value())
+-    {
+-        (*bridgeGpio).request();
+-        // In case a channel has a bridge circuit,we have to turn the bridge on
+-        // prior to reading a value at least for one scan cycle to get a valid
+-        // value. Guarantee that the HW signal can be stable, the HW signal
+-        // could be instability.
+-        waitTimer.expires_from_now(
+-            boost::asio::chrono::milliseconds(gpioBridgeEnableMs));
+-        waitTimer.async_wait(
+-            [weakRef, buffer](const boost::system::error_code& ec) {
+-                std::shared_ptr<PSUSensor> self = weakRef.lock();
+-                if (ec == boost::asio::error::operation_aborted)
+-                {
+-                    // TODO FIXME Silent exit
+-                    //exit(-1);
+-                    return; // we're being canceled
+-                }
+-
+-                if (self)
+-                {
+-                    boost::asio::async_read_until(
+-                        self->inputDev, *buffer, '\n',
+-                        [weakRef, buffer](const boost::system::error_code& ec,
+-                                          std::size_t /*bytes_transfered*/) {
+-                            std::shared_ptr<PSUSensor> self = weakRef.lock();
+-                            if (self)
+-                            {
+-                                self->readBuf = buffer;
+-                                self->handleResponse(ec);
+-                            }
+-                        });
+-                }
+-            });
+-    }
+-    else
+-    {
+-        if (DEBUG) std::cerr << "SetupRead: " << sensorName << " Scheduling sensor read \n";
+-
+-        std::shared_ptr<PSUSensor> self = weakRef.lock();
+-        boost::system::error_code ec;
+-        inputDev.non_blocking(true);
+-        boost::asio::read_until(self->inputDev, *buffer, '\n', ec);
+-        self->readBuf = buffer;
+-        self->handleResponse(ec);
+-    }
+-}
+-
+ void PSUSensor::updateMinMaxValues(void)
+ {
+     if (auto newVal = readFile(pathRatedMin, sensorFactor))
+@@ -267,93 +136,95 @@ void PSUSensor::updateMinMaxValues(void)
+     }
+ }
+ 
+-void PSUSensor::handleResponse(const boost::system::error_code& err)
++void PSUSensor::setupRead(void)
+ {
+     if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << "\n";
+-    if (readState == PowerState::on && !isPowerOn())
++
++    const std::string cSensorName(sensorName);
++
++    if (powerState == PowerState::on && !isPowerOn())
+     {
+         if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName
+                     << " Power is off and PowerState is on, re-scheduling SetupRead\n";
+-
+-        errCount = 0;
+         updateValue(std::numeric_limits<double>::quiet_NaN());
+ 
+         waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollPowerOffMs));
+         std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+-        waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
++        waitTimer.async_wait([weakRef, cSensorName](const boost::system::error_code& ec) {
+             std::shared_ptr<PSUSensor> self = weakRef.lock();
+-            if (self)
+-            {
+-                self->setupRead();
+-            }
+-            else
++            if (!self || ec)
+             {
+-                std::cerr << "Sensor setupRead: Error occured, exiting\n";
+-                //exit(-1);
+-                return;
++                if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " " << cSensorName << " Error: no self\n";
++                exit(0);
+             }
++
++            self->setupRead();
+         });
+         return;
+     }
+ 
+-    if ((err == boost::system::errc::bad_file_descriptor) ||
+-        (err == boost::asio::error::misc_errors::not_found))
++    if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ <<  " " << sensorName << " Scheduling sensor read\n";
++
++    boost::system::error_code err;
++    std::shared_ptr<boost::asio::streambuf> buffer = std::make_shared<boost::asio::streambuf>();
++
++    int fd = open(path.c_str(), O_RDONLY);
++    if (fd < 0)
+     {
+-        //std::cerr << "Bad file descriptor from\n";
+-        /* Dilemma here:
+-         * We can detect error and re-open device, but what to do if
+-         * open fails? */
+-        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << "Reading error occured " << err << "\n";
++        err = boost::system::errc::make_error_code(boost::system::errc::not_supported);
++    }
++    else
++    {
++        inputDev.assign(fd);
++        inputDev.non_blocking(true);
++
++        boost::asio::read_until(inputDev, *buffer, '\n', err);
+         inputDev.close();
+     }
++
++    if(err)
++    {
++        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " read error\n";
++        incrementError();
++    }
+     else
+     {
+-        std::istream responseStream(readBuf.get());
+-        if (!err)
++        std::istream responseStream(buffer.get());
++        std::string response;
++        try
+         {
+-            std::string response;
+-            try
+-            {
+-                std::getline(responseStream, response);
+-                if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " Got read:" << response << "\n";
+-                rawValue = std::stod(response);
+-                responseStream.clear();
+-                double nvalue = rawValue / sensorFactor;
+-                
+-                updateValue(nvalue);
++            std::getline(responseStream, response);
++            if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " Got read:" << response << "\n";
++            rawValue = std::stod(response);
++            responseStream.clear();
++            double nvalue = rawValue / sensorFactor;
+ 
+-                if (minMaxReadCounter++ % 8 == 0)
+-                {
+-                    updateMinMaxValues();
+-                }
+-            }
+-            catch (const std::invalid_argument&)
++            updateValue(nvalue);
++
++            if (minMaxReadCounter++ % 8 == 0)
+             {
+-                std::cerr << "Could not parse " << response << "\n";
+-                incrementError();
++                updateMinMaxValues();
+             }
+         }
+-        else
++        catch (const std::invalid_argument&)
+         {
++            std::cerr << "Could not parse " << response << "\n";
+             incrementError();
+         }
+-
+-        lseek(fd, 0, SEEK_SET);
+     }
+-    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+ 
++    // Re-schedule setupRead()
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+     std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+-    waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
++    waitTimer.async_wait([weakRef, cSensorName](const boost::system::error_code& ec) {
+         std::shared_ptr<PSUSensor> self = weakRef.lock();
+-        if (ec == boost::asio::error::operation_aborted)
++        if (!self || ec)
+         {
+-            if(DEBUG) std::cerr << "Failed to reschedule\n";
+-            return;
+-        }
+-        if (self)
+-        {
+-            self->setupRead();
++            if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " " << cSensorName << " Error: no self\n";
++            exit(0);
+         }
++
++        self->setupRead();
+     });
+ }
+ 
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index 25c016c..acac658 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -832,54 +832,23 @@ static void createSensorsCallback(
+             }
+             // destruct existing one first if already created
+             sensors[sensorName] = nullptr;
+-            std::optional<BridgeGpio> bridgeGpio;
+-            for (const SensorBaseConfiguration& suppConfig : *sensorData)
+-            {
+-                if (suppConfig.first.find("BridgeGpio") !=
+-                    std::string::npos)
+-                {
+-                    auto findName = suppConfig.second.find("Name");
+-                    if (findName != suppConfig.second.end())
+-                    {
+-                        std::string gpioName = std::visit(
+-                            VariantToStringVisitor(), findName->second);
+-
+-                        int polarity = gpiod::line::ACTIVE_HIGH;
+-                        auto findPolarity =
+-                            suppConfig.second.find("Polarity");
+-                        if (findPolarity != suppConfig.second.end())
+-                        {
+-                            if (std::string("Low") ==
+-                                std::visit(VariantToStringVisitor(),
+-                                           findPolarity->second))
+-                            {
+-                                polarity = gpiod::line::ACTIVE_LOW;
+-                            }
+-                        }
+-                        bridgeGpio = BridgeGpio(gpioName, polarity);
+-                    }
+ 
+-                    break;
+-                }
+-            }
+-            auto findPowerOn = baseConfig->second.find("PowerState");
+-            PowerState readState = PowerState::always;
++            auto findPowerState = baseConfig->second.find("PowerState");
++            PowerState powerState = PowerState::always;
+ 
+-            if (findPowerOn != baseConfig->second.end())
++            if (findPowerState != baseConfig->second.end())
+             {
+-                std::string powerState = std::visit(
+-                    VariantToStringVisitor(), findPowerOn->second);
+-                setReadState(powerState, readState);
++                setReadState(std::visit(VariantToStringVisitor(),
++                                          findPowerState->second),
++                             powerState);
+             }
+ 
+-            std::optional<PowerState> powerState = PowerState::always;
+-
+             sensors[sensorName] = std::make_shared<PSUSensor>(
+                 sensorPathStr, sensorType, objectServer, dbusConnection, io,
+                 sensorName, std::move(sensorThresholds), *interfacePath,
+                 findSensorType->second, factor, psuProperty->maxReading,
+                 psuProperty->minReading, labelHead, thresholdConfSize,
+-                std::move(bridgeGpio), readState);
++                powerState);
+             sensors[sensorName]->setupRead();
+             ++numCreated;
+             if (DEBUG)
+@@ -1007,12 +976,6 @@ void propertyInitialize(void)
+                          {"fan2", {"fan2_alarm", "fan2_fault"}}}}};
+ }
+ 
+-std::map<std::string, gpiod::line> BridgeGpio::lines;
+-std::map<std::string, int> BridgeGpio::usage;
+-std::map<std::string, int> BridgeGpio::requests;
+-std::map<std::string, int> BridgeGpio::releases;
+-bool BridgeGpio::debug = false;
+-
+ int main(int argc, char* argv[])
+ {
+     CLI::App app("PSU and HWMON sensors poller");
+-- 
+2.7.4
+

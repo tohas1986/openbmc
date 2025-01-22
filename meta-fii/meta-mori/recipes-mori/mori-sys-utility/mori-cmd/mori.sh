@@ -7,6 +7,7 @@ source /usr/libexec/mori-fw/mori-lib.sh
 
 function usage_rst() {
   echo " mori rst [parameter]"
+  echo "        hotswap  --> reset the whole mori node"
   echo "        system   --> reset the host"
   echo "        btn      --> trigger a power button event"
   echo "        shutdown --> send out shutdown signal to CPU"
@@ -32,36 +33,27 @@ function usage_uart() {
   echo "        display  --> "
 }
 
-function usage_rtc() {
-  echo " mori rtc [parameter]"
-  echo "        lock  --> disable host access to rtc"
-  echo "        unlock  --> enable host access to rtc"
-  echo "        status  --> get status of host accessibility to rtc"
-}
-
-function usage_gpio() {
-  echo " mori gpio [parameter]"
-  echo "        get [GPIO_LINE_NAME] --> get the gpio value of GPIO_LINE_NAME"
-  echo "        set [GPIO_LINE_NAME] [GPIO_VALUE] --> set the gpio of GPIO_LINE_NAME to the value of GPIO_VALUE"
-}
-
 function usage() {
   echo " mori BMC console system utilities"
   echo " mori [optional] [parameter]"
-  echo "   rst     --> reset target device"
-  echo "   fw      --> get version"
-  echo "   uart    --> control the uart mux"
-  echo "   led     --> control the leds"
-  echo "   rtc     --> control host access to rtc"
-  echo "   gpio    --> control the gpios"
+  echo "   rst   --> reset traget device"
+  echo "   fw    --> get version"
+  echo "   uart  --> control the uart mux"
+  echo "   led   --> control the leds"
 }
 
 function reset() {
   case $1 in
+    hotswap)
+      # Virtual AC reset
+      echo "mori.sh rst hotswap occurred"
+      set_gpio_ctrl HOTSWAP 1
+      ;;
     system)
       # S0 system reset
-      echo "System has been reset, host will start booting in a few minutes"
-      ipmitool chassis power reset
+      set_gpio_ctrl S0_SYSRESET 0
+      sleep 1
+      set_gpio_ctrl S0_SYSRESET 1
       ;;
     btn)
       # virtual power button on
@@ -102,13 +94,15 @@ function fw_rev() {
   cmd=$(cat ${MB_CPLD_VER_FILE})
   echo " MB_CPLD: " "${cmd}"
 
-  # BMC Version
+  major=$(ipmitool mc info | grep "Firmware Revision" | awk '{print $4}')
+  cmd=$(ipmitool mc info | tail -4 | tr -s '\t' ' ' | tr -s '\n' ' ')
 
-  # Save VERSION_ID line in string "VERSION_ID=*-Major.Submajor.Minor.Subminor" and
-  # extract the substring after - sign "Major.Submajor.Minor.Subminor"
-  BMCVersion=$(awk '/VERSION_ID/' /etc/os-release | sed "s/.*-//g")
-  # BMCVersion="Major.Submajor.Minor"
-  echo " BMC: ${BMCVersion%.*}"
+  for hex in $cmd; do
+    minor="${hex:2}$minor";
+  done
+
+  minor=$(echo "obase=10; ibase=16; ${minor^^}" | bc)
+  echo " BMC        : " "${major}"."${minor}"
 
   #BMC PWR Sequencer
   i2cset -y -f -a "${I2C_BMC_PWRSEQ[0]}" 0x"${I2C_BMC_PWRSEQ[1]}" 0xfe 0x0000 w
@@ -116,18 +110,13 @@ function fw_rev() {
   echo " BMC PowerSequencer : ${cmd}"
   #only display with smbios exists
   if [[ -e /var/lib/smbios/smbios2 ]]; then
-    cmd=$(busctl get-property xyz.openbmc_project.Smbios.MDR_V2 \
-            /xyz/openbmc_project/inventory/system/chassis/motherboard/bios\
-            xyz.openbmc_project.Inventory.Decorator.Revision Version | awk '{print $2}')
+    cmd=$(busctl introspect xyz.openbmc_project.Smbios.MDR_V2 \
+            /xyz/openbmc_project/inventory/system/chassis/motherboard/bios | grep Version | awk '{print $4}')
     echo " Bios: $cmd"
   fi
 
-  if [[ ! $(which mb_power_sequencer_version) ]]; then
-    echo "mb_power_sequencer_version utility not installed"
-    return
-  fi
+  adm1266_ver "${I2C_MB_PWRSEQ[0]}" | grep REVISION
 
-  mb_power_sequencer_version "${I2C_MB_PWRSEQ[0]}" | grep REVISION
 }
 
 function uartmux() {
@@ -257,53 +246,6 @@ function ledtoggle() {
     esac
 }
 
-function usblist() {
-  for i in {5..9}
-  do
-    cmd=$(devmem 0xf083"${i}"154)
-    printf "udc%d : 0xF083%d154-" "${i}" "${i}"
-    echo "$cmd"
-  done
-}
-
-function rtcctrl() {
-  case $1 in
-    lock)
-      # Disable host access to rtc
-      set_gpio_ctrl S0_RTC_LOCK 1
-      ;;
-    unlock)
-      # Enable host access to rtc
-      set_gpio_ctrl S0_RTC_LOCK 0
-      ;;
-    status)
-      cmd=$(get_gpio_ctrl S0_RTC_LOCK)
-      if [[ $cmd -eq 1 ]]; then
-        echo "locked"
-      else
-        echo "unlocked"
-      fi
-      ;;
-    *)
-      usage_rtc
-      ;;
-  esac
-}
-
-function gpioctrl() {
-  case $1 in
-    get)
-      get_gpio_ctrl "$2"
-      ;;
-    set)
-      set_gpio_ctrl "$2" "$3"
-      ;;
-    *)
-      usage_gpio
-      ;;
-  esac
-}
-
 case $1 in
   rst)
     reset "$2"
@@ -314,17 +256,8 @@ case $1 in
   uart)
     uartmux "$2"
     ;;
-  usb)
-    usblist
-    ;;
   led)
     ledtoggle "$2" "$3"
-    ;;
-  rtc)
-    rtcctrl "$2"
-    ;;
-  gpio)
-    gpioctrl "$2" "$3" "$4"
     ;;
   *)
     usage

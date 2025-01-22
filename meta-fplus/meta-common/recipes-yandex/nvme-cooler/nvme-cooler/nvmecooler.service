@@ -1,0 +1,14 @@
+[Unit]
+Description=Setting NMVE cooling setpoint
+Requires=multi-user.target
+Wants=xyz.openbmc_project.Chassis.Control.Power.service
+After=xyz.openbmc_project.Chassis.Control.Power.service
+Wants=xyz.openbmc_project.EntityManager.service
+After=xyz.openbmc_project.EntityManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/nvmecooler
+
+[Install]
+WantedBy=multi-user.target

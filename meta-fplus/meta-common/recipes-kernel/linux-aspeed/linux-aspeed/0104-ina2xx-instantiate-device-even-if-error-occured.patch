@@ -1,0 +1,24 @@
+From b989c067da8170d697f6d54cd187cc3e13c105e8 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 25 Feb 2020 13:30:08 +0300
+Subject: [PATCH 1/1] ina2xx: instantiate device even if error occured
+
+---
+ drivers/hwmon/ina2xx.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/drivers/hwmon/ina2xx.c b/drivers/hwmon/ina2xx.c
+index 838fb6c..8b2f841 100644
+--- a/drivers/hwmon/ina2xx.c
++++ b/drivers/hwmon/ina2xx.c
+@@ -675,7 +675,6 @@ static int ina2xx_probe(struct i2c_client *client,
+ 	ret = ina2xx_init(data);
+ 	if (ret < 0) {
+ 		dev_err(dev, "error configuring the device: %d\n", ret);
+-		return -ENODEV;
+ 	}
+ 
+ 	data->groups[group++] = &ina2xx_group;
+-- 
+1.9.1
+

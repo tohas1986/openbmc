@@ -1,0 +1,26 @@
+From c54deaf762797ad816795d81b2549a97edc9c3e8 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Mon, 21 Dec 2020 16:38:34 +0000
+Subject: [PATCH] Change stepwise to use linear Interpolation
+
+---
+ pid/ec/stepwise.cpp | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/pid/ec/stepwise.cpp b/pid/ec/stepwise.cpp
+index 0065228..d56052a 100644
+--- a/pid/ec/stepwise.cpp
++++ b/pid/ec/stepwise.cpp
+@@ -39,6 +39,12 @@ double stepwise(const ec::StepwiseInfo& info, double input)
+         }
+         if (info.reading[ii] > input)
+         {
++            double inputLow = info.reading[ii - 1];
++            double inputHigh = info.reading[ii];
++            double outputLow = info.output[ii - 1];
++            double outputHigh = info.output[ii];
++            value = outputLow + ((outputHigh - outputLow) / (inputHigh - inputLow)) * (input - inputLow);
++
+             break;
+         }
+         value = info.output[ii];

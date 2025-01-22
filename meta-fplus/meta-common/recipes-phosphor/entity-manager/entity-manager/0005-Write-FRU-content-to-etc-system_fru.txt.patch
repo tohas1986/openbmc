@@ -1,0 +1,42 @@
+From 76c777ea0281343311c5e7d63b4eb4c69128215e Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 29 Sep 2022 11:24:45 +0000
+Subject: [PATCH] Write FRU content to /etc/system_fru.txt
+
+---
+ src/fru_device.cpp | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/src/fru_device.cpp b/src/fru_device.cpp
+index fe89eba..6dde5b6 100644
+--- a/src/fru_device.cpp
++++ b/src/fru_device.cpp
+@@ -742,6 +742,17 @@ void addFruObjectToDbus(
+         objServer.add_interface(productName, "xyz.openbmc_project.FruDevice");
+     dbusInterfaceMap[std::pair<size_t, size_t>(bus, address)] = iface;
+ 
++    // Write FRU to file
++    std::ofstream fruFile;
++    bool isSystem = false;
++    auto systemFieldFind = formattedFRU.find("CHASSIS_TYPE");
++    if (systemFieldFind != formattedFRU.end() &&
++        ! systemFieldFind->second.empty())
++    {
++        isSystem = true;
++        fruFile.open("/etc/system_fru.txt", std::ios::trunc);
++    }
++
+     for (auto& property : formattedFRU)
+     {
+ 
+@@ -789,8 +800,10 @@ void addFruObjectToDbus(
+         {
+             std::cout << property.first << ": " << property.second << "\n";
+         }
++        if (isSystem) fruFile << property.first << ": " << property.second << "\n";
+     }
+ 
++    if (isSystem) fruFile.close();
+     // baseboard will be 0, 0
+     iface->register_property("BUS", bus);
+     iface->register_property("ADDRESS", address);

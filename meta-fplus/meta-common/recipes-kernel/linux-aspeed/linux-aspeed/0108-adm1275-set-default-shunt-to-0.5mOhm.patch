@@ -1,0 +1,25 @@
+From 5b9fc9f511975b19d7ba27997c81b6c0f2c642be Mon Sep 17 00:00:00 2001
+From: OpenEmbedded <oe.patch@oe>
+Date: Fri, 29 May 2020 06:51:13 +0000
+Subject: [PATCH 1/1] adm1275: set default shunt to 0.5mOhm
+
+---
+ drivers/hwmon/pmbus/adm1275.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/hwmon/pmbus/adm1275.c b/drivers/hwmon/pmbus/adm1275.c
+index 5caa37fb..6df7f841 100644
+--- a/drivers/hwmon/pmbus/adm1275.c
++++ b/drivers/hwmon/pmbus/adm1275.c
+@@ -514,7 +514,7 @@ static int adm1275_probe(struct i2c_client *client,
+ 
+ 	if (of_property_read_u32(client->dev.of_node,
+ 				 "shunt-resistor-micro-ohms", &shunt))
+-		shunt = 1000; /* 1 mOhm if not set via DT */
++		shunt = 500; /* 0.5 mOhm if not set via DT */
+ 
+ 	if (shunt == 0)
+ 		return -EINVAL;
+-- 
+2.7.4
+

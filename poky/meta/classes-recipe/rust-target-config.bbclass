@@ -21,18 +21,16 @@ def llvm_features_from_tune(d):
 
     if 'vfpv4' in feat:
         f.append("+vfp4")
-    elif 'vfpv3' in feat:
+    if 'vfpv3' in feat:
         f.append("+vfp3")
-    elif 'vfpv3d16' in feat:
-        f.append("+vfp3")
-        f.append("-d32")
-    elif 'vfpv2' in feat or 'vfp' in feat:
+    if 'vfpv3d16' in feat:
+        f.append("+d16")
+
+    if 'vfpv2' in feat or 'vfp' in feat:
         f.append("+vfp2")
 
     if 'neon' in feat:
         f.append("+neon")
-    elif target_is_armv7(d):
-        f.append("-neon")
 
     if 'mips32' in feat:
         f.append("+mips32")
@@ -116,7 +114,7 @@ def llvm_features_from_target_fpu(d):
     # TARGET_FPU can be hard or soft. +soft-float tell llvm to use soft float
     # ABI. There is no option for hard.
 
-    fpu = d.getVar('TARGET_FPU')
+    fpu = d.getVar('TARGET_FPU', True)
     return ["+soft-float"] if fpu == "soft" else []
 
 def llvm_features(d):
@@ -247,14 +245,6 @@ TARGET_POINTER_WIDTH[riscv64gc] = "64"
 TARGET_C_INT_WIDTH[riscv64gc] = "64"
 MAX_ATOMIC_WIDTH[riscv64gc] = "64"
 
-## loongarch64-unknown-linux-{gnu, musl}
-DATA_LAYOUT[loongarch64] = "e-m:e-i8:8:32-i16:16:32-i64:64-n32:64-S128"
-TARGET_ENDIAN[loongarch64] = "little"
-TARGET_POINTER_WIDTH[loongarch64] = "64"
-TARGET_C_INT_WIDTH[loongarch64] = "32"
-MAX_ATOMIC_WIDTH[loongarch64] = "64"
-FEATURES[loongarch64] = "+d"
-
 # Convert a normal arch (HOST_ARCH, TARGET_ARCH, BUILD_ARCH, etc) to something
 # rust's internals won't choke on.
 def arch_to_rust_target_arch(arch):
@@ -296,11 +286,8 @@ def llvm_cpu(d):
     trans['i586'] = "i586"
     trans['mips64'] = "mips64"
     trans['mips64el'] = "mips64"
-    trans['powerpc64le'] = "ppc64le"
-    trans['powerpc64'] = "ppc64"
     trans['riscv64'] = "generic-rv64"
     trans['riscv32'] = "generic-rv32"
-    trans['loongarch64'] = "la464"
 
     if target in ["mips", "mipsel", "powerpc"]:
         feat = frozenset(d.getVar('TUNE_FEATURES').split())
@@ -368,10 +355,7 @@ def rust_gen_target(d, thing, wd, arch):
     tspec['target-c-int-width'] = d.getVarFlag('TARGET_C_INT_WIDTH', arch_abi)
     tspec['target-endian'] = d.getVarFlag('TARGET_ENDIAN', arch_abi)
     tspec['arch'] = arch_to_rust_target_arch(rust_arch)
-    if "baremetal" in d.getVar('TCLIBC'):
-        tspec['os'] = "none"
-    else:
-        tspec['os'] = "linux"
+    tspec['os'] = "linux"
     if "musl" in tspec['llvm-target']:
         tspec['env'] = "musl"
     else:
@@ -380,8 +364,6 @@ def rust_gen_target(d, thing, wd, arch):
         tspec['llvm-abiname'] = "lp64d"
     if "riscv32" in tspec['llvm-target']:
         tspec['llvm-abiname'] = "ilp32d"
-    if "loongarch64" in tspec['llvm-target']:
-        tspec['llvm-abiname'] = "lp64d"
     tspec['vendor'] = "unknown"
     tspec['target-family'] = "unix"
     tspec['linker'] = "{}{}gcc".format(d.getVar('CCACHE'), prefix)
@@ -419,19 +401,3 @@ python do_rust_gen_targets () {
 addtask rust_gen_targets after do_patch before do_compile
 do_rust_gen_targets[dirs] += "${RUST_TARGETS_DIR}"
 
-# For building target C dependecies use only compiler parameters defined in OE
-# and ignore the CC crate defaults which conflicts with OE ones in some cases.
-# https://github.com/rust-lang/cc-rs#external-configuration-via-environment-variables
-# Some CC crate compiler flags are still required.
-# We apply them conditionally in rust wrappers.
-
-CRATE_CC_FLAGS:class-native = ""
-CRATE_CC_FLAGS:class-nativesdk = ""
-CRATE_CC_FLAGS:class-target = " -ffunction-sections -fdata-sections -fPIC"
-
-do_compile:prepend:class-target() {
-    export CRATE_CC_NO_DEFAULTS=1
-}
-do_install:prepend:class-target() {
-    export CRATE_CC_NO_DEFAULTS=1
-}

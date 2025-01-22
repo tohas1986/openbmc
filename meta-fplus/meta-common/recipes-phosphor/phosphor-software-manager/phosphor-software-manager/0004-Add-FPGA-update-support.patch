@@ -1,0 +1,391 @@
+From 30ae6a18137957d1b729f52c7c56cd29a1e569d8 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 24 Mar 2022 09:09:04 +0000
+Subject: [PATCH] Add FPGA update support
+
+---
+ activation.cpp                          | 143 +++++++++++++++++++++++-
+ activation.hpp                          |  11 ++
+ item_updater.cpp                        |  38 +++++++
+ item_updater.hpp                        |  20 ++++
+ meson.build                             |   9 ++
+ meson_options.txt                       |   9 ++
+ obmc-flash-nvidia-jbog-fpga@.service.in |   7 ++
+ 7 files changed, 233 insertions(+), 4 deletions(-)
+ create mode 100644 obmc-flash-nvidia-jbog-fpga@.service.in
+
+diff --git a/activation.cpp b/activation.cpp
+index 94820aa..9be3567 100644
+--- a/activation.cpp
++++ b/activation.cpp
+@@ -13,6 +13,8 @@
+ #include <sdbusplus/exception.hpp>
+ #include <xyz/openbmc_project/Common/error.hpp>
+ #include <xyz/openbmc_project/Software/Version/error.hpp>
++#include <string.h>
++#include <iostream>
+ 
+ #ifdef WANT_SIGNATURE_VERIFY
+ #include "image_verify.hpp"
+@@ -106,6 +108,29 @@ auto Activation::activation(Activations value) -> Activations
+         }
+ #endif
+ 
++#ifdef JBOG_FPGA_UPGRADE
++        auto jbog_fpga_purpose = parent.versions.find(versionId)->second->purpose();
++        if (jbog_fpga_purpose == VersionPurpose::Other)
++        {
++            if (!activationProgress)
++            {
++                activationProgress =
++                    std::make_unique<ActivationProgress>(bus, path);
++            }
++
++            // Enable systemd signals
++            subscribeToSystemdSignals();
++
++            // Set initial progress
++            activationProgress->progress(20);
++
++            // Initiate image writing to flash
++            flashWriteFpga();
++
++            return softwareServer::Activation::activation(value);
++        }
++#endif
++
+         auto versionStr = parent.versions.find(versionId)->second->version();
+ 
+         if (!minimum_ship_level::verify(versionStr))
+@@ -127,8 +152,8 @@ auto Activation::activation(Activations value) -> Activations
+         }
+ 
+ #ifdef HOST_BIOS_UPGRADE
+-        auto purpose = parent.versions.find(versionId)->second->purpose();
+-        if (purpose == VersionPurpose::Host)
++        auto bios_purpose = parent.versions.find(versionId)->second->purpose();
++        if (bios_purpose == VersionPurpose::Host)
+         {
+             // Enable systemd signals
+             subscribeToSystemdSignals();
+@@ -311,14 +336,24 @@ void Activation::unitStateChange(sdbusplus::message_t& msg)
+     }
+ 
+ #ifdef HOST_BIOS_UPGRADE
+-    auto purpose = parent.versions.find(versionId)->second->purpose();
+-    if (purpose == VersionPurpose::Host)
++    auto host_bios_purpose = parent.versions.find(versionId)->second->purpose();
++    if (host_bios_purpose == VersionPurpose::Host)
+     {
+         onStateChangesBios(msg);
+         return;
+     }
+ #endif
+ 
++#ifdef JBOG_FPGA_UPGRADE
++    auto jbog_fpga_purpose = parent.versions.find(versionId)->second->purpose();
++
++    if (jbog_fpga_purpose == VersionPurpose::Other)
++    {
++        onStateChangesFpga(msg);
++        return;
++    }
++#endif
++
+     onStateChanges(msg);
+ 
+     return;
+@@ -399,6 +434,9 @@ void Activation::flashWriteHost()
+                                       SYSTEMD_INTERFACE, "StartUnit");
+     auto biosServiceFile = "obmc-flash-host-bios@" + versionId + ".service";
+     method.append(biosServiceFile, "replace");
++
++    std::cerr << "BIOS: " << biosServiceFile.c_str() << "\n";
++
+     try
+     {
+         auto reply = bus.call(method);
+@@ -458,6 +496,103 @@ void Activation::onStateChangesBios(sdbusplus::message_t& msg)
+ 
+ #endif
+ 
++#ifdef JBOG_FPGA_UPGRADE
++void Activation::flashWriteFpga()
++{
++    std::string fpgaImagePath;
++    auto ret = getFPGAImagePath(fpgaImagePath);
++
++    if(ret!=0)
++    {
++        log<level::ERR>("Error in finding FPGA path.");
++        report<InternalFailure>();
++        return;
++    }
++
++    std::replace(fpgaImagePath.begin(), fpgaImagePath.end(), '/', '-');
++
++    auto method = bus.new_method_call(SYSTEMD_BUSNAME, SYSTEMD_PATH,
++                                      SYSTEMD_INTERFACE, "StartUnit");
++
++    auto fpgaServiceFile = "obmc-flash-nvidia-jbog-fpga@" + versionId + ".service";
++
++    std::cerr << "FPGA Service File: " << fpgaServiceFile.c_str() << "\n";
++
++    method.append(fpgaServiceFile, "replace");
++
++    try
++    {
++        auto reply = bus.call(method);
++    }
++    catch (const sdbusplus::exception::exception& e)
++    {
++        log<level::ERR>("Error in trying to upgrade FPGA.");
++        report<InternalFailure>();
++    }
++}
++
++void Activation::onStateChangesFpga(sdbusplus::message::message& msg)
++{
++    uint32_t newStateID{};
++    sdbusplus::message::object_path newStateObjPath;
++    std::string newStateUnit{};
++    std::string newStateResult{};
++
++    // Read the msg and populate each variable
++    msg.read(newStateID, newStateObjPath, newStateUnit, newStateResult);
++
++    auto fpgaServiceFile = "obmc-flash-nvidia-jbog-fpga@" + versionId + ".service";
++
++    if (newStateUnit == fpgaServiceFile)
++    {
++        // unsubscribe to systemd signals
++        unsubscribeFromSystemdSignals();
++
++        if (newStateResult == "done")
++        {
++            // Remove version object from image manager
++            deleteImageManagerObject();
++
++            // Set activation progress to 100
++            activationProgress->progress(100);
++
++            // Set Activation value to active
++            activation(softwareServer::Activation::Activations::Active);
++
++            log<level::INFO>("FPGA upgrade completed successfully.");
++        }
++        else if (newStateResult == "failed")
++        {
++            // Set Activation value to Failed
++            activation(softwareServer::Activation::Activations::Failed);
++
++            log<level::ERR>("FPGA upgrade failed.");
++        }
++    }
++
++    return;
++}
++int32_t Activation::getFPGAImagePath(std::string& fpgaImagePath)
++{
++    fs::path dirPath(std::string{IMG_UPLOAD_DIR});
++    dirPath = dirPath / versionId;
++
++    int fileCounter = 0;
++    for (auto& it: fs::directory_iterator(dirPath))
++    {
++        if ( it.path().filename() == "fpga.bin" )
++        {
++            fpgaImagePath = it.path();
++            std::cerr << "FPGA archive patch: " << fpgaImagePath << ":::" << it.path().filename() << "\n";
++            break;
++        }
++        fileCounter++;
++    }
++
++    return 0;
++}
++#endif
++
+ void Activation::rebootBmc()
+ {
+     auto method = bus.new_method_call(SYSTEMD_BUSNAME, SYSTEMD_PATH,
+diff --git a/activation.hpp b/activation.hpp
+index 94cc1bb..0542854 100644
+--- a/activation.hpp
++++ b/activation.hpp
+@@ -247,6 +247,17 @@ class Activation : public ActivationInherit, public Flash
+     void onStateChangesBios(sdbusplus::message_t&);
+ #endif
+ 
++#ifdef JBOG_FPGA_UPGRADE
++    /* @brief write to Board flash function */
++    void flashWriteFpga();
++
++    /** @brief Function that acts on FPGA upgrade service file state changes */
++    void onStateChangesFpga(sdbusplus::message::message&);
++
++    /** @brief Get the FPGA image path. */
++    int32_t getFPGAImagePath(std::string&);
++#endif
++
+     /** @brief Overloaded function that acts on service file state changes */
+     void onStateChanges(sdbusplus::message_t&) override;
+ 
+diff --git a/item_updater.cpp b/item_updater.cpp
+index 96782f2..e8d464d 100644
+--- a/item_updater.cpp
++++ b/item_updater.cpp
+@@ -71,6 +71,9 @@ void ItemUpdater::createActivation(sdbusplus::message_t& msg)
+                     if (value == VersionPurpose::BMC ||
+ #ifdef HOST_BIOS_UPGRADE
+                         value == VersionPurpose::Host ||
++#endif
++#ifdef JBOG_FPGA_UPGRADE
++                        value == VersionPurpose::Other ||
+ #endif
+                         value == VersionPurpose::System)
+                     {
+@@ -875,6 +878,41 @@ void ItemUpdater::getRunningSlot()
+     f >> runningImageSlot;
+ }
+ 
++#ifdef JBOG_FPGA_UPGRADE
++void ItemUpdater::createFPGAObject()
++{
++    std::string path = FPGA_OBJPATH;
++    // Get version id from last item in the path
++    auto pos = path.rfind("/");
++    if (pos == std::string::npos)
++    {
++        log<level::ERR>("No version id found in object path",
++                        entry("FPGA_OBJPATH=%s", path.c_str()));
++        return;
++    }
++
++    createActiveAssociation(path);
++    createFunctionalAssociation(path);
++
++    auto versionId = path.substr(pos + 1);
++    auto version = "null";
++    AssociationList assocs = {};
++    fpgaActivation = std::make_unique<Activation>(
++        bus, path, *this, versionId, server::Activation::Activations::Active,
++        assocs);
++    auto dummyErase = [](std::string /*entryId*/) {
++        // Do nothing;
++    };
++    fpgaVersion = std::make_unique<VersionClass>(
++        bus, path, version, VersionPurpose::Other, "", "",
++        std::vector<std::string>(),
++        std::bind(dummyErase, std::placeholders::_1), versionId);
++    fpgaVersion->deleteObject =
++        std::make_unique<phosphor::software::manager::Delete>(bus, path,
++                                                              *fpgaVersion);
++}
++#endif
++
+ } // namespace updater
+ } // namespace software
+ } // namespace phosphor
+diff --git a/item_updater.hpp b/item_updater.hpp
+index c50d9de..5db42a6 100644
+--- a/item_updater.hpp
++++ b/item_updater.hpp
+@@ -68,6 +68,10 @@ class ItemUpdater : public ItemUpdaterInherit
+ #ifdef HOST_BIOS_UPGRADE
+         createBIOSObject();
+ #endif
++
++#ifdef JBOG_FPGA_UPGRADE
++        createFPGAObject();
++#endif
+         emit_object_added();
+     };
+ 
+@@ -282,6 +286,22 @@ class ItemUpdater : public ItemUpdaterInherit
+ 
+     /** @brief Get the slot number of running image */
+     void getRunningSlot();
++
++#ifdef JBOG_FPGA_UPGRADE
++    /** @brief Create the FPGA object without knowing the version.
++     *
++     *  The object is created only to provide the DBus access so that an
++     *  external service could set the correct FPGA version.
++     *  On FPGA code update, the version is updated accordingly.
++     */
++    void createFPGAObject();
++
++    /** @brief Persistent Activation D-Bus object for FPGA */
++    std::unique_ptr<Activation> fpgaActivation;
++
++    /** @brief Persistent Version D-Bus object for FPGA */
++    std::unique_ptr<VersionClass> fpgaVersion;
++#endif
+ };
+ 
+ } // namespace updater
+diff --git a/meson.build b/meson.build
+index 0dca8c0..a7064f0 100644
+--- a/meson.build
++++ b/meson.build
+@@ -67,6 +67,7 @@ conf.set('MMC_LAYOUT', get_option('bmc-layout').contains('mmc'))
+ 
+ # Configurable features
+ conf.set('HOST_BIOS_UPGRADE', get_option('host-bios-upgrade').enabled())
++conf.set('JBOG_FPGA_UPGRADE', get_option('jbog-fpga-upgrade').enabled())
+ conf.set('WANT_SIGNATURE_VERIFY', \
+     get_option('verify-signature').enabled() or \
+     get_option('verify-full-signature').enabled())
+@@ -104,6 +105,10 @@ else
+   conf.set_quoted('ALT_RWFS', '/media/alt/var/persist')
+ endif
+ 
++if get_option('jbog-fpga-upgrade').enabled()
++    conf.set_quoted('FPGA_OBJPATH', get_option('jbog-fpga-path'))
++endif
++
+ configure_file(output: 'config.h', configuration: conf)
+ 
+ sdbusplus_dep = dependency('sdbusplus')
+@@ -215,6 +220,10 @@ if get_option('bmc-static-dual-image').enabled()
+     ]
+ endif
+ 
++if get_option('jbog-fpga-upgrade').enabled()
++    unit_files += 'obmc-flash-nvidia-jbog-fpga@.service.in'
++endif
++
+ if get_option('sync-bmc-files').enabled()
+     executable(
+         'phosphor-sync-software-manager',
+diff --git a/meson_options.txt b/meson_options.txt
+index e9eecff..b7a1d2a 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -134,3 +134,12 @@ option(
+     value: '/run/media/rwfs-alt/cow',
+     description: 'The dir for alt-rwfs partition.',
+ )
++
++option('jbog-fpga-upgrade', type: 'feature',
++    description: 'Enable JBOG FPGA upgrade support.')
++
++option(
++    'jbog-fpga-path', type: 'string',
++    value: '/xyz/openbmc_project/software/fpga_active',
++    description: 'The FPGA DBus object path.',
++)
+diff --git a/obmc-flash-nvidia-jbog-fpga@.service.in b/obmc-flash-nvidia-jbog-fpga@.service.in
+new file mode 100644
+index 0000000..2b4b5a4
+--- /dev/null
++++ b/obmc-flash-nvidia-jbog-fpga@.service.in
+@@ -0,0 +1,7 @@
++[Unit]
++Description=Flash JBOG FPGA image %I to Board
++
++[Service]
++Type=oneshot
++RemainAfterExit=no
++ExecStart=echo Please add custom command for flashing image /tmp/image/%i

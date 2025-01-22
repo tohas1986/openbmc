@@ -1,0 +1,26 @@
+From caed717090411efee5f748db6f9ca3f442f390b2 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 17 Apr 2020 14:44:39 +0300
+Subject: [PATCH 1/1] Move to registerOemHandler
+
+---
+ src/yandexoem.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/yandexoem.cpp b/src/yandexoem.cpp
+index 9a0cd60..cbb1ded 100644
+--- a/src/yandexoem.cpp
++++ b/src/yandexoem.cpp
+@@ -40,7 +40,8 @@ void register_yandex_commands()
+     ipmi::registerHandler(ipmi::prioOemBase, ipmi::intel::netFnPlatform,
+                           ipmi::intel::platform::cmdPrintTest,
+                           ipmi::Privilege::Admin, ipmi::printTest);
+-    ipmi::registerHandler(ipmi::prioOemBase, 0x2e,
++    ipmi::registerOemHandler(ipmi::prioOemBase, 0x2e,
+                           0x99,
+                           ipmi::Privilege::Admin, ipmi::printTest);
++    std::cerr << "register_yandex_commands: registered handlers with rc=" << std::endl;
+ }
+-- 
+1.9.1
+

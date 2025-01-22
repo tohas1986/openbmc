@@ -1,0 +1,25 @@
+From ba307e03b132d6922cc2597a62b3470fa08981af Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 12:19:38 +0000
+Subject: [PATCH 1/1] Ignore wrong CRC
+
+---
+ src/FruDevice.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/FruDevice.cpp b/src/FruDevice.cpp
+index 424f7e5..1a46a50 100644
+--- a/src/FruDevice.cpp
++++ b/src/FruDevice.cpp
+@@ -804,7 +804,7 @@ static bool readBaseboardFRU(std::vector<uint8_t>& baseboardFRU)
+     }
+     else
+     {
+-        return false;
++        return true;
+     }
+     return true;
+ }
+-- 
+2.7.4
+

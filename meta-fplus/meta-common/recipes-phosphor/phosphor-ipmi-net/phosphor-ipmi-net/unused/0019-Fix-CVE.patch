@@ -1,0 +1,502 @@
+From b3a13a58d844164ab5535bdd5de41516fb2763bd Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 3 Sep 2021 07:30:49 +0000
+Subject: [PATCH] Fix CVE
+
+Details at https://github.com/google/security-research/security/advisories/GHSA-gg9x-v835-m48q
+
+%% original patch: 0019-Fix-CVE.patch
+---
+ command/session_cmds.cpp |  5 ++++
+ command_table.cpp        | 38 ++++++++++++++++++++++++---
+ main.cpp                 |  2 +-
+ message_parsers.cpp      | 51 +++++++++++++++++++++++++++++-------
+ session.hpp              | 30 +++++++++++----------
+ sessions_manager.cpp     | 68 +++++++++++++++++++++++++++++++++++++++---------
+ sessions_manager.hpp     | 46 +++++++++++++++++++++++++-------
+ 7 files changed, 190 insertions(+), 50 deletions(-)
+
+diff --git a/command/session_cmds.cpp b/command/session_cmds.cpp
+index 945d8d9..98016c9 100644
+--- a/command/session_cmds.cpp
++++ b/command/session_cmds.cpp
+@@ -5,10 +5,13 @@
+ 
+ #include <ipmid/api.h>
+ 
++#include <chrono>
+ #include <ipmid/sessionhelper.hpp>
+ #include <ipmid/utils.hpp>
+ #include <phosphor-logging/log.hpp>
+ 
++using namespace std::chrono_literals;
++
+ namespace command
+ {
+ using namespace phosphor::logging;
+@@ -282,6 +285,8 @@ std::vector<uint8_t> closeSession(const std::vector<uint8_t>& inPayload,
+     {
+         response->completionCode = closeMyNetInstanceSession(
+             reqSessionId, reqSessionHandle, currentSessionPriv);
++        std::get<session::Manager&>(singletonPool)
++            .scheduleSessionCleaner(100us);
+     }
+     else
+     {
+diff --git a/command_table.cpp b/command_table.cpp
+index 3dc531a..1d9e063 100644
+--- a/command_table.cpp
++++ b/command_table.cpp
+@@ -52,6 +52,26 @@ void Table::executeCommand(uint32_t inCommand,
+     {
+         CommandID command(inCommand);
+ 
++        // Do not forward any session zero commands to ipmid
++        if (handler->sessionID == session::sessionZero)
++        {
++            log<level::INFO>("Table: refuse to forward session-zero command",
++                             entry("LUN=%x", command.lun()),
++                             entry("NETFN=%x", command.netFn()),
++                             entry("CMD=%x", command.cmd()));
++            return;
++        }
++        std::shared_ptr<session::Session> session =
++            std::get<session::Manager&>(singletonPool)
++                .getSession(handler->sessionID);
++
++        // Ignore messages that are not part of an active session
++        auto state = static_cast<session::State>(session->state());
++        if (state != session::State::active)
++        {
++            return;
++        }
++
+         auto bus = getSdBus();
+         // forward the request onto the main ipmi queue
+         using IpmiDbusRspType = std::tuple<uint8_t, uint8_t, uint8_t, uint8_t,
+@@ -59,9 +79,7 @@ void Table::executeCommand(uint32_t inCommand,
+         uint8_t lun = command.lun();
+         uint8_t netFn = command.netFn();
+         uint8_t cmd = command.cmd();
+-        std::shared_ptr<session::Session> session =
+-            std::get<session::Manager&>(singletonPool)
+-                .getSession(handler->sessionID);
++
+         std::map<std::string, ipmi::Value> options = {
+             {"userId", ipmi::Value(static_cast<int>(
+                            ipmi::ipmiUserGetUserId(session->userName)))},
+@@ -100,6 +118,20 @@ void Table::executeCommand(uint32_t inCommand,
+     {
+         auto start = std::chrono::steady_clock::now();
+ 
++        // Ignore messages that are not part of an active/pre-active session
++        if (handler->sessionID != session::sessionZero)
++        {
++            std::shared_ptr<session::Session> session =
++                std::get<session::Manager&>(singletonPool)
++                    .getSession(handler->sessionID);
++            auto state = static_cast<session::State>(session->state());
++            if ((state != session::State::setupInProgress) &&
++                (state != session::State::active))
++            {
++                return;
++            }
++        }
++
+         handler->outPayload =
+             iterator->second->executeCommand(commandData, handler);
+ 
+diff --git a/main.cpp b/main.cpp
+index 03dc4f4..9fa1c22 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -26,7 +26,7 @@ using namespace phosphor::logging;
+ 
+ // Tuple of Global Singletons
+ static auto io = std::make_shared<boost::asio::io_context>();
+-session::Manager manager;
++session::Manager manager(io);
+ command::Table table;
+ eventloop::EventLoop loop(io);
+ sol::Manager solManager(io);
+diff --git a/message_parsers.cpp b/message_parsers.cpp
+index 18f8389..7b8d832 100644
+--- a/message_parsers.cpp
++++ b/message_parsers.cpp
+@@ -100,23 +100,28 @@ std::shared_ptr<Message> unflatten(std::vector<uint8_t>& inPacket)
+         throw std::runtime_error("IPMI1.5 Session Header Missing");
+     }
+ 
+-    auto message = std::make_shared<Message>();
+-
+     auto header = reinterpret_cast<SessionHeader_t*>(inPacket.data());
+ 
++    uint32_t sessionID = endian::from_ipmi(header->sessId);
++    if (sessionID != session::sessionZero)
++    {
++        throw std::runtime_error("IPMI1.5 session packets are unsupported");
++    }
++
++    auto message = std::make_shared<Message>();
++
+     message->payloadType = PayloadType::IPMI;
+-    message->bmcSessionID = endian::from_ipmi(header->sessId);
++    message->bmcSessionID = session::sessionZero;
+     message->sessionSeqNum = endian::from_ipmi(header->sessSeqNum);
+     message->isPacketEncrypted = false;
+     message->isPacketAuthenticated = false;
+     message->rmcpMsgClass =
+         static_cast<ClassOfMsg>(header->base.rmcp.classOfMsg);
+ 
+-    auto payloadLen = header->payloadLength;
+-
+     // Confirm the number of data bytes received correlates to
+     // the packet length in the header
+-    if (inPacket.size() < (sizeof(SessionHeader_t) + payloadLen))
++    size_t payloadLen = header->payloadLength;
++    if ((payloadLen == 0) || (inPacket.size() < (sizeof(*header) + payloadLen)))
+     {
+         throw std::runtime_error("Invalid data length");
+     }
+@@ -172,12 +177,21 @@ std::shared_ptr<Message> unflatten(std::vector<uint8_t>& inPacket)
+         throw std::runtime_error("IPMI2.0 Session Header Missing");
+     }
+ 
+-    auto message = std::make_shared<Message>();
+-
+     auto header = reinterpret_cast<SessionHeader_t*>(inPacket.data());
+ 
++    uint32_t sessionID = endian::from_ipmi(header->sessId);
++
++    auto session =
++        std::get<session::Manager&>(singletonPool).getSession(sessionID);
++    if (!session)
++    {
++        throw std::runtime_error("RMCP+ message from unknown session");
++    }
++
++    auto message = std::make_shared<Message>();
++
+     message->payloadType = static_cast<PayloadType>(header->payloadType & 0x3F);
+-    message->bmcSessionID = endian::from_ipmi(header->sessId);
++    message->bmcSessionID = sessionID;
+     message->sessionSeqNum = endian::from_ipmi(header->sessSeqNum);
+     message->isPacketEncrypted =
+         ((header->payloadType & PAYLOAD_ENCRYPT_MASK) ? true : false);
+@@ -186,7 +200,24 @@ std::shared_ptr<Message> unflatten(std::vector<uint8_t>& inPacket)
+     message->rmcpMsgClass =
+         static_cast<ClassOfMsg>(header->base.rmcp.classOfMsg);
+ 
+-    auto payloadLen = endian::from_ipmi(header->payloadLength);
++    // Confirm the number of data bytes received correlates to
++    // the packet length in the header
++    size_t payloadLen = endian::from_ipmi(header->payloadLength);
++    if ((payloadLen == 0) || (inPacket.size() < (sizeof(*header) + payloadLen)))
++    {
++        throw std::runtime_error("Invalid data length");
++    }
++
++    bool integrityMismatch =
++        session->isIntegrityAlgoEnabled() && !message->isPacketAuthenticated;
++    bool encryptMismatch =
++        session->isCryptAlgoEnabled() && !message->isPacketEncrypted;
++
++    if (sessionID != session::sessionZero &&
++        (integrityMismatch || encryptMismatch))
++    {
++        throw std::runtime_error("unencrypted or unauthenticated message");
++    }
+ 
+     if (message->isPacketAuthenticated)
+     {
+diff --git a/session.hpp b/session.hpp
+index 4d4bf19..a01d478 100644
+--- a/session.hpp
++++ b/session.hpp
+@@ -38,11 +38,6 @@ enum class Privilege : uint8_t
+     OEM,
+ };
+ 
+-// Seconds of inactivity allowed during session setup stage
+-constexpr auto SESSION_SETUP_TIMEOUT = 5s;
+-// Seconds of inactivity allowed when session is active
+-constexpr auto SESSION_INACTIVITY_TIMEOUT = 60s;
+-
+ // Mask to get only the privilege from requested maximum privlege (RAKP message
+ // 1)
+ constexpr uint8_t reqMaxPrivMask = 0xF;
+@@ -243,31 +238,38 @@ class Session : public SessionIface
+      * Session Active status is decided upon the Session State and the last
+      * transaction time is compared against the session inactivity timeout.
+      *
++     * @param[in] activeGrace - microseconds of idle time for active sessions
++     * @param[in] setupGrace - microseconds of idle time for sessions in setup
++     *
+      */
+-    bool isSessionActive(uint8_t sessionState)
++    bool isSessionActive(const std::chrono::microseconds& activeGrace,
++                         const std::chrono::microseconds& setupGrace)
+     {
+         auto currentTime = std::chrono::steady_clock::now();
+-        auto elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(
+-            currentTime - lastTime);
++        auto elapsedMicros =
++            std::chrono::duration_cast<std::chrono::microseconds>(currentTime -
++                                                                  lastTime);
+ 
+-        State state = static_cast<session::State>(sessionState);
++        State state = static_cast<session::State>(this->state());
+ 
+         switch (state)
+         {
+-            case State::setupInProgress:
+-                if (elapsedSeconds < SESSION_SETUP_TIMEOUT)
++            case State::active:
++                if (elapsedMicros < activeGrace)
+                 {
+                     return true;
+                 }
+                 break;
+-            case State::active:
+-                if (elapsedSeconds < SESSION_INACTIVITY_TIMEOUT)
++            case State::setupInProgress:
++                if (elapsedMicros < setupGrace)
+                 {
+                     return true;
+                 }
+                 break;
++            case State::tearDownInProgress:
++                break;
+             default:
+-                return false;
++                break;
+         }
+         return false;
+     }
+diff --git a/sessions_manager.cpp b/sessions_manager.cpp
+index ddc4b82..ec6194b 100644
+--- a/sessions_manager.cpp
++++ b/sessions_manager.cpp
+@@ -53,10 +53,6 @@ uint8_t Manager::getNetworkInstance(void)
+     return ipmiNetworkInstance;
+ }
+ 
+-Manager::Manager()
+-{
+-}
+-
+ void Manager::managerInit(const std::string& channel)
+ {
+ 
+@@ -77,6 +73,9 @@ void Manager::managerInit(const std::string& channel)
+     setNetworkInstance();
+     sessionsMap.emplace(
+         0, std::make_shared<Session>(*getSdBus(), objPath.c_str(), 0, 0, 0));
++
++    // set up the timer for clearing out stale sessions
++    scheduleSessionCleaner(std::chrono::microseconds(3 * 1000 * 1000));
+ }
+ 
+ std::shared_ptr<Session>
+@@ -92,7 +91,7 @@ std::shared_ptr<Session>
+ 
+     auto activeSessions = sessionsMap.size() - session::maxSessionlessCount;
+ 
+-    if (activeSessions < session::maxSessionCountPerChannel)
++    if (activeSessions < maxSessionHandles)
+     {
+         do
+         {
+@@ -230,21 +229,55 @@ std::shared_ptr<Session> Manager::getSession(SessionID sessionID,
+ 
+ void Manager::cleanStaleEntries()
+ {
++    // with overflow = min(1, max - active sessions)
++    // active idle time in seconds = 60 / overflow^3
++    constexpr int baseIdleMicros = 60 * 1000 * 1000;
++    // no +1 for the zero session here because this is just active sessions
++    int sessionDivisor =
++        getActiveSessionCount() - session::maxSessionCountPerChannel;
++    sessionDivisor = std::max(0, sessionDivisor) + 1;
++    sessionDivisor = sessionDivisor * sessionDivisor * sessionDivisor;
++    int activeMicros = baseIdleMicros / sessionDivisor;
++
++    // with overflow = min(1, max - total sessions)
++    // setup idle time in seconds = max(3, 60 / overflow^3)
++
++    // +1 for the zero session here because size() counts that too
++    int setupDivisor =
++        sessionsMap.size() - (session::maxSessionCountPerChannel + 1);
++    setupDivisor = std::max(0, setupDivisor) + 1;
++    setupDivisor = setupDivisor * setupDivisor * setupDivisor;
++    constexpr int maxSetupMicros = 3 * 1000 * 1000;
++    int setupMicros = std::min(maxSetupMicros, baseIdleMicros / setupDivisor);
++
++    std::chrono::microseconds activeGrace(activeMicros);
++    std::chrono::microseconds setupGrace(setupMicros);
++
++
+     for (auto iter = sessionsMap.begin(); iter != sessionsMap.end();)
+     {
+ 
+         auto session = iter->second;
+-        if ((session->getBMCSessionID() != session::sessionZero) &&
+-            !(session->isSessionActive(session->state())))
++        // special handling for sessionZero
++        if (session->getBMCSessionID() == session::sessionZero)
++        {
++            iter++;
++            continue;
++        }
++        if (!(session->isSessionActive(activeGrace, setupGrace)))
+         {
+             sessionHandleMap[getSessionHandle(session->getBMCSessionID())] = 0;
+             iter = sessionsMap.erase(iter);
+         }
+         else
+         {
+-            ++iter;
++            iter++;
+         }
+     }
++    if (sessionsMap.size() > 1)
++    {
++        scheduleSessionCleaner(setupGrace);
++    }
+ }
+ 
+ void Manager::cleanAllSessions()
+@@ -269,7 +302,7 @@ uint8_t Manager::storeSessionHandle(SessionID bmcSessionID)
+ {
+     // Handler index 0 is  reserved for invalid session.
+     // index starts with 1, for direct usage. Index 0 reserved
+-    for (uint8_t i = 1; i <= session::maxSessionCountPerChannel; i++)
++    for (size_t i = 1; i < session::maxSessionHandles; i++)
+     {
+         if (sessionHandleMap[i] == 0)
+         {
+@@ -282,7 +315,7 @@ uint8_t Manager::storeSessionHandle(SessionID bmcSessionID)
+ 
+ uint32_t Manager::getSessionIDbyHandle(uint8_t sessionHandle) const
+ {
+-    if (sessionHandle <= session::maxSessionCountPerChannel)
++    if (sessionHandle < session::maxSessionHandles)
+     {
+         return sessionHandleMap[sessionHandle];
+     }
+@@ -294,8 +327,7 @@ uint8_t Manager::getSessionHandle(SessionID bmcSessionID) const
+ 
+     // Handler index 0 is reserved for invalid session.
+     // index starts with 1, for direct usage. Index 0 reserved
+-
+-    for (uint8_t i = 1; i <= session::maxSessionCountPerChannel; i++)
++    for (size_t i = 1; i < session::maxSessionHandles; i++)
+     {
+         if (sessionHandleMap[i] == bmcSessionID)
+         {
+@@ -315,4 +347,16 @@ uint8_t Manager::getActiveSessionCount() const
+                    static_cast<uint8_t>(session::State::active);
+         }));
+ }
++
++void Manager::scheduleSessionCleaner(const std::chrono::microseconds& when)
++{
++    timer.expires_from_now(when);
++    timer.async_wait([this](const boost::system::error_code& ec) {
++        if (!ec)
++        {
++            cleanStaleEntries();
++        }
++    });
++}
++
+ } // namespace session
+diff --git a/sessions_manager.hpp b/sessions_manager.hpp
+index 1288ebe..e79237c 100644
+--- a/sessions_manager.hpp
++++ b/sessions_manager.hpp
+@@ -2,6 +2,8 @@
+ 
+ #include "session.hpp"
+ 
++#include <boost/asio/steady_timer.hpp>
++#include <chrono>
+ #include <ipmid/api.hpp>
+ #include <ipmid/sessiondef.hpp>
+ #include <map>
+@@ -18,6 +20,8 @@ enum class RetrieveOption
+     RC_SESSION_ID,
+ };
+ 
++static constexpr size_t maxSessionHandles = multiIntfaceSessionHandleMask;
++
+ /**
+  * @class Manager
+  *
+@@ -32,7 +36,9 @@ class Manager
+     // BMC Session ID is the key for the map
+     using SessionMap = std::map<SessionID, std::shared_ptr<Session>>;
+ 
+-    Manager();
++    Manager() = delete;
++    explicit Manager(std::shared_ptr<boost::asio::io_context>& io) :
++        io(io), timer(*io){};
+     ~Manager() = default;
+     Manager(const Manager&) = delete;
+     Manager& operator=(const Manager&) = delete;
+@@ -91,10 +97,36 @@ class Manager
+     uint8_t getNetworkInstance(void);
+     void cleanAllSessions();
+ 
++    /**
++     * @brief Clean Session Stale Entries
++     *
++     *  Schedules cleaning the inactive sessions entries from the Session Map
++     */
++    void scheduleSessionCleaner(const std::chrono::microseconds& grace);
++
+   private:
+-    //+1 for session, as 0 is reserved for sessionless command
+-    std::array<uint32_t, session::maxSessionCountPerChannel + 1>
+-        sessionHandleMap = {0};
++    /**
++     * @brief reclaim system resources by limiting idle sessions
++     *
++     * Limits on active, authenticated sessions are calculated independently
++     * from in-setup sessions, which are not required to be authenticated. This
++     * will prevent would-be DoS attacks by calling a bunch of Open Session
++     * requests to fill up all available sessions. Too many active sessions will
++     * trigger a shorter timeout, but is unaffected by setup session counts.
++     *
++     * For active sessions, grace time is inversely proportional to (the number
++     * of active sessions beyond max sessions per channel)^3
++     *
++     * For sessions in setup, grace time is inversely proportional to (the
++     * number of total sessions beyond max sessions per channel)^3, with a max
++     * of 3 seconds
++     */
++    void cleanStaleEntries();
++
++    std::shared_ptr<boost::asio::io_context> io;
++    boost::asio::steady_timer timer;
++
++    std::array<uint32_t, session::maxSessionHandles> sessionHandleMap = {0};
+ 
+     /**
+      * @brief Session Manager keeps the session objects as a sorted
+@@ -104,12 +136,6 @@ class Manager
+     std::unique_ptr<sdbusplus::server::manager::manager> objManager = nullptr;
+     std::string chName{}; // Channel Name
+     uint8_t ipmiNetworkInstance;
+-    /**
+-     * @brief Clean Session Stale Entries
+-     *
+-     *  Removes the inactive sessions entries from the Session Map
+-     */
+-    void cleanStaleEntries();
+     void setNetworkInstance(void);
+ };
+ 
+-- 
+2.7.4
+

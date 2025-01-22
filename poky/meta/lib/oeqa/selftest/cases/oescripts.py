@@ -36,16 +36,18 @@ class BuildhistoryDiffTests(BuildhistoryBase):
         if expected_endlines:
             self.fail('Missing expected line endings:\n  %s' % '\n  '.join(expected_endlines))
 
+class OEScriptTests(OESelftestTestCase):
+    scripts_dir = os.path.join(get_bb_var('COREBASE'), 'scripts')
+
 @unittest.skipUnless(importlib.util.find_spec("cairo"), "Python cairo module is not present")
-class OEPybootchartguyTests(OESelftestTestCase):
+class OEPybootchartguyTests(OEScriptTests):
 
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        super(OEScriptTests, cls).setUpClass()
         bitbake("core-image-minimal -c rootfs -f")
         cls.tmpdir = get_bb_var('TMPDIR')
         cls.buildstats = cls.tmpdir + "/buildstats/" + sorted(os.listdir(cls.tmpdir + "/buildstats"))[-1]
-        cls.scripts_dir = os.path.join(get_bb_var('COREBASE'), 'scripts')
 
     def test_pybootchartguy_help(self):
         runCmd('%s/pybootchartgui/pybootchartgui.py  --help' % self.scripts_dir)
@@ -63,12 +65,7 @@ class OEPybootchartguyTests(OESelftestTestCase):
         self.assertTrue(os.path.exists(self.tmpdir + "/charts.pdf"))
 
 
-class OEGitproxyTests(OESelftestTestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.scripts_dir = os.path.join(get_bb_var('COREBASE'), 'scripts')
+class OEGitproxyTests(OEScriptTests):
 
     def test_oegitproxy_help(self):
         try:
@@ -126,16 +123,10 @@ class OEGitproxyTests(OESelftestTestCase):
 class OeRunNativeTest(OESelftestTestCase):
     def test_oe_run_native(self):
         bitbake("qemu-helper-native -c addto_recipe_sysroot")
-        result = runCmd("oe-run-native qemu-helper-native qemu-oe-bridge-helper --help")
-        self.assertIn("Helper function to find and exec qemu-bridge-helper", result.output)
+        result = runCmd("oe-run-native qemu-helper-native tunctl -h")
+        self.assertIn("Delete: tunctl -d device-name [-f tun-clone-device]", result.output)
 
-class OEListPackageconfigTests(OESelftestTestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.scripts_dir = os.path.join(get_bb_var('COREBASE'), 'scripts')
-
+class OEListPackageconfigTests(OEScriptTests):
     #oe-core.scripts.List_all_the_PACKAGECONFIG's_flags
     def check_endlines(self, results,  expected_endlines): 
         for line in results.output.splitlines():

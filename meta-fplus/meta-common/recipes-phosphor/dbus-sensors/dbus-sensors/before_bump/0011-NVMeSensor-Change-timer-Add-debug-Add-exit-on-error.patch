@@ -1,0 +1,191 @@
+From f19b9bd930fbbadd8bb955deca9e090dcd6c7675 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 10:10:51 +0000
+Subject: [PATCH 11/16] NVMeSensor: Change timer; Add debug; Add exit on error
+
+---
+ include/NVMeSensor.hpp |  6 +++---
+ src/NVMeSensor.cpp     | 20 ++++++++------------
+ src/NVMeSensorMain.cpp | 20 +++++++++++++++-----
+ 3 files changed, 26 insertions(+), 20 deletions(-)
+
+diff --git a/include/NVMeSensor.hpp b/include/NVMeSensor.hpp
+index 02510d4..c3761a1 100644
+--- a/include/NVMeSensor.hpp
++++ b/include/NVMeSensor.hpp
+@@ -3,7 +3,7 @@
+ #include <libmctp-smbus.h>
+ #include <libmctp.h>
+ 
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/asio/io_service.hpp>
+ #include <boost/asio/ip/tcp.hpp>
+ #include <sensor.hpp>
+@@ -38,9 +38,9 @@ struct NVMeContext : std::enable_shared_from_this<NVMeContext>
+     void pollNVMeDevices();
+     void close();
+ 
+-    boost::asio::deadline_timer scanTimer;
++    boost::asio::steady_timer scanTimer;
+     int rootBus; // Root bus for this drive
+-    boost::asio::deadline_timer mctpResponseTimer;
++    boost::asio::steady_timer mctpResponseTimer;
+     boost::asio::ip::tcp::socket nvmeSlaveSocket;
+     std::list<std::shared_ptr<NVMeSensor>> sensors; // used as a poll queue
+ };
+diff --git a/src/NVMeSensor.cpp b/src/NVMeSensor.cpp
+index 1c78354..535eed4 100644
+--- a/src/NVMeSensor.cpp
++++ b/src/NVMeSensor.cpp
+@@ -27,8 +27,7 @@
+ static constexpr double maxReading = 127;
+ static constexpr double minReading = 0;
+ 
+-static constexpr bool debug = false;
+-
++extern bool DEBUG;
+ void rxMessage(uint8_t eid, void* data, void* msg, size_t len);
+ 
+ namespace nvmeMCTP
+@@ -117,7 +116,7 @@ void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
+         [nvmeDevice](const boost::system::error_code errorCode) {
+             if (errorCode)
+             {
+-                return;
++                exit(0);
+             }
+ 
+             mctp_smbus_set_in_fd(nvmeMCTP::smbus,
+@@ -211,6 +210,7 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
+ 
+     if (nvmeDevice->sensors.empty())
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << " sensors empty, exiting\n";
+         return;
+     }
+ 
+@@ -218,14 +218,14 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
+ 
+     // setup the timeout timer
+     nvmeDevice->mctpResponseTimer.expires_from_now(
+-        boost::posix_time::seconds(mctpResponseTimeout));
++        boost::asio::chrono::seconds(mctpResponseTimeout));
+ 
+     nvmeDevice->mctpResponseTimer.async_wait(
+         [sensor, nvmeDevice](const boost::system::error_code errorCode) {
+             if (errorCode)
+             {
+                 // timer cancelled successfully
+-                return;
++                exit(0);
+             }
+ 
+             sensor->incrementError();
+@@ -395,17 +395,13 @@ NVMeContext::NVMeContext(boost::asio::io_service& io, int rootBus) :
+ 
+ void NVMeContext::pollNVMeDevices()
+ {
+-    scanTimer.expires_from_now(boost::posix_time::seconds(1));
++    scanTimer.expires_from_now(boost::asio::chrono::seconds(5));
+     scanTimer.async_wait(
+         [self{shared_from_this()}](const boost::system::error_code errorCode) {
+-            if (errorCode == boost::asio::error::operation_aborted)
+-            {
+-                return; // we're being canceled
+-            }
+-            else if (errorCode)
++            if (errorCode)
+             {
+                 std::cerr << "Error:" << errorCode.message() << "\n";
+-                return;
++                exit(0);
+             }
+             else
+             {
+diff --git a/src/NVMeSensorMain.cpp b/src/NVMeSensorMain.cpp
+index 21e722f..e4eac9d 100644
+--- a/src/NVMeSensorMain.cpp
++++ b/src/NVMeSensorMain.cpp
+@@ -15,7 +15,8 @@
+ */
+ 
+ #include <NVMeSensor.hpp>
+-#include <boost/asio/deadline_timer.hpp>
++#include <CLI/CLI.hpp>
++#include <boost/asio/steady_timer.hpp>
+ 
+ #include <regex>
+ 
+@@ -24,7 +25,7 @@ static constexpr const char* sensorType =
+ 
+ static NVMEMap nvmeDeviceMap;
+ 
+-static constexpr bool debug = false;
++bool DEBUG = false;
+ 
+ NVMEMap& getNVMEMap()
+ {
+@@ -36,6 +37,8 @@ void createSensors(boost::asio::io_service& io,
+                    std::shared_ptr<sdbusplus::asio::connection>& dbusConnection)
+ {
+ 
++    if (DEBUG) std::cerr << __FUNCTION__ << " start\n";
++
+     auto getter = std::make_shared<GetSensorConfiguration>(
+         dbusConnection,
+         std::move([&io, &objectServer, &dbusConnection](
+@@ -70,11 +73,13 @@ void createSensors(boost::asio::io_service& io,
+ 
+                 if (baseConfiguration == nullptr)
+                 {
++                    if (DEBUG) std::cerr << __FUNCTION__ << " Unable to find base configuration for sensor\n";
+                     continue;
+                 }
+                 auto findBus = baseConfiguration->second.find("Bus");
+                 if (findBus == baseConfiguration->second.end())
+                 {
++                    if (DEBUG) std::cerr << __FUNCTION__ << " Unable to find bus for sensor\n";
+                     continue;
+                 }
+ 
+@@ -136,6 +141,7 @@ void createSensors(boost::asio::io_service& io,
+                         std::move(sensorThresholds), interfacePath, busNumber);
+ 
+                 context->sensors.emplace_back(sensorPtr);
++                if (DEBUG) std::cerr << __FUNCTION__ << " Emplacing sensor " << sensorName << " at bus " << +busNumber << "/" << +rootBus << "\n";
+             }
+             for (const auto& [_, context] : nvmeDeviceMap)
+             {
+@@ -145,8 +151,12 @@ void createSensors(boost::asio::io_service& io,
+     getter->getConfiguration(std::vector<std::string>{sensorType});
+ }
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++    CLI::App app("NVMe sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     systemBus->request_name("xyz.openbmc_project.NVMeSensor");
+@@ -155,12 +165,12 @@ int main()
+ 
+     io.post([&]() { createSensors(io, objectServer, systemBus); });
+ 
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&filterTimer, &io, &objectServer,
+          &systemBus](sdbusplus::message::message&) {
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+-- 
+2.7.4
+

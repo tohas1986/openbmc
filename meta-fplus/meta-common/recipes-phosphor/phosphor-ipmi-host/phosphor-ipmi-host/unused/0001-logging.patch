@@ -1,0 +1,25 @@
+From ae80fe9b7ca2563f568c30829a258fa4aef35462 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 29 Apr 2020 14:17:33 +0300
+Subject: [PATCH 1/1] logging
+
+---
+ user_channel/channel_mgmt.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/user_channel/channel_mgmt.cpp b/user_channel/channel_mgmt.cpp
+index b8e0b85..2f79190 100644
+--- a/user_channel/channel_mgmt.cpp
++++ b/user_channel/channel_mgmt.cpp
+@@ -154,6 +154,8 @@ int ChannelConfig::convertToChannelNumberFromChannelName(
+ {
+     for (const auto& it : channelData)
+     {
++        std::string msg = "Checking channel: " + it.chName;
++        log<level::INFO>(msg.c_str());
+         if (it.chName == chName)
+         {
+             return it.chID;
+-- 
+1.9.1
+

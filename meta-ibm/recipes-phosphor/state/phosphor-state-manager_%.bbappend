@@ -1,14 +1,4 @@
-# Witherspoon system does not support warm reboots
-PACKAGECONFIG:append:witherspoon = " no-warm-reboot"
-
-# p10bmc system do not support forced warm reboots
-PACKAGECONFIG:append:p10bmc = " no-force-warm-reboot"
-
-# IBM systems only want power restore when AC loss occurred
-PACKAGECONFIG:append = " only-run-apr-on-power-loss"
-
-# IBM systems only allow boot operations when BMC is Ready
-PACKAGECONFIG:append = " only-allow-boot-when-bmc-ready"
+EXTRA_OEMESON:append:witherspoon = " -Dwarm-reboot=disabled"
 
 # The scheduled-host-transition package provides support to
 # schedule power on and off operations for the host at some

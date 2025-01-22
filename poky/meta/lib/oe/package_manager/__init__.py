@@ -122,8 +122,7 @@ def generate_locale_archive(d, rootfs, target_arch, localedir):
         "riscv32": ["--uint32-align=4", "--little-endian"],
         "i586": ["--uint32-align=4", "--little-endian"],
         "i686": ["--uint32-align=4", "--little-endian"],
-        "x86_64": ["--uint32-align=4", "--little-endian"],
-        "loongarch64": ["--uint32-align=4", "--little-endian"]
+        "x86_64": ["--uint32-align=4", "--little-endian"]
     }
     if target_arch in locale_arch_options:
         arch_options = locale_arch_options[target_arch]
@@ -470,10 +469,7 @@ def create_packages_dir(d, subrepo_dir, deploydir, taskname, filterbydependencie
     # Detect bitbake -b usage
     nodeps = d.getVar("BB_LIMITEDDEPS") or False
     if nodeps or not filterbydependencies:
-        for arch in d.getVar("ALL_MULTILIB_PACKAGE_ARCHS").split() + d.getVar("ALL_MULTILIB_PACKAGE_ARCHS").replace("-", "_").split():
-            target = os.path.join(deploydir + "/" + arch)
-            if os.path.exists(target):
-                oe.path.symlink(target, subrepo_dir + "/" + arch, True)
+        oe.path.symlink(deploydir, subrepo_dir, True)
         return
 
     start = None

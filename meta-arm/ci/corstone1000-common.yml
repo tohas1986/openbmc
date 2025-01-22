@@ -1,11 +1,15 @@
 header:
-  version: 14
+  version: 11
   includes:
     - ci/base.yml
     - ci/meta-openembedded.yml
-    - ci/meta-secure-core.yml
-    - kas/corstone1000-image-configuration.yml
+
+local_conf_header:
+    extrapackages: |
+    # Intentionally blank to prevent perf from being added to the image in base.yml
+
+distro: poky-tiny
 
 target:
-  - core-image-minimal
+  - corstone1000-image
   - perf

@@ -1,0 +1,33 @@
+# 07.2021 BUMP PATCHES
+SRC_URI += "file://0002-Add-NVMe-legacy-interface-sensor.patch"
+SRC_URI += "file://0003-Add-generic-sysfs-reading-sensor.patch"
+SRC_URI += "file://0004-Add-our-services-to-meson.patch"
+SRC_URI += "file://0006-MCUTempSensor-Change-timer-Add-debug-Add-exit-on-err.patch"
+SRC_URI += "file://0007-Utils-Add-helper-function.patch"
+SRC_URI += "file://0008-Add-BMC-health-sensor.patch"
+SRC_URI += "file://0009-I2CSensor-Monitor-I2C-bus-states.patch"
+SRC_URI += "file://0010-Add-sensor-for-BMC-reset-cause.patch"
+SRC_URI += "file://0011-Introduce-GPU-sensor.patch"
+SRC_URI += "file://0012-Introduce-NodeManager-sensor.patch"
+SRC_URI += "file://0013-Fix-thresholds-issue.patch"
+SRC_URI += "file://0014-Fix-HBM-TEMP-flap-issue.patch"
+SRC_URI += "file://0015-Introduce-VR-PMBUS-sensor.patch"
+SRC_URI += "file://0016-Revert-Ed-Tanos-breaking-commit.patch"
+SRC_URI += "file://0017-Move-extra-stderr-to-debug-add-delay-for-sensors-polling.patch"
+SRC_URI += "file://0018-Fix-tach-sensor-bable.patch"
+
+DEPENDS:append = " libgpiod libmctp cli11"
+
+SYSTEMD_SERVICE:${PN} += " xyz.openbmc_project.nvmelegacysensor.service"
+SYSTEMD_SERVICE:${PN} += " xyz.openbmc_project.healthsensor.service"
+SYSTEMD_SERVICE:${PN} += " xyz.openbmc_project.sysfssensor.service"
+SYSTEMD_SERVICE:${PN} += " xyz.openbmc_project.gpusensor.service"
+SYSTEMD_SERVICE:${PN} += " xyz.openbmc_project.i2csensor.service"
+SYSTEMD_SERVICE:${PN} += " xyz.openbmc_project.bmcresetcausesensor.service"
+SYSTEMD_SERVICE:${PN} += " xyz.openbmc_project.nmsensor.service"
+SYSTEMD_SERVICE:${PN} += " xyz.openbmc_project.vrsensor.service"
+
+PACKAGECONFIG:remove = "hwmontempsensor psusensor"
+#PACKAGECONFIG:remove = "psusensor"
+
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"

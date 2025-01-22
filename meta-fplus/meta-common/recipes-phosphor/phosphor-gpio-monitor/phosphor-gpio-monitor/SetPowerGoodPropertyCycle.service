@@ -1,0 +1,6 @@
+[Unit]
+Description=Set GPU Power Property Cycle
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/setGPUPowerPropertyCycle.sh cycle

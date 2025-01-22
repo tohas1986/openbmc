@@ -1,0 +1,31 @@
+From 6060874dbb19db432fc2376f5bd4ddca615ef74b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 30 Sep 2022 11:03:41 +0000
+Subject: [PATCH] Increase firmware upgrade timeout from 5 to 10 minutes
+
+---
+ redfish-core/lib/update_service.hpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
+index ec44e22c..1bdd3ced 100644
+--- a/redfish-core/lib/update_service.hpp
++++ b/redfish-core/lib/update_service.hpp
+@@ -227,7 +227,7 @@ static void
+ 
+                             // if we're getting status updates it's
+                             // still alive, update timer
+-                            taskData->extendTimer(std::chrono::minutes(5));
++                            taskData->extendTimer(std::chrono::minutes(10));
+                         }
+ 
+                         // as firmware update often results in a
+@@ -239,7 +239,7 @@ static void
+                             "type='signal',interface='org.freedesktop.DBus.Properties',"
+                             "member='PropertiesChanged',path='" +
+                                 objPath.str + "'");
+-                    task->startTimer(std::chrono::minutes(5));
++                    task->startTimer(std::chrono::minutes(10));
+                     task->populateResp(asyncResp->res);
+                     task->payload.emplace(std::move(payload));
+                 }

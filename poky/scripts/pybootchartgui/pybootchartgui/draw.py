@@ -356,12 +356,6 @@ def extents(options, xscale, trace):
             h += 30 + bar_h
         if trace.disk_stats:
             h += 30 + bar_h
-        if trace.cpu_pressure:
-            h += 30 + bar_h
-        if trace.io_pressure:
-            h += 30 + bar_h
-        if trace.mem_pressure:
-            h += 30 + bar_h
         if trace.monitor_disk:
             h += 30 + bar_h
         if trace.mem_stats:
@@ -620,8 +614,8 @@ def render_charts(ctx, options, clip, trace, curr_y, w, h, sec_w):
 
     return curr_y
 
-def render_processes_chart(ctx, options, trace, curr_y, width, h, sec_w):
-    chart_rect = [off_x, curr_y+header_h, width, h - curr_y - 1 * off_y - header_h  ]
+def render_processes_chart(ctx, options, trace, curr_y, w, h, sec_w):
+    chart_rect = [off_x, curr_y+header_h, w, h - curr_y - 1 * off_y - header_h  ]
 
     draw_legend_box (ctx, "Configure", \
              TASK_COLOR_CONFIGURE, off_x  , curr_y + 45, leg_s)
@@ -646,9 +640,8 @@ def render_processes_chart(ctx, options, trace, curr_y, width, h, sec_w):
     offset = trace.min or min(trace.start.keys())
     for start in sorted(trace.start.keys()):
         for process in sorted(trace.start[start]):
-            elapsed_time = trace.processes[process][1] - start
             if not options.app_options.show_all and \
-                    elapsed_time < options.app_options.mintime:
+                    trace.processes[process][1] - start < options.app_options.mintime:
                 continue
             task = process.split(":")[1]
 
@@ -657,23 +650,14 @@ def render_processes_chart(ctx, options, trace, curr_y, width, h, sec_w):
             #print(s)
 
             x = chart_rect[0] + (start - offset) * sec_w
-            w = elapsed_time * sec_w
-
-            def set_alfa(color, alfa):
-                clist = list(color)
-                clist[-1] = alfa
-                return tuple(clist)
+            w = ((trace.processes[process][1] - start) * sec_w)
 
             #print("proc at %s %s %s %s" % (x, y, w, proc_h))
             col = None
             if task == "do_compile":
                 col = TASK_COLOR_COMPILE
-            elif "do_compile" in task:
-                col = set_alfa(TASK_COLOR_COMPILE, 0.25)
             elif task == "do_configure":
                 col = TASK_COLOR_CONFIGURE
-            elif "do_configure" in task:
-                col = set_alfa(TASK_COLOR_CONFIGURE, 0.25)
             elif task == "do_install":
                 col = TASK_COLOR_INSTALL
             elif task == "do_populate_sysroot":
@@ -691,10 +675,7 @@ def render_processes_chart(ctx, options, trace, curr_y, width, h, sec_w):
                 draw_fill_rect(ctx, col, (x, y, w, proc_h))
             draw_rect(ctx, PROC_BORDER_COLOR, (x, y, w, proc_h))
 
-            # Show elapsed time for each task
-            process = "%ds %s" % (elapsed_time, process)
-            draw_label_in_box(ctx, PROC_TEXT_COLOR, process, x, y + proc_h - 4, w, width)
-
+            draw_label_in_box(ctx, PROC_TEXT_COLOR, process, x, y + proc_h - 4, w, proc_h)
             y = y + proc_h
 
     return curr_y

@@ -1,0 +1,6 @@
+[Unit]
+Description=CAuth keys updater
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/cauth-updater

@@ -1,0 +1,76 @@
+From 9681567b9135870d6832f08a684d3c02331c1083 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 8 Jun 2021 09:08:43 +0000
+Subject: [PATCH 2/2] Fix missing keboard taps
+
+---
+ ikvm_input.cpp | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/ikvm_input.cpp b/ikvm_input.cpp
+index 480db3c..eb929b5 100644
+--- a/ikvm_input.cpp
++++ b/ikvm_input.cpp
+@@ -8,6 +8,7 @@
+ #include <rfb/keysym.h>
+ #include <sys/stat.h>
+ #include <sys/types.h>
++#include <iostream>
+ 
+ #include <phosphor-logging/elog-errors.hpp>
+ #include <phosphor-logging/elog.hpp>
+@@ -133,6 +134,8 @@ void Input::disconnect()
+ 
+ void Input::keyEvent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
+ {
++    uint8_t sc = keyToScancode(key);
++
+     Server::ClientData* cd = (Server::ClientData*)cl->clientData;
+     Input* input = cd->input;
+     bool sendKeyboard = false;
+@@ -144,18 +147,16 @@ void Input::keyEvent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
+ 
+     if (down)
+     {
+-        uint8_t sc = keyToScancode(key);
+-
+         if (sc)
+         {
+-            if (input->keysDown.find(key) == input->keysDown.end())
++            if (input->keysDown.find(sc) == input->keysDown.end())
+             {
+                 for (unsigned int i = 2; i < KEY_REPORT_LENGTH; ++i)
+                 {
+                     if (!input->keyboardReport[i])
+                     {
+                         input->keyboardReport[i] = sc;
+-                        input->keysDown.insert(std::make_pair(key, i));
++                        input->keysDown.insert(std::make_pair(sc, i));
+                         sendKeyboard = true;
+                         break;
+                     }
+@@ -175,7 +176,7 @@ void Input::keyEvent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
+     }
+     else
+     {
+-        auto it = input->keysDown.find(key);
++        auto it = input->keysDown.find(sc);
+ 
+         if (it != input->keysDown.end())
+         {
+@@ -199,6 +200,12 @@ void Input::keyEvent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
+     {
+         input->writeKeyboard(input->keyboardReport);
+     }
++    else
++    {
++        std::stringstream ss;
++        ss << __FUNCTION__ << " BUG: down:" << +down << " key:" << +key << " scancode:" << +sc;
++        log<level::ERR>(ss.str().c_str());
++    }
+ }
+ 
+ void Input::pointerEvent(int buttonMask, int x, int y, rfbClientPtr cl)
+-- 
+2.7.4
+

@@ -1,0 +1,583 @@
+From c958378658d8399e67926410ed3f070d8ccc4259 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 30 Aug 2022 14:45:19 +0000
+Subject: [PATCH] Introduce VR PMBUS sensor
+
+---
+ include/VRSensor.hpp                          |  46 ++
+ meson_options.txt                             |   1 +
+ service_files/meson.build                     |   1 +
+ .../xyz.openbmc_project.vrsensor.service      |  13 +
+ src/VRSensor.cpp                              | 438 ++++++++++++++++++
+ src/meson.build                               |  18 +
+ 6 files changed, 517 insertions(+)
+ create mode 100644 include/VRSensor.hpp
+ create mode 100644 service_files/xyz.openbmc_project.vrsensor.service
+ create mode 100644 src/VRSensor.cpp
+
+diff --git a/include/VRSensor.hpp b/include/VRSensor.hpp
+new file mode 100644
+index 0000000..337347b
+--- /dev/null
++++ b/include/VRSensor.hpp
+@@ -0,0 +1,46 @@
++#pragma once
++#include "sensor.hpp"
++
++#include <boost/asio/steady_timer.hpp>
++#include <boost/container/flat_map.hpp>
++
++#include <chrono>
++#include <limits>
++#include <memory>
++#include <string>
++#include <vector>
++
++enum class SensorTypes
++{
++    temp,
++    power
++};
++
++struct VRSensor : public Sensor
++{
++    VRSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
++                  boost::asio::io_service& io, const std::string& name,
++                  const std::string& sensorConfiguration,
++                  sdbusplus::asio::object_server& objectServer,
++                  std::vector<thresholds::Threshold>&& thresholds,
++                  const PowerState powerState,
++                  uint8_t busId, uint8_t slaveAddr, uint8_t slaveReg,
++                  std::string &sensorClass);
++    ~VRSensor();
++
++    void checkThresholds(void) override;
++    void readSensor(void);
++    void init(void);
++
++    uint8_t busId;
++    uint8_t slaveAddr;
++    uint8_t slaveReg;
++    std::string sensorClass;
++    SensorTypes type;
++
++  private:
++    int getRegister(uint8_t idx, uint32_t* value);
++    sdbusplus::asio::object_server& objectServer;
++    boost::asio::steady_timer waitTimer;
++    const char * units;
++};
+diff --git a/meson_options.txt b/meson_options.txt
+index 61d77c0..8b7a1c3 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -18,4 +18,5 @@ option('sysfs', type: 'feature', value: 'enabled', description: 'Enable sysfs ge
+ option('i2c', type: 'feature', value: 'enabled', description: 'Enable I2C bus state sensor.',)
+ option('bmcresetcause', type: 'feature', value: 'enabled', description: 'Enable BMC reset cause sensor.',)
+ option('gpu', type: 'feature', value: 'enabled', description: 'Enable GPU SMBPBI sensor.',)
++option('vr', type: 'feature', value: 'enabled', description: 'Enable simple VR sensor.',)
+ option('nodemanager', type: 'feature', value: 'enabled', description: 'Enable NodeManager sensor.',)
+diff --git a/service_files/meson.build b/service_files/meson.build
+index 4699a0e..9f632bd 100644
+--- a/service_files/meson.build
++++ b/service_files/meson.build
+@@ -16,6 +16,7 @@ unit_files = [
+     ['i2c', 'xyz.openbmc_project.i2csensor.service'],
+     ['bmcresetcause', 'xyz.openbmc_project.bmcresetcausesensor.service'],
+     ['gpu', 'xyz.openbmc_project.gpusensor.service'],
++    ['vr', 'xyz.openbmc_project.vrsensor.service'],
+     ['nodemanager', 'xyz.openbmc_project.nmsensor.service'],
+ ]
+ 
+diff --git a/service_files/xyz.openbmc_project.vrsensor.service b/service_files/xyz.openbmc_project.vrsensor.service
+new file mode 100644
+index 0000000..b634d64
+--- /dev/null
++++ b/service_files/xyz.openbmc_project.vrsensor.service
+@@ -0,0 +1,13 @@
++[Unit]
++Description=VR PMBUS Sensor
++StopWhenUnneeded=false
++Requires=xyz.openbmc_project.EntityManager.service
++After=xyz.openbmc_project.EntityManager.service
++
++[Service]
++Restart=always
++RestartSec=5
++ExecStart=/usr/bin/vrsensor
++
++[Install]
++WantedBy=multi-user.target
+diff --git a/src/VRSensor.cpp b/src/VRSensor.cpp
+new file mode 100644
+index 0000000..07d604b
+--- /dev/null
++++ b/src/VRSensor.cpp
+@@ -0,0 +1,438 @@
++/*
++// Copyright (c) 2019 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++#include "VRSensor.hpp"
++#include "SensorPaths.hpp"
++
++#include "Utils.hpp"
++#include "VariantVisitors.hpp"
++
++#include <math.h>
++
++#include <CLI/CLI.hpp>
++#include <boost/algorithm/string.hpp>
++#include <boost/algorithm/string/predicate.hpp>
++#include <boost/algorithm/string/replace.hpp>
++#include <boost/container/flat_map.hpp>
++#include <sdbusplus/asio/connection.hpp>
++#include <sdbusplus/asio/object_server.hpp>
++#include <sdbusplus/bus/match.hpp>
++
++#include <chrono>
++#include <functional>
++#include <iostream>
++#include <limits>
++#include <memory>
++#include <numeric>
++#include <string>
++#include <vector>
++
++extern "C"
++{
++#include <i2c/smbus.h>
++#include <linux/i2c-dev.h>
++}
++
++bool DEBUG = false;
++static constexpr size_t pollTime = 5; // in seconds
++
++constexpr const char* sensorType = "VRSensor";
++
++boost::container::flat_map<std::string, std::unique_ptr<VRSensor>> sensors;
++static constexpr double maxReading = 128;
++static constexpr double minReading = 0;
++
++VRSensor::VRSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
++                             boost::asio::io_service& io,
++                             const std::string& sensorName,
++                             const std::string& sensorConfiguration,
++                             sdbusplus::asio::object_server& objectServer,
++                             std::vector<thresholds::Threshold>&& thresholdData,
++                             const PowerState powerState,
++                             uint8_t busId, uint8_t slaveAddr, uint8_t slaveReg,
++                             std::string& sensorClass) :
++    Sensor(boost::replace_all_copy(sensorName, " ", "_"),
++           std::move(thresholdData), sensorConfiguration,
++           "VRSensor", false, false,
++           maxReading, minReading, conn, powerState),
++    busId(busId), slaveAddr(slaveAddr), slaveReg(slaveReg),
++    sensorClass(sensorClass),
++    objectServer(objectServer), waitTimer(io)
++{
++
++    if (DEBUG)
++    {
++        std::cerr << "Construct sensor Class: " << sensorClass << "\n";
++    }
++
++    std::string objPath = "/xyz/openbmc_project/sensors/";
++
++    if (sensorClass == "Temperature")
++    {
++        type = SensorTypes::temp;
++        units = sensor_paths::unitDegreesC;
++        objPath += "temperature/";
++        objPath += name;
++
++    }
++    else if (sensorClass == "Power")
++    {
++        type = SensorTypes::power;
++        units = sensor_paths::unitWatts;
++        objPath += "power/";
++        objPath += name;
++    }
++
++    if (DEBUG)
++    {
++        std::cerr <<  "class=" << sensorClass << " objPath:" << objPath << "\n";
++    }
++
++    sensorInterface = objectServer.add_interface(
++        objPath, "xyz.openbmc_project.Sensor.Value");
++
++    for (const auto& threshold : thresholds)
++    {
++        std::string interface = thresholds::getInterface(threshold.level);
++        thresholdInterfaces[static_cast<size_t>(threshold.level)] =
++            objectServer.add_interface(objPath, interface);
++    }
++
++    association = objectServer.add_interface(
++        objPath, association::interface);
++}
++
++VRSensor::~VRSensor()
++{
++    waitTimer.cancel();
++
++    for (const auto& iface : thresholdInterfaces)
++    {
++        objectServer.remove_interface(iface);
++    }
++
++    objectServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(association);
++}
++
++void VRSensor::init(void)
++{
++    setInitialProperties(units);
++    readSensor();
++}
++
++void VRSensor::checkThresholds(void)
++{
++    thresholds::checkThresholds(this);
++}
++
++int VRSensor::getRegister(uint8_t idx, uint32_t* value)
++{
++    std::string i2cBus = "/dev/i2c-" + std::to_string(busId);
++    int fd = open(i2cBus.c_str(), O_RDWR);
++
++    if (fd < 0)
++    {
++        std::cerr << " unable to open i2c device" << i2cBus << "  err=" << fd
++                  << "\n";
++        close(fd);
++        return -1;
++    }
++
++    if (ioctl(fd, I2C_SLAVE_FORCE, slaveAddr) < 0)
++    {
++        if (DEBUG)
++            std::cerr << " unable to set device address\n";
++        close(fd);
++        return -1;
++    }
++
++    unsigned long funcs = 0;
++    if (ioctl(fd, I2C_FUNCS, &funcs) < 0)
++    {
++        std::cerr << " not support I2C_FUNCS\n";
++        close(fd);
++        return -1;
++    }
++
++    if (!(funcs & I2C_FUNC_SMBUS_READ_WORD_DATA))
++    {
++        std::cerr << " not support I2C_FUNC_SMBUS_READ_WORD_DATA\n";
++        close(fd);
++        return -1;
++    }
++
++    /* Step 1: Set page to 0 */
++    /* Step 2: Read 2 bytes from address */
++    int ret = -1;
++    int32_t response = 0;
++
++    ret = i2c_smbus_write_byte_data(fd, 0x00, 0x00);
++    if (ret < 0)
++    {
++        std::cerr << "Failed to write pagea" << " Bus:" << i2cBus << "\n";
++        close(fd);
++        return -1;
++    }
++
++    response = i2c_smbus_read_word_data(fd, slaveReg);
++    if (response < 0)
++    {
++        std::cerr << "Failed to read register. Bus:" << i2cBus << " Reg:" << +slaveReg<< "\n";
++        close(fd);
++        return -1;
++    }
++    close(fd);
++
++    if (DEBUG)
++    {
++        std::ios_base::fmtflags f(std::cerr.flags() );
++        std::cerr << name << ": Read:0x" << std::hex << std::setfill('0') << std::setw(2) << response << " ";
++        std::cerr.flags(f);
++    }
++
++    /* LINEAR11 conversion stolen from kernel source (pmbus_core.c) */
++    int16_t exponent = ((int16_t)response) >> 11;
++    int32_t mantissa = ((int16_t)((response & 0x7ff) << 5)) >> 5;
++    mantissa *= 1000LL;
++    if (exponent >=0 )
++    {
++        mantissa <<= exponent;
++    }
++    else
++    {
++        mantissa >>= -exponent;
++    }
++
++    *value = (mantissa / 1000);
++
++    if (DEBUG) std::cerr << "Value:" << *value << "\n";
++
++    return 0;
++}
++
++void VRSensor::readSensor(void)
++{
++    waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
++    waitTimer.async_wait([this](const boost::system::error_code& ec) {
++        // read timer error
++        if (ec)
++        {
++            incrementError();
++            readSensor();
++            return;
++        }
++        uint32_t value;
++        int ret;
++
++        /* Don't read anything if power is off */
++        if (isPowerOn())
++        {
++            ret = getRegister(2, &value);
++        } else
++        {
++            if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " Bypassing cycle due to power off\n";
++            ret = -2;
++        }
++
++        if (ret >= 0)
++        {
++            updateValue(static_cast<double>(value));
++        } else
++        {
++            updateValue(std::numeric_limits<double>::quiet_NaN());
++        }
++
++        /* Increment errors only if it's a real error */
++        if (ret < 0 && ret != -2)
++        {
++            incrementError();
++        }
++        readSensor();
++    });
++}
++
++void createSensors(
++    boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,
++    boost::container::flat_map<std::string, std::unique_ptr<VRSensor>>&
++        sensors,
++    std::shared_ptr<sdbusplus::asio::connection>& dbusConnection)
++{
++    if (!dbusConnection)
++    {
++        std::cerr << "Connection not created\n";
++        exit(0);
++    }
++
++    dbusConnection->async_method_call(
++        [&io, &objectServer, &dbusConnection, &sensors](
++            boost::system::error_code ec, const ManagedObjectType& resp) {
++
++            if (ec)
++            {
++                std::cerr << "Error contacting entity manager\n";
++                exit(0);
++            }
++
++            for (const auto& pathPair : resp)
++            {
++                for (const auto& entry : pathPair.second)
++                {
++                    if (entry.first !=  configInterfaceName(sensorType))
++                    {
++                        continue;
++                    }
++
++                    std::string name;
++                    try
++                    {
++                        name = loadVariant<std::string>(entry.second, "Name");
++                        if (DEBUG) std::cerr << "Name: " << name << "\n";
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get bus\n";
++                        return -1;
++                    }
++
++                    uint8_t busId;
++                    try
++                    {
++                        busId = loadVariant<uint8_t>(entry.second, "Bus");
++                        if (DEBUG) std::cerr << "Bus: " << +busId << "\n";
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get bus\n";
++                        return -1;
++                    }
++
++                    uint8_t slaveAddr;
++                    try
++                    {
++                        slaveAddr = loadVariant<uint8_t>(entry.second, "Address");
++                        if (DEBUG) std::cerr << "Address: " << +slaveAddr << "\n";
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get SlaveAddr, setting to default\n";
++                        return -1;
++                    }
++
++                    uint8_t slaveReg;
++                    try
++                    {
++                        slaveReg= loadVariant<uint8_t>(entry.second, "Reg");
++                        if (DEBUG) std::cerr << "slaveReg: " << +slaveReg<< "\n";
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get Reg\n";
++                        return -1;
++                    }
++
++                    std::vector<thresholds::Threshold> sensorThresholds;
++                    if (!parseThresholdsFromConfig(pathPair.second,
++                                                   sensorThresholds))
++                    {
++                        std::cerr << "error populating thresholds for " << name << "\n";
++                    }
++
++                    std::string sensorClass;
++                    try
++                    {
++                        sensorClass = loadVariant<std::string>(entry.second, "Class");
++                        if (DEBUG) std::cerr << "Class: " << sensorClass << "\n";
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get Class, setting to default\n";
++                    }
++
++                    if (DEBUG)
++                    {
++                        std::ios oldState(nullptr);
++                        oldState.copyfmt(std::cerr);
++                        std::cerr
++                            << "Configuration parsed for \n\t" << entry.first
++                            << "\n"
++                            << "with\n"
++                            << "\tName: " << name << "\n"
++                            << "\tBus: " << static_cast<int>(busId) << "\n"
++                            << "\tSlaveAddr: 0x" << std::hex << std::setfill('0') << std::setw(2) << +slaveAddr << "\n"
++                            << "\tReg: 0x" << std::hex << std::setfill('0') << std::setw(2) << +slaveReg<< "\n"
++                            << "\n";
++                        std::cerr.copyfmt(oldState);
++                    }
++
++                    PowerState powerState = PowerState::on;
++                    auto& sensor = sensors[name];
++
++                    sensor = std::make_unique<VRSensor>(
++                        dbusConnection, io, name, pathPair.first, objectServer,
++                        std::move(sensorThresholds), powerState,
++                        busId, slaveAddr, slaveReg, sensorClass);
++
++                    sensor->init();
++                }
++            }
++
++            return 0;
++        },
++        entityManagerName, "/xyz/openbmc_project/inventory",
++        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
++}
++
++int main(int argc, char* argv[])
++{
++    CLI::App app("VR PMBUS poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
++    boost::asio::io_service io;
++    auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
++    systemBus->request_name("xyz.openbmc_project.VRSensor");
++    sdbusplus::asio::object_server objectServer(systemBus);
++
++    io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
++
++    boost::asio::steady_timer configTimer(io);
++
++    std::function<void(sdbusplus::message::message&)> eventHandler =
++        [&](sdbusplus::message::message&) {
++            configTimer.expires_from_now(boost::asio::chrono::seconds(1));
++            // create a timer because normally multiple properties change
++            configTimer.async_wait([&](const boost::system::error_code& ec) {
++                // config timer error
++                if (ec)
++                {
++                    return;
++                }
++                createSensors(io, objectServer, sensors, systemBus);
++                if (sensors.empty())
++                {
++                    std::cout << "Configuration not detected\n";
++                }
++            });
++        };
++
++    std::vector<std::unique_ptr<sdbusplus::bus::match_t>> matches =
++        setupPropertiesChangedMatches(
++            *systemBus, std::to_array<const char*>({sensorType}),
++            eventHandler);
++
++
++    io.run();
++}
+diff --git a/src/meson.build b/src/meson.build
+index 01944fa..2ed90b0 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -232,6 +232,24 @@ if get_option('gpu').enabled()
+     )
+ endif
+ 
++if get_option('vr').enabled()
++    executable(
++        'vrsensor',
++        'VRSensor.cpp',
++        dependencies: [
++            i2c,
++            sdbusplus
++    ],
++        implicit_include_directories: false,
++        include_directories: '../include',
++        install: true,
++        link_with: [
++            utils_a,
++            thresholds_a,
++        ],
++    )
++endif
++
+ if get_option('health').enabled()
+     executable(
+         'healthsensor',

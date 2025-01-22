@@ -1,0 +1,366 @@
+From 8051214f92e8a2f634e4831b240537e862f1f490 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Mon, 24 Aug 2020 16:29:33 +0000
+Subject: [PATCH] Power-cntl-test
+
+---
+ power-control-x86/src/power_control.cpp | 109 ++++++++++++++++----------------
+ 1 file changed, 56 insertions(+), 53 deletions(-)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index b8bb313..9e66849 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -94,7 +94,7 @@ static boost::asio::steady_timer warmResetCheckTimer(io);
+ // Time power supply power OK assertion on power-on
+ static boost::asio::steady_timer psPowerOKWatchdogTimer(io);
+ // Time SIO power good assertion on power-on
+-static boost::asio::steady_timer sioPowerGoodWatchdogTimer(io);
++//static boost::asio::steady_timer sioPowerGoodWatchdogTimer(io);
+ // Time power-off state save for power loss tracking
+ static boost::asio::steady_timer powerStateSaveTimer(io);
+ // POH timer
+@@ -105,8 +105,8 @@ static boost::asio::steady_timer restartCauseTimer(io);
+ // GPIO Lines and Event Descriptors
+ static gpiod::line psPowerOKLine;
+ static boost::asio::posix::stream_descriptor psPowerOKEvent(io);
+-static gpiod::line sioPowerGoodLine;
+-static boost::asio::posix::stream_descriptor sioPowerGoodEvent(io);
++//static gpiod::line sioPowerGoodLine;
++//static boost::asio::posix::stream_descriptor sioPowerGoodEvent(io);
+ static gpiod::line sioOnControlLine;
+ static boost::asio::posix::stream_descriptor sioOnControlEvent(io);
+ static gpiod::line sioS5Line;
+@@ -147,7 +147,7 @@ enum class PowerState
+ {
+     on,
+     waitForPSPowerOK,
+-    waitForSIOPowerGood,
++    //waitForSIOPowerGood,
+     off,
+     transitionToOff,
+     gracefulTransitionToOff,
+@@ -167,9 +167,9 @@ static std::string getPowerStateName(PowerState state)
+         case PowerState::waitForPSPowerOK:
+             return "Wait for Power Supply Power OK";
+             break;
+-        case PowerState::waitForSIOPowerGood:
+-            return "Wait for SIO Power Good";
+-            break;
++        //case PowerState::waitForSIOPowerGood:
++        //    return "Wait for SIO Power Good";
++        //    break;
+         case PowerState::off:
+             return "Off";
+             break;
+@@ -210,8 +210,8 @@ enum class Event
+ {
+     psPowerOKAssert,
+     psPowerOKDeAssert,
+-    sioPowerGoodAssert,
+-    sioPowerGoodDeAssert,
++    //sioPowerGoodAssert,
++    //sioPowerGoodDeAssert,
+     sioS5Assert,
+     sioS5DeAssert,
+     postCompleteAssert,
+@@ -220,7 +220,7 @@ enum class Event
+     resetButtonPressed,
+     powerCycleTimerExpired,
+     psPowerOKWatchdogTimerExpired,
+-    sioPowerGoodWatchdogTimerExpired,
++    //sioPowerGoodWatchdogTimerExpired,
+     gracefulPowerOffTimerExpired,
+     powerOnRequest,
+     powerOffRequest,
+@@ -240,12 +240,12 @@ static std::string getEventName(Event event)
+         case Event::psPowerOKDeAssert:
+             return "power supply power OK de-assert";
+             break;
+-        case Event::sioPowerGoodAssert:
+-            return "SIO power good assert";
+-            break;
+-        case Event::sioPowerGoodDeAssert:
+-            return "SIO power good de-assert";
+-            break;
++        //case Event::sioPowerGoodAssert:
++        //    return "SIO power good assert";
++        //    break;
++        //case Event::sioPowerGoodDeAssert:
++        //    return "SIO power good de-assert";
++        //    break;
+         case Event::sioS5Assert:
+             return "SIO S5 assert";
+             break;
+@@ -270,9 +270,9 @@ static std::string getEventName(Event event)
+         case Event::psPowerOKWatchdogTimerExpired:
+             return "power supply power OK watchdog timer expired";
+             break;
+-        case Event::sioPowerGoodWatchdogTimerExpired:
+-            return "SIO power good watchdog timer expired";
+-            break;
++        //case Event::sioPowerGoodWatchdogTimerExpired:
++        //    return "SIO power good watchdog timer expired";
++        //    break;
+         case Event::gracefulPowerOffTimerExpired:
+             return "graceful power-off timer expired";
+             break;
+@@ -314,7 +314,7 @@ static void logEvent(const std::string_view stateHandler, const Event event)
+ // Power state handlers
+ static void powerStateOn(const Event event);
+ static void powerStateWaitForPSPowerOK(const Event event);
+-static void powerStateWaitForSIOPowerGood(const Event event);
++//static void powerStateWaitForSIOPowerGood(const Event event);
+ static void powerStateOff(const Event event);
+ static void powerStateTransitionToOff(const Event event);
+ static void powerStateGracefulTransitionToOff(const Event event);
+@@ -333,9 +333,9 @@ static std::function<void(const Event)> getPowerStateHandler(PowerState state)
+         case PowerState::waitForPSPowerOK:
+             return powerStateWaitForPSPowerOK;
+             break;
+-        case PowerState::waitForSIOPowerGood:
+-            return powerStateWaitForSIOPowerGood;
+-            break;
++        //case PowerState::waitForSIOPowerGood:
++        //    return powerStateWaitForSIOPowerGood;
++        //    break;
+         case PowerState::off:
+             return powerStateOff;
+             break;
+@@ -399,7 +399,7 @@ static constexpr std::string_view getHostState(const PowerState state)
+             return "xyz.openbmc_project.State.Host.HostState.Running";
+             break;
+         case PowerState::waitForPSPowerOK:
+-        case PowerState::waitForSIOPowerGood:
++        //case PowerState::waitForSIOPowerGood:
+         case PowerState::off:
+         case PowerState::transitionToOff:
+         case PowerState::transitionToCycleOff:
+@@ -408,7 +408,7 @@ static constexpr std::string_view getHostState(const PowerState state)
+             return "xyz.openbmc_project.State.Host.HostState.Off";
+             break;
+         default:
+-            return "";
++            return "Default state for getHostState";
+             break;
+     }
+ };
+@@ -425,13 +425,13 @@ static constexpr std::string_view getChassisState(const PowerState state)
+             return "xyz.openbmc_project.State.Chassis.PowerState.On";
+             break;
+         case PowerState::waitForPSPowerOK:
+-        case PowerState::waitForSIOPowerGood:
++        //case PowerState::waitForSIOPowerGood:
+         case PowerState::off:
+         case PowerState::cycleOff:
+             return "xyz.openbmc_project.State.Chassis.PowerState.Off";
+             break;
+         default:
+-            return "";
++            return "Default state for getChassisState";
+             break;
+     }
+ };
+@@ -1373,7 +1373,7 @@ static void currentHostStateMonitor()
+         });
+ }
+ 
+-static void sioPowerGoodWatchdogTimerStart()
++/*static void sioPowerGoodWatchdogTimerStart()
+ {
+     std::cerr << "SIO power good watchdog timer started\n";
+     sioPowerGoodWatchdogTimer.expires_after(
+@@ -1395,7 +1395,7 @@ static void sioPowerGoodWatchdogTimerStart()
+             std::cerr << "SIO power good watchdog timer completed\n";
+             sendPowerControlEvent(Event::sioPowerGoodWatchdogTimerExpired);
+         });
+-}
++}*/
+ 
+ static void powerStateOn(const Event event)
+ {
+@@ -1447,7 +1447,7 @@ static void powerStateOn(const Event event)
+             break;
+         default:
+             phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++                "No action taken for powerStateOn.");
+             break;
+     }
+ }
+@@ -1461,25 +1461,26 @@ static void powerStateWaitForPSPowerOK(const Event event)
+             // Cancel any GPIO assertions held during the transition
+             gpioAssertTimer.cancel();
+             psPowerOKWatchdogTimer.cancel();
+-            sioPowerGoodWatchdogTimerStart();
+-            setPowerState(PowerState::waitForSIOPowerGood);
++            //sioPowerGoodWatchdogTimerStart();
++            //setPowerState(PowerState::waitForSIOPowerGood);
++            setPowerState(PowerState::on);
+             break;
+         case Event::psPowerOKWatchdogTimerExpired:
+             setPowerState(PowerState::off);
+             psPowerOKFailedLog();
+             break;
+-        case Event::sioPowerGoodAssert:
+-            psPowerOKWatchdogTimer.cancel();
+-            setPowerState(PowerState::on);
+-            break;
++        //case Event::sioPowerGoodAssert:
++        //    psPowerOKWatchdogTimer.cancel();
++        //    setPowerState(PowerState::on);
++        //    break;
+         default:
+             phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++                "No action taken for powerStateWaitForPSPowerOK.");
+             break;
+     }
+ }
+ 
+-static void powerStateWaitForSIOPowerGood(const Event event)
++/*static void powerStateWaitForSIOPowerGood(const Event event)
+ {
+     logEvent(__FUNCTION__, event);
+     switch (event)
+@@ -1497,7 +1498,7 @@ static void powerStateWaitForSIOPowerGood(const Event event)
+                 "No action taken.");
+             break;
+     }
+-}
++}*/
+ 
+ static void powerStateOff(const Event event)
+ {
+@@ -1505,7 +1506,7 @@ static void powerStateOff(const Event event)
+     switch (event)
+     {
+         case Event::psPowerOKAssert:
+-            setPowerState(PowerState::waitForSIOPowerGood);
++        //    setPowerState(PowerState::waitForSIOPowerGood);
+             break;
+         case Event::sioS5DeAssert:
+             setPowerState(PowerState::waitForPSPowerOK);
+@@ -1516,6 +1517,7 @@ static void powerStateOff(const Event event)
+         case Event::powerButtonPressed:
+             psPowerOKWatchdogTimerStart();
+             setPowerState(PowerState::waitForPSPowerOK);
++            powerOn();
+             break;
+         case Event::powerOnRequest:
+             psPowerOKWatchdogTimerStart();
+@@ -1524,7 +1526,7 @@ static void powerStateOff(const Event event)
+             break;
+         default:
+             phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++                "No action taken for powerStateOff.");
+             break;
+     }
+ }
+@@ -1541,7 +1543,7 @@ static void powerStateTransitionToOff(const Event event)
+             break;
+         default:
+             phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++                "No action taken powerStateTransitionToOff.");
+             break;
+     }
+ }
+@@ -1572,7 +1574,8 @@ static void powerStateCycleOff(const Event event)
+     {
+         case Event::psPowerOKAssert:
+             powerCycleTimer.cancel();
+-            setPowerState(PowerState::waitForSIOPowerGood);
++            //setPowerState(PowerState::waitForSIOPowerGood);
++            setPowerState(PowerState::waitForPSPowerOK);
+             break;
+         case Event::sioS5DeAssert:
+             powerCycleTimer.cancel();
+@@ -1590,7 +1593,7 @@ static void powerStateCycleOff(const Event event)
+             break;
+         default:
+             phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++                "No action taken for powerStateCycleOff.");
+             break;
+     }
+ }
+@@ -1608,7 +1611,7 @@ static void powerStateTransitionToCycleOff(const Event event)
+             break;
+         default:
+             phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++                "No action taken for powerStateTransitionToCycleOff.");
+             break;
+     }
+ }
+@@ -1628,7 +1631,7 @@ static void powerStateGracefulTransitionToCycleOff(const Event event)
+             break;
+         default:
+             phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++                "No action taken for powerStateGracefulTransitionToCycleOff.");
+             break;
+     }
+ }
+@@ -1653,7 +1656,7 @@ static void powerStateCheckForWarmReset(const Event event)
+             break;
+         default:
+             phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "No action taken.");
++                "No action taken powerStateCheckForWarmReset.");
+             break;
+     }
+ }
+@@ -1681,7 +1684,7 @@ static void psPowerOKHandler()
+         });
+ }
+ 
+-static void sioPowerGoodHandler()
++/*static void sioPowerGoodHandler()
+ {
+     gpiod::line_event gpioLineEvent = sioPowerGoodLine.event_read();
+ 
+@@ -1702,9 +1705,9 @@ static void sioPowerGoodHandler()
+             }
+             sioPowerGoodHandler();
+         });
+-}
++}*/
+ 
+-static void sioOnControlHandler()
++/*static void sioOnControlHandler()
+ {
+     gpiod::line_event gpioLineEvent = sioOnControlLine.event_read();
+ 
+@@ -1722,7 +1725,7 @@ static void sioOnControlHandler()
+             }
+             sioOnControlHandler();
+         });
+-}
++}*/
+ 
+ static void sioS5Handler()
+ {
+@@ -2156,7 +2159,7 @@ int main(int argc, char* argv[])
+     }
+ 
+     // Request SIO_POWER_GOOD GPIO events
+-    if (!power_control::sioPwrGoodName.empty())
++    /*if (!power_control::sioPwrGoodName.empty())
+     {
+         if (!power_control::requestGPIOEvents(
+                 power_control::sioPwrGoodName,
+@@ -2207,7 +2210,7 @@ int main(int argc, char* argv[])
+     {
+         std::cerr << "sioS5 name should be configured from json config file\n";
+         return -1;
+-    }
++    }*/
+ 
+     // Request POWER_BUTTON GPIO events
+     if (!power_control::powerButtonName.empty())
+-- 
+2.7.4
+

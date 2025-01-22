@@ -1,0 +1,121 @@
+From fa5de78eb06dfc1df7166d6c3e87dd197fe5f682 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 10:12:52 +0000
+Subject: [PATCH] FanSensor: Change timer; Add debug
+
+---
+ src/FanMain.cpp | 30 +++++++++++++++++++-----------
+ 1 file changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/FanMain.cpp b/src/FanMain.cpp
+index 0b598d9..1f23399 100644
+--- a/src/FanMain.cpp
++++ b/src/FanMain.cpp
+@@ -39,7 +39,10 @@
+ #include <variant>
+ #include <vector>
+ 
+-static constexpr bool debug = false;
++#include <CLI/CLI.hpp>
++
++//static constexpr bool debug = false;
++bool DEBUG = false;
+ 
+ namespace fs = std::filesystem;
+ 
+@@ -69,18 +72,22 @@ std::optional<RedundancySensor> systemRedundancy;
+ 
+ FanTypes getFanType(const fs::path& parentPath)
+ {
++    if (DEBUG) std::cerr << __FUNCTION__ << " path:" << parentPath << "\n";
+     fs::path linkPath = parentPath / "device";
+     std::string canonical = fs::read_symlink(linkPath);
+     if (boost::ends_with(canonical, "1e786000.pwm-tacho-controller") ||
+         boost::ends_with(canonical, "1e610000.pwm-tacho-controller"))
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << " Aspeed found\n";
+         return FanTypes::aspeed;
+     }
+     if (boost::ends_with(canonical, "f0103000.pwm-fan-controller"))
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << " Nuvoton found\n";
+         return FanTypes::nuvoton;
+     }
+     // todo: will we need to support other types?
++    if (DEBUG) std::cerr << __FUNCTION__ << " I2C found\n";
+     return FanTypes::i2c;
+ }
+ 
+@@ -164,11 +171,13 @@ void createSensors(
+             // configuration
+             for (const auto& path : paths)
+             {
++                if (DEBUG) std::cerr << __FUNCTION__ << " Checking path:" << path << "\n";
+                 std::smatch match;
+                 std::string pathStr = path.string();
+ 
+                 std::regex_search(pathStr, match, inputRegex);
+                 std::string indexStr = *(match.begin() + 1);
++                if (DEBUG) std::cerr << __FUNCTION__ << " indexStr:" << indexStr << "\n";
+ 
+                 fs::path directory = path.parent_path();
+                 FanTypes fanType = getFanType(directory);
+@@ -196,6 +205,7 @@ void createSensors(
+                 const SensorData* sensorData = nullptr;
+                 const std::string* interfacePath = nullptr;
+                 const SensorBaseConfiguration* baseConfiguration = nullptr;
++                if (DEBUG) std::cerr << __FUNCTION__ << " path:" << path << " index:" << +index << " indexStr:" << indexStr << "\n";
+                 for (const std::pair<sdbusplus::message::object_path,
+                                      SensorData>& sensor : sensorConfigurations)
+                 {
+@@ -343,7 +353,7 @@ void createSensors(
+                     redundancy = &systemRedundancy;
+                 }
+ 
+-                PowerState powerState = PowerState::on;
++                PowerState powerState = PowerState::always;
+                 auto findPower = baseConfiguration->second.find("PowerState");
+                 if (findPower != baseConfiguration->second.end())
+                 {
+@@ -435,8 +445,12 @@ void createSensors(
+         retries);
+ }
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++    CLI::App app("Fan sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     systemBus->request_name("xyz.openbmc_project.FanSensor");
+@@ -454,7 +468,7 @@ int main()
+                       nullptr);
+     });
+ 
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message& message) {
+             if (message.is_method_error())
+@@ -464,17 +478,11 @@ int main()
+             }
+             sensorsChanged->insert(message.get_path());
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+-                if (ec == boost::asio::error::operation_aborted)
+-                {
+-                    /* we were canceled*/
+-                    return;
+-                }
+                 if (ec)
+                 {
+-                    std::cerr << "timer error\n";
+                     return;
+                 }
+                 createSensors(io, objectServer, tachSensors, pwmSensors,

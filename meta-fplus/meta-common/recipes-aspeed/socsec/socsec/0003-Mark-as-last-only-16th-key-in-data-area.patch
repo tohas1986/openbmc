@@ -1,0 +1,176 @@
+From e84828cf0c1363ab39d3956debd64a2354b6ea40 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 29 Nov 2022 17:08:44 +0000
+Subject: [PATCH] Mark as last only 16th key in data area
+
+---
+ README.md          |  4 +++-
+ socsec/__init__.py |  3 +++
+ socsec/otptool.py  | 34 ++++++++++++++++++++++++++--------
+ 3 files changed, 32 insertions(+), 9 deletions(-)
+
+diff --git a/README.md b/README.md
+index 846381c4..fca6bf63 100644
+--- a/README.md
++++ b/README.md
+@@ -266,6 +266,7 @@ usage: otptool make_otp_image [-h] [--key_folder KEY_FOLDER]
+                               [--user_data_folder USER_DATA_FOLDER]
+                               [--output_folder OUTPUT_FOLDER]
+                               [--no_last_bit] [--no_pre_production]
++                              [--mark__16th_key]
+                               config
+ 
+ positional arguments:
+@@ -281,6 +282,7 @@ optional arguments:
+                         output folder
+   --no_last_bit         (develop)remove last bit in OTP header
+   --no_pre_production   check no pre production version
++  --mark_16th_key		Mark 16th key as last in header
+ ```
+ #### Argument
+ 
+@@ -311,4 +313,4 @@ positional arguments:
+ 
+ optional arguments:
+   -h, --help  show this help message and exit
+-```
+\ No newline at end of file
++```
+diff --git a/socsec/__init__.py b/socsec/__init__.py
+index 0f3028cd..2cdc4d25 100644
+--- a/socsec/__init__.py
++++ b/socsec/__init__.py
+@@ -280,6 +280,7 @@ class OTP_info(object):
+     HEADER_FORMAT = '<8s8I'
+     HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
+     CHECKSUM_LEN = 32
++    OTP_KEY_TYPE_EMPTY = 0
+     OTP_KEY_TYPE_RSA_PUB = 1
+     OTP_KEY_TYPE_RSA_PRIV = 2
+     OTP_KEY_TYPE_AES = 3
+@@ -384,6 +385,8 @@ class OTP_info(object):
+                  'RSA-private as AES key decryption key'),
+     ]
+     a3_key_type = [
++        key_type(0, OTP_KEY_TYPE_EMPTY, 0,
++                 'Empty key handler'),
+         key_type(1, OTP_KEY_TYPE_VAULT, 0,
+                  'AES-256 as secret vault key'),
+         key_type(2, OTP_KEY_TYPE_AES, 1,
+diff --git a/socsec/otptool.py b/socsec/otptool.py
+index 2ff3374c..be597637 100755
+--- a/socsec/otptool.py
++++ b/socsec/otptool.py
+@@ -824,7 +824,7 @@ class OTP(object):
+ 
+     def genKeyRegion(self, key_config, key_folder, data_region, data_region_ignore,
+                      genKeyHeader, key_to_bytearray, ecc_region_enable, data_region_size,
+-                     ecc_region_offset, no_last_bit):
++                     ecc_region_offset, no_last_bit, mark_16th_key):
+ 
+         key_header = []
+         header_ignore = []
+@@ -850,6 +850,7 @@ class OTP(object):
+                     kh = 0xffffdfff
+             else:
+                 kh = genKeyHeader(conf, key_folder)
++            print("Resulting key descriptor: ", hex(kh))
+             key_header.append(kh)
+ 
+         if not no_last_bit:
+@@ -860,6 +861,14 @@ class OTP(object):
+             print("WARNING: ECC region is enable, but the key header is not 8 byte align, append 0xffffffff default value to calculate the ecc")
+             key_header.append(0xffffffff)
+ 
++        # Add unused words to header
++        for i in range(len(key_header), 16):
++            key_header.append(0)
++
++        if mark_16th_key:
++            print('Setting last bit in 16th descriptor')
++            key_header[-1] |= 1 << 13
++
+         header_byteArray = bytearray(array.array('I', key_header).tobytes())
+         insert_bytearray(header_byteArray, data_region, 0)
+ 
+@@ -898,9 +907,9 @@ class OTP(object):
+                 header_ecc_ignore[i] = 0
+             insert_bytearray(header_ecc_ignore,
+                              data_region_ignore, ecc_region_offset)
+-
+     def make_data_region(self, data_config, key_folder, user_data_folder, genKeyHeader,
+-                         key_to_bytearray, data_region_size, ecc_region_offset, no_last_bit):
++                         key_to_bytearray, data_region_size, ecc_region_offset, no_last_bit,
++                         mark_16th_key):
+         patch_reserved_offset = 0x1B80
+         patch_reserved_lne = 0x80
+ 
+@@ -918,7 +927,8 @@ class OTP(object):
+             self.genKeyRegion(data_config['key'], key_folder,
+                               data_region, data_region_ignore,
+                               genKeyHeader, key_to_bytearray, ecc_region_enable,
+-                              data_region_size, ecc_region_offset, no_last_bit)
++                              data_region_size, ecc_region_offset, no_last_bit,
++                              mark_16th_key)
+         if 'user_data' in data_config:
+             self.genUserRegion(
+                 data_config['user_data'], user_data_folder, data_region, data_region_ignore, ecc_region_enable, data_region_size, ecc_region_offset)
+@@ -1175,7 +1185,8 @@ class OTP(object):
+ 
+     def make_otp_image(self, config_file, key_folder,
+                        user_data_folder, output_folder,
+-                       no_last_bit=False, no_pre_production=False):
++                       no_last_bit=False, no_pre_production=False,
++                       mark_16th_key=False):
+         otp_config = jstyleson.load(config_file)
+ 
+         if no_pre_production:
+@@ -1273,7 +1284,8 @@ class OTP(object):
+                 otp_config['data_region'], key_folder,
+                 user_data_folder, genKeyHeader,
+                 key_to_bytearray, otp_info['data_region_size'],
+-                otp_info['ecc_region_offset'], no_last_bit)
++                otp_info['ecc_region_offset'], no_last_bit,
++                mark_16th_key)
+ 
+             ecc_region = otp_config['data_region']['ecc_region']
+             if 'rsa_key_order' in otp_config['data_region']:
+@@ -1468,12 +1480,13 @@ class OTP(object):
+     def otp_print_image_data(self, key_type_list, data_region, config_region):
+         key_header = []
+         find_last = 0
++        print('Header:')
+         for i in range(16):
+             h = struct.unpack('<I', data_region[(i*4):(i*4+4)])[0]
+             key_header.append(h)
+             if h & (1 << 13):
+                 find_last = 1
+-                break
++            print("{0:0{1}X}: 0x{2:0{3}X}".format(i << 2, 8, h, 8))
+ 
+         if find_last == 0:
+             print("Can not find Last Key List in OTP data region")
+@@ -2092,6 +2105,10 @@ class otpTool(object):
+                                 help='check no pre production version',
+                                 action='store_true',
+                                 required=False)
++        sub_parser.add_argument('--mark_16th_key',
++                                help='mark 16th key as last in header',
++                                action='store_true',
++                                required=False)
+         sub_parser.set_defaults(func=self.make_otp_image)
+ 
+         sub_parser = subparsers.add_parser('print',
+@@ -2119,7 +2136,8 @@ class otpTool(object):
+                                 args.user_data_folder,
+                                 args.output_folder,
+                                 args.no_last_bit,
+-                                args.no_pre_production)
++                                args.no_pre_production,
++                                args.mark_16th_key)
+ 
+     def print_otp_image(self, args):
+         self.otp.print_otp_image(args.otp_image)
+-- 
+2.36.0
+

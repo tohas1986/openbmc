@@ -253,7 +253,7 @@ class ProgressBar(object):
             if (self.maxval is not UnknownLength
                 and not 0 <= value <= self.maxval):
 
-                self.maxval = value
+                raise ValueError('Value out of range')
 
             self.currval = value
 

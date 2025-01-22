@@ -11,15 +11,14 @@ DEPENDS += " \
         gpioplus \
         cli11 \
         "
-SRCREV = "02e598ab445833e0ce615f88ac0aed7288a100e0"
+SRCREV = "46a29b7f21c03fbe7230abc6feff3991efd9f76b"
 PACKAGECONFIG ??= ""
 # Meson configure option to enable/disable max31785-msl
 PACKAGECONFIG[max31785-msl] = "-Denable-max31785-msl=true, -Denable-max31785-msl=false"
-PACKAGECONFIG[use-dev-path] = "-Dalways-use-devpath=enabled, -Dalways-use-devpath=disabled"
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
-SRC_URI = "git://github.com/openbmc/phosphor-hwmon;branch=master;protocol=https"
+SRC_URI += "git://github.com/openbmc/phosphor-hwmon;branch=master;protocol=https"
 
 SYSTEMD_PACKAGES = "${PN} max31785-msl"
 SYSTEMD_SERVICE:${PN} = "xyz.openbmc_project.Hwmon@.service"

@@ -169,12 +169,12 @@ def deb_write_pkg(pkg, d):
 
         # more fields
 
-        custom_fields_chunk = oe.packagedata.get_package_additional_metadata("deb", localdata)
+        custom_fields_chunk = get_package_additional_metadata("deb", localdata)
         if custom_fields_chunk:
             ctrlfile.write(custom_fields_chunk)
             ctrlfile.write("\n")
 
-        oe.packagedata.mapping_rename_hook(localdata)
+        mapping_rename_hook(localdata)
 
         def debian_cmp_remap(var):
             # dpkg does not allow for '(', ')' or ':' in a dependency name
@@ -269,7 +269,7 @@ def deb_write_pkg(pkg, d):
             scriptfile.close()
             os.chmod(os.path.join(controldir, script), 0o755)
 
-        conffiles_str = ' '.join(oe.package.get_conffiles(pkg, d))
+        conffiles_str = ' '.join(get_conffiles(pkg, d))
         if conffiles_str:
             conffiles = open(os.path.join(controldir, 'conffiles'), 'w')
             for f in conffiles_str.split():
@@ -313,10 +313,6 @@ python () {
         deps = ' dpkg-native:do_populate_sysroot virtual/fakeroot-native:do_populate_sysroot'
         d.appendVarFlag('do_package_write_deb', 'depends', deps)
         d.setVarFlag('do_package_write_deb', 'fakeroot', "1")
-
-        # Needed to ensure PKG_xxx renaming of dependency packages works
-        d.setVarFlag('do_package_write_deb', 'deptask', "do_packagedata")
-        d.setVarFlag('do_package_write_deb', 'rdeptask', "do_packagedata")
 }
 
 python do_package_write_deb () {

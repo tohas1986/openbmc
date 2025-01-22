@@ -1,0 +1,36 @@
+From 78ebfda03b12629c9e0b42f35a733587b43a7a24 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 1 Feb 2022 08:25:34 +0000
+Subject: [PATCH] Add quick fix for buggy Asus BIOS 0201
+
+---
+ src/mdrv2.cpp | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/mdrv2.cpp b/src/mdrv2.cpp
+index e9807f1..17af652 100644
+--- a/src/mdrv2.cpp
++++ b/src/mdrv2.cpp
+@@ -237,7 +237,7 @@ bool MDR_V2::readDataFromFlash(MDRSMBIOSHeader* mdrHdr, uint8_t* data)
+     }
+ 
+     /* Detect if it's full file with entry point */
+-    smbiosFile.read(reinterpret_cast<char *>(data), 7);
++    smbiosFile.read(reinterpret_cast<char *>(data), 0x20);
+ 
+     int fileOffset = 0;
+     int smbiosVer = 0;
+@@ -251,6 +251,13 @@ bool MDR_V2::readDataFromFlash(MDRSMBIOSHeader* mdrHdr, uint8_t* data)
+     {
+         fileOffset = data[5];
+         smbiosVer = 2;
++
++        /* Quick fix for bugged Asus BIOS*/
++        if (data[0x1f] == 0x1a && data[0x06] == 0x03 && data[0x05] == 0x03)
++        {
++            fileOffset = 0x1e;
++            smbiosVer = 2;
++        }
+     }
+ 
+     smbiosFile.seekg(fileOffset, std::ios_base::beg);

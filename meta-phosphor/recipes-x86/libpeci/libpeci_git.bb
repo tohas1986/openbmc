@@ -2,9 +2,9 @@ SUMMARY = "PECI Library"
 DESCRIPTION = "PECI Library"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=7becf906c8f8d03c237bad13bc3dac53"
-SRCREV = "c96261ef6c7428ede3d3b878d9acdfb9365014cd"
+SRCREV = "a89be7669d31507388610d5300f7f442cf945f01"
 PACKAGECONFIG ??= ""
-PACKAGECONFIG[dbus-raw-peci] = "-Draw-peci='enabled',-Draw-peci='disabled',boost sdbusplus"
+PACKAGECONFIG[dbus-raw-peci] = "-DDBUS_RAW_PECI=ON,-DDBUS_RAW_PECI=OFF,boost sdbusplus"
 PV = "0.1+git${SRCPV}"
 
 SRC_URI = "git://github.com/openbmc/libpeci;branch=master;protocol=https"
@@ -12,4 +12,4 @@ SRC_URI = "git://github.com/openbmc/libpeci;branch=master;protocol=https"
 S = "${WORKDIR}/git"
 SYSTEMD_SERVICE:${PN} += "${@bb.utils.contains('PACKAGECONFIG', 'dbus-raw-peci', 'com.intel.peci.service', '', d)}"
 
-inherit meson pkgconfig systemd
+inherit cmake pkgconfig systemd

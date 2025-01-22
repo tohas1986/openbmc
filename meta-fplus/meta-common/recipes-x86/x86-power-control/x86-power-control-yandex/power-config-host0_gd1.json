@@ -1,0 +1,11 @@
+{
+  "IdButton": "BMC_ID_BTN_N_BP1",
+  "PostComplete": "F0",
+  "PwrButton": "PWR_BTN_N",
+  "PwrOK": "FM_PS_PWROK",
+  "PwrOut": "P_12V_PSON_L",
+  "RstButton": "E2",
+  "RstOut": "E3",
+  "PwrOutSteady": "true",
+  "PowerOutInvert": "true"
+}

@@ -96,4 +96,7 @@ python populate_packages:prepend () {
     do_split_packages(d, dvb_libdir, r'^lib(.*)\.so\.*', 'lib%s', 'DVB %s library', extra_depends='', allow_links=True)
 }
 
+INSANE_SKIP:${PN} = "ldflags"
+INSANE_SKIP:${PN}-dev = "ldflags"
+
 TARGET_CC_ARCH += "${LDFLAGS}"

@@ -1,4 +1,4 @@
-LICENSE = "BSD-2-Clause"
+LICENSE = "BSD"
 LIC_FILES_CHKSUM = "file://COPYING;md5=667d4ad55f5fbf4c3e853e8acd0f74de"
 
 PV = "0.1+git${SRCPV}"

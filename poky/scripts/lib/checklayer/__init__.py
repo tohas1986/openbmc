@@ -16,7 +16,6 @@ class LayerType(Enum):
     BSP = 0
     DISTRO = 1
     SOFTWARE = 2
-    CORE = 3
     ERROR_NO_LAYER_CONF = 98
     ERROR_BSP_DISTRO = 99
 
@@ -44,7 +43,7 @@ def _get_layer_collections(layer_path, lconf=None, data=None):
 
     ldata.setVar('LAYERDIR', layer_path)
     try:
-        ldata = bb.parse.handle(lconf, ldata, include=True, baseconfig=True)
+        ldata = bb.parse.handle(lconf, ldata, include=True)
     except:
         raise RuntimeError("Parsing of layer.conf from layer: %s failed" % layer_path)
     ldata.expandVarref('LAYERDIR')
@@ -107,13 +106,7 @@ def _detect_layer(layer_path):
         if distros:
             is_distro = True
 
-    layer['collections'] = _get_layer_collections(layer['path'])
-
-    if layer_name == "meta" and "core" in layer['collections']:
-        layer['type'] = LayerType.CORE
-        layer['conf']['machines'] = machines
-        layer['conf']['distros'] = distros
-    elif is_bsp and is_distro:
+    if is_bsp and is_distro:
         layer['type'] = LayerType.ERROR_BSP_DISTRO
     elif is_bsp:
         layer['type'] = LayerType.BSP
@@ -123,6 +116,8 @@ def _detect_layer(layer_path):
         layer['conf']['distros'] = distros
     else:
         layer['type'] = LayerType.SOFTWARE
+
+    layer['collections'] = _get_layer_collections(layer['path'])
 
     return layer
 
@@ -307,7 +302,7 @@ def get_signatures(builddir, failsafe=False, machine=None, extravars=None):
     cmd += 'bitbake '
     if failsafe:
         cmd += '-k '
-    cmd += '-S lockedsigs world'
+    cmd += '-S none world'
     sigs_file = os.path.join(builddir, 'locked-sigs.inc')
     if os.path.exists(sigs_file):
         os.unlink(sigs_file)
@@ -324,8 +319,8 @@ def get_signatures(builddir, failsafe=False, machine=None, extravars=None):
         else:
             raise
 
-    sig_regex = re.compile(r"^(?P<task>.*:.*):(?P<hash>.*) .$")
-    tune_regex = re.compile(r"(^|\s)SIGGEN_LOCKEDSIGS_t-(?P<tune>\S*)\s*=\s*")
+    sig_regex = re.compile("^(?P<task>.*:.*):(?P<hash>.*) .$")
+    tune_regex = re.compile("(^|\s)SIGGEN_LOCKEDSIGS_t-(?P<tune>\S*)\s*=\s*")
     current_tune = None
     with open(sigs_file, 'r') as f:
         for line in f.readlines():

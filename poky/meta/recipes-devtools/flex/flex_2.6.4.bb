@@ -26,10 +26,10 @@ SRC_URI[sha256sum] = "e87aae032bf07c26f85ac0ed3250998c37621d95f8bd748b31f15b33c4
 
 GITHUB_BASE_URI = "https://github.com/westes/flex/releases"
 
+# Disputed - yes there is stack exhaustion but no bug and it is building the
+# parser, not running it, effectively similar to a compiler ICE. Upstream no plans to address
 # https://github.com/westes/flex/issues/414
-CVE_STATUS[CVE-2019-6293] = "upstream-wontfix: \
-there is stack exhaustion but no bug and it is building the \
-parser, not running it, effectively similar to a compiler ICE. Upstream no plans to address this."
+CVE_CHECK_IGNORE += "CVE-2019-6293"
 
 inherit autotools gettext texinfo ptest github-releases
 
@@ -68,7 +68,6 @@ do_install_ptest() {
 	sed -e 's,--sysroot=${STAGING_DIR_TARGET},,g' \
 	    -e 's|${DEBUG_PREFIX_MAP}||g' \
 	    -e 's:${HOSTTOOLS_DIR}/::g' \
-	    -e 's:\(^LDFLAGS_FOR_BUILD =\).*:\1:g' \
 	    -e 's:${RECIPE_SYSROOT_NATIVE}::g' \
 	    -e 's:${BASE_WORKDIR}/${MULTIMACH_TARGET_SYS}::g' \-e 's/^Makefile:/_Makefile:/' \
 	    -e 's/^srcdir = \(.*\)/srcdir = ./' -e 's/^top_srcdir = \(.*\)/top_srcdir = ./' \

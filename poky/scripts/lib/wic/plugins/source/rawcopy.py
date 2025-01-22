@@ -58,8 +58,7 @@ class RawCopyPlugin(SourcePlugin):
         decompressor = {
             ".bz2": "bzip2",
             ".gz": "gzip",
-            ".xz": "xz",
-            ".zst": "zstd -f",
+            ".xz": "xz"
         }.get(extension)
         if not decompressor:
             raise WicError("Not supported compressor filename extension: %s" % extension)

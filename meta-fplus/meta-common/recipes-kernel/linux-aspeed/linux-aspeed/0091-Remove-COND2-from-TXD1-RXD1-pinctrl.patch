@@ -1,0 +1,50 @@
+From 41147cbe826592ef25c5dbdc53dc155e4e78f3c4 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 5 Feb 2020 14:07:49 +0300
+Subject: [PATCH 1/1] Remove COND2 from TXD1/RXD1 PWM0/PWM1 pinctrl
+
+---
+ drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
+index 1da0c13..810983b 100644
+--- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
++++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
+@@ -735,14 +735,14 @@
+ #define V1 94
+ #define V1_DESC		SIG_DESC_SET(SCU84, 22)
+ SIG_EXPR_LIST_DECL_SINGLE(V1, DASHV1, DASHV1, VPIRSVD_DESC, V1_DESC);
+-SIG_EXPR_LIST_DECL_SINGLE(V1, TXD1, TXD1, V1_DESC, COND2);
++SIG_EXPR_LIST_DECL_SINGLE(V1, TXD1, TXD1, V1_DESC);
+ PIN_DECL_2(V1, GPIOL6, DASHV1, TXD1);
+ FUNC_GROUP_DECL(TXD1, V1);
+ 
+ #define W1 95
+ #define W1_DESC		SIG_DESC_SET(SCU84, 23)
+ SIG_EXPR_LIST_DECL_SINGLE(W1, DASHW1, DASHW1, VPIRSVD_DESC, W1_DESC);
+-SIG_EXPR_LIST_DECL_SINGLE(W1, RXD1, RXD1, W1_DESC, COND2);
++SIG_EXPR_LIST_DECL_SINGLE(W1, RXD1, RXD1, W1_DESC);
+ PIN_DECL_2(W1, GPIOL7, DASHW1, RXD1);
+ FUNC_GROUP_DECL(RXD1, W1);
+ 
+@@ -805,14 +805,14 @@
+ #define V2 104
+ #define V2_DESC         SIG_DESC_SET(SCU88, 0)
+ SIG_EXPR_LIST_DECL_SINGLE(V2, DASHN0, DASHN0, VPIRSVD_DESC, V2_DESC);
+-SIG_EXPR_LIST_DECL_SINGLE(V2, PWM0, PWM0, V2_DESC, COND2);
++SIG_EXPR_LIST_DECL_SINGLE(V2, PWM0, PWM0, V2_DESC, COND2);
+ PIN_DECL_2(V2, GPION0, DASHN0, PWM0);
+ FUNC_GROUP_DECL(PWM0, V2);
+ 
+ #define W2 105
+ #define W2_DESC         SIG_DESC_SET(SCU88, 1)
+ SIG_EXPR_LIST_DECL_SINGLE(W2, DASHN1, DASHN1, VPIRSVD_DESC, W2_DESC);
+-SIG_EXPR_LIST_DECL_SINGLE(W2, PWM1, PWM1, W2_DESC, COND2);
++SIG_EXPR_LIST_DECL_SINGLE(W2, PWM1, PWM1, W2_DESC, COND2);
+ PIN_DECL_2(W2, GPION1, DASHN1, PWM1);
+ FUNC_GROUP_DECL(PWM1, W2);
+ 
+-- 
+1.9.1
+

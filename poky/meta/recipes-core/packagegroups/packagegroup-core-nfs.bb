@@ -3,6 +3,7 @@
 #
 
 SUMMARY = "NFS package groups"
+PR = "r2"
 
 inherit packagegroup
 

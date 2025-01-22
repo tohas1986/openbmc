@@ -10,6 +10,5 @@ require conf/machine/include/arm/arch-armv8-1m-main.inc
 
 AVAILTUNES                            += "cortexm55"
 ARMPKGARCH:tune-cortexm55              = "cortexm55"
-# We do not want -march since -mcpu is added above to cover for it
-TUNE_FEATURES:tune-cortexm55           = "cortexm55"
+TUNE_FEATURES:tune-cortexm55           = "${TUNE_FEATURES:tune-armv8-1m-main} cortexm55"
 PACKAGE_EXTRA_ARCHS:tune-cortexm55     = "${PACKAGE_EXTRA_ARCHS:tune-armv8-1m-main} cortexm55"

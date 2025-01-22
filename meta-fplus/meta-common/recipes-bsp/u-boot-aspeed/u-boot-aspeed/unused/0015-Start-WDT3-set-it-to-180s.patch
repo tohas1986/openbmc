@@ -1,0 +1,44 @@
+From c75cb43990237cae8070cad46435bff0bd355178 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 11 Aug 2021 13:16:19 +0000
+Subject: [PATCH] Start WDT3, set it to 180s
+
+---
+ board/aspeed/ast-g5/ast-g5.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index df106f0..e00a340 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -15,6 +15,7 @@
+ #include <asm/arch-aspeed/regs-scu.h>
+ #include <asm/io.h>
+ #include <i2c.h>
++#include <watchdog.h>
+ 
+ #include "ast-g5.h"
+ 
+@@ -35,10 +36,22 @@ void set_bmc_gpios(void)
+ 	*(volatile ulong *)(0x1E780024) |= 0x00000006;
+ }
+ 
++/* Init WDT3, set timeout to 180s */
++void init_wdt3(u32 seconds)
++{
++	printf("WDT3 enabled, %i seconds\n", seconds);
++	writel((u32) 1000000 * seconds, AST_WDT3_BASE + 0x04);
++	writel(0x4755, AST_WDT3_BASE + 0x08);
++	writel(0x13, AST_WDT3_BASE + 0x0c);
++}
++
++#define WDT3_TIMEOUT 180
++
+ int board_init(void)
+ {
+ 	gd->bd->bi_boot_params = CONFIG_SYS_SDRAM_BASE + 0x100;
+ 	gd->flags = 0;
++	init_wdt3(WDT3_TIMEOUT);
+ #ifdef MACHINE_ai1
+ 	set_bmc_gpios();
+ #endif

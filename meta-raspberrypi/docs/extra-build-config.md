@@ -74,22 +74,6 @@ To remove (or adjust) this delay set these variables in local.conf:
     BOOT_DELAY = "0"
     BOOT_DELAY_MS = "0"
 
-## Boot media
-
-The Raspberry Pi 4 board can load the boot image files from SD card and USB memory.
-By default SD card media is used as boot media.
-
-To switch the boot media from SD card to USB memory, the following variables are supported
-in local.conf: `CMDLINE_ROOT_PARTITION` and `BOOT_MEDIA`.
-The default value of `CMDLINE_ROOT_PARTITION` is "/dev/mmcblk0p2" to mount SD card. If you want to mount USB memory partition, set CMDLINE_ROOT_PARTITION to "/dev/sda2".
-`BOOT_MEDIA` allows  `mmc` and `usb`. The "mmc" is required to load an image from the SD card, following the u-boot specification. Similarly, if you want to load a boot image file from USB memory, set BOOT_MEDIA to "usb".
-
-For example, if you want to use USB boot, please define
-the following parameters in your local.conf file.
-
-    CMDLINE_ROOT_PARTITION = "/dev/sda2"
-    BOOT_MEDIA = "usb"
-
 ## Set overclocking options
 
 The Raspberry Pi can be overclocked. As of now overclocking up to the "Turbo
@@ -171,16 +155,6 @@ For further customisation the KERNEL_IMAGETYPE and KERNEL_BOOTCMD variables can
 be overridden to select the exact kernel image type (eg. zImage) and u-boot
 command (eg. bootz) to be used.
 
-To operate correctly, U-Boot requires `enable_uart=1` in `config.txt` file for
-the following boards:
-* Raspberry Pi Zero W
-* Raspberry Pi 3 32-bit
-* Raspberry Pi 3 64-bit
-* Raspberry Pi 4 32-bit
-* Raspberry Pi 4 64-bit
-It means that, for those boards, `RPI_USE_U_BOOT = "1"` is not compatible with
-`ENABLE_UART = "0"`.
-
 ## Image with Initramfs
 
 To build an initramfs image:
@@ -196,7 +170,7 @@ To build an initramfs image:
   - `INITRAMFS_IMAGE_BUNDLE = "1"`
   - `BOOT_SPACE = "1073741"`
   - `INITRAMFS_MAXSIZE = "315400"`
-  - `IMAGE_FSTYPES:pn-${INITRAMFS_IMAGE} = "${INITRAMFS_FSTYPES}"`
+  - `IMAGE_FSTYPES_pn-${INITRAMFS_IMAGE} = "${INITRAMFS_FSTYPES}"`
 
 ## Including additional files in the SD card image boot partition
 
@@ -340,13 +314,6 @@ Some modules may require setting the frequency of the crystal oscillator used on
 
     CAN_OSCILLATOR="8000000"
 
-Configure the interrupt pin to the one connected to the CAN module. By default,
-the pins are set to 25 for can0 and 24 for can1. To change them to 12 and 16,
-the following variables also have to be set:
-
-    CAN0_INTERRUPT_PIN = "12"
-    CAN1_INTERRUPT_PIN = "16"
-
 Tested modules:
 
 * PiCAN2 (16 MHz crystal): <http://skpang.co.uk/catalog/pican2-canbus-board-for-raspberry-pi-23-p-1475.html>
@@ -412,27 +379,19 @@ option:
         # Raspberry Pi 7\" display/touch screen \n \
         lcd_rotate=2 \n \
         '
-## Enable Raspberry Pi Camera Module
+## Enable Raspberrypi Camera V2
 
-Raspberry Pi does not have the unicam device ( Raspberry Pi Camera ) enabled by default.
+RaspberryPi does not have the unicam device ( RaspberryPi Camera ) enabled by default.
 Because this unicam device ( bcm2835-unicam ) as of now is used by libcamera opensource.
-So we have to explicitly enable it in local.conf.
+So we have to explicitly set in local.conf.
 
     RASPBERRYPI_CAMERA_V2 = "1"
 
-This will add the device tree overlay imx219 ( Raspberry Pi Camera Module V2 sensor driver 
-) to config.txt. Also, this will enable adding Contiguous Memory Allocation value in the 
-cmdline.txt.
+This will add the device tree overlays imx219 ( RaspberryPi Camera sensor V2 driver ) to config.txt.
+Also, this will enable adding Contiguous Memory Allocation value in the cmdline.txt.
 
-Similarly, the Raspberry Pi Camera Module v3 also has to be explicitly enabled in local.conf.
-
-    RASPBERRYPI_CAMERA_V3 = "1"
-
-This will add the device tree overlay imx708 ( Raspberry Pi Camera Module V3 sensor driver ) 
-to config.txt.
-
-See:
-* <https://www.raspberrypi.com/documentation/computers/camera_software.html>
+Ref.:
+* <https://github.com/raspberrypi/documentation/blob/master/linux/software/libcamera/README.md>
 * <https://www.raspberrypi.org/blog/an-open-source-camera-stack-for-raspberry-pi-using-libcamera/>
 
 ## WM8960 soundcard support

@@ -1,0 +1,704 @@
+From 6cea98db9029359f43601dcdceffb9b4e36b0cab Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 12:17:40 +0000
+Subject: [PATCH 1/1] Introduce verbose cmdline parameter
+
+---
+ src/FruDevice.cpp | 122 ++++++++++++++++++++++++++++++------------------------
+ src/FruUtils.cpp  |  58 +++++++++++++-------------
+ 2 files changed, 96 insertions(+), 84 deletions(-)
+
+diff --git a/src/FruDevice.cpp b/src/FruDevice.cpp
+index 3aa1528..424f7e5 100644
+--- a/src/FruDevice.cpp
++++ b/src/FruDevice.cpp
+@@ -23,6 +23,7 @@
+ #include <sys/inotify.h>
+ #include <sys/ioctl.h>
+ 
++#include <CLI/CLI.hpp>
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/asio/deadline_timer.hpp>
+ #include <boost/asio/io_service.hpp>
+@@ -56,8 +57,8 @@ extern "C"
+ #include <linux/i2c-dev.h>
+ }
+ 
++volatile bool DEBUG = false;
+ namespace fs = std::filesystem;
+-static constexpr bool DEBUG = false;
+ static size_t UNKNOWN_BUS_OBJECT_COUNT = 0;
+ constexpr size_t MAX_FRU_SIZE = 512;
+ constexpr size_t MAX_EEPROM_PAGE_INDEX = 255;
+@@ -129,7 +130,7 @@ static int64_t readFromEeprom(int flag __attribute__((unused)), int fd,
+     auto result = lseek(fd, offset, SEEK_SET);
+     if (result < 0)
+     {
+-        std::cerr << "failed to seek\n";
++        if (DEBUG) std::cerr << "failed to seek\n";
+         return -1;
+     }
+ 
+@@ -273,7 +274,8 @@ static std::vector<uint8_t> processEeprom(int bus, int address)
+     int file = open(path.c_str(), O_RDONLY);
+     if (file < 0)
+     {
+-        std::cerr << "Unable to open eeprom file: " << path << "\n";
++        if (DEBUG)
++            std::cerr << "Unable to open eeprom file: " << path << "\n";
+         return {};
+     }
+ 
+@@ -308,7 +310,8 @@ std::set<int> findI2CEeproms(int i2cBus, std::shared_ptr<DeviceMap> devices)
+         }
+         if (m.size() != 2)
+         {
+-            std::cerr << "regex didn't capture\n";
++            if (DEBUG)
++                std::cerr << "regex didn't capture\n";
+             continue;
+         }
+ 
+@@ -400,17 +403,16 @@ int getBusFRUs(int file, int first, int last, int bus,
+             }
+ 
+             if (DEBUG)
+-            {
+-                std::cout << "something at bus " << bus << " addr " << ii
++                std::cerr << "something at bus " << bus << " addr " << ii
+                           << "\n";
+-            }
+ 
+             makeProbeInterface(bus, ii);
+ 
+             if (failedItems.find(ii) != failedItems.end())
+             {
+                 // if we failed to read it once, unlikely we can read it later
+-                std::cerr << "Skipping failed device bus:" << bus << " addr " << ii << "\n";
++                if (DEBUG)
++                    std::cerr << "Skipping failed device bus:" << bus << " addr " << ii << "\n";
+                 continue;
+             }
+ 
+@@ -426,7 +428,8 @@ int getBusFRUs(int file, int first, int last, int bus,
+             int flag = isDevice16Bit(file);
+             if (flag < 0)
+             {
+-                std::cerr << "failed to read bus " << bus << " address " << ii
++                if (DEBUG)
++                    std::cerr << "failed to read bus " << bus << " address " << ii
+                           << "\n";
+                 if (powerIsOn)
+                 {
+@@ -442,11 +445,13 @@ int getBusFRUs(int file, int first, int last, int bus,
+                                 readBlockData, errorMessage);
+             if (device.empty())
+             {
+-                std::cerr << "Skipping empty device bus:" << bus << " addr " << ii << "\n";
++                if (DEBUG)
++                    std::cerr << "Skipping empty device bus:" << bus << " addr " << ii << "\n";
+                 continue;
+             }
+ 
+-            std::cerr << "Found EEPROM device bus:" << bus << " addr 0x" << std::hex << std::setfill('0') << std::setw(2) << +ii << "\n";
++            std::cerr << "Found EEPROM device bus:" << bus << " addr 0x"
++                      << std::hex << std::setfill('0') << std::setw(2) << +ii << "\n";
+             devices->emplace(ii, device);
+         }
+         return 1;
+@@ -469,7 +474,8 @@ void loadBlacklist(const char* path)
+     if (!blacklistStream.good())
+     {
+         // File is optional.
+-        std::cerr << "Cannot open blacklist file.\n\n";
++        if (DEBUG)
++            std::cerr << "Cannot open blacklist file.\n\n";
+         return;
+     }
+ 
+@@ -477,8 +483,9 @@ void loadBlacklist(const char* path)
+         nlohmann::json::parse(blacklistStream, nullptr, false);
+     if (data.is_discarded())
+     {
+-        std::cerr << "Illegal blacklist file detected, cannot validate JSON, "
+-                     "exiting\n";
++        if (DEBUG)
++            std::cerr << "Illegal blacklist file detected, cannot validate JSON, "
++                         "exiting\n";
+         std::exit(EXIT_FAILURE);
+     }
+ 
+@@ -487,7 +494,8 @@ void loadBlacklist(const char* path)
+     // such as specific addresses or ranges.
+     if (data.type() != nlohmann::json::value_t::object)
+     {
+-        std::cerr << "Illegal blacklist, expected to read dictionary\n";
++        if (DEBUG)
++            std::cerr << "Illegal blacklist, expected to read dictionary\n";
+         std::exit(EXIT_FAILURE);
+     }
+ 
+@@ -499,7 +507,8 @@ void loadBlacklist(const char* path)
+         if (buses.type() != nlohmann::json::value_t::array)
+         {
+             // Buses field present but invalid, therefore this is an error.
+-            std::cerr << "Invalid contents for blacklist buses field\n";
++            if (DEBUG)
++                std::cerr << "Invalid contents for blacklist buses field\n";
+             std::exit(EXIT_FAILURE);
+         }
+ 
+@@ -514,7 +523,8 @@ void loadBlacklist(const char* path)
+         catch (const nlohmann::detail::type_error& e)
+         {
+             // Type mis-match is a critical error.
+-            std::cerr << "Invalid bus type: " << e.what() << "\n";
++            if (DEBUG)
++                std::cerr << "Invalid bus type: " << e.what() << "\n";
+             std::exit(EXIT_FAILURE);
+         }
+     }
+@@ -531,7 +541,8 @@ static void FindI2CDevices(const std::vector<fs::path>& i2cBuses,
+ 
+         if (bus < 0)
+         {
+-            std::cerr << "Cannot translate " << i2cBus << " to int\n";
++            if (DEBUG)
++                std::cerr << "Cannot translate " << i2cBus << " to int\n";
+             continue;
+         }
+         if (busBlacklist.find(bus) != busBlacklist.end())
+@@ -548,7 +559,8 @@ static void FindI2CDevices(const std::vector<fs::path>& i2cBuses,
+         auto file = open(i2cBus.c_str(), O_RDWR);
+         if (file < 0)
+         {
+-            std::cerr << "unable to open i2c device " << i2cBus.string()
++            if (DEBUG)
++                std::cerr << "unable to open i2c device " << i2cBus.string()
+                       << "\n";
+             continue;
+         }
+@@ -556,16 +568,17 @@ static void FindI2CDevices(const std::vector<fs::path>& i2cBuses,
+ 
+         if (ioctl(file, I2C_FUNCS, &funcs) < 0)
+         {
+-            std::cerr
+-                << "Error: Could not get the adapter functionality matrix bus "
+-                << bus << "\n";
++            if (DEBUG)
++                std::cerr << "Error: Could not get the adapter functionality matrix bus "
++                          << bus << "\n";
+             continue;
+         }
+         if (!(funcs & I2C_FUNC_SMBUS_READ_BYTE) ||
+             !(I2C_FUNC_SMBUS_READ_I2C_BLOCK))
+         {
+-            std::cerr << "Error: Can't use SMBus Receive Byte command bus "
+-                      << bus << "\n";
++            if (DEBUG)
++                std::cerr << "Error: Can't use SMBus Receive Byte command bus "
++                          << bus << "\n";
+             continue;
+         }
+         auto& device = busmap[bus];
+@@ -575,17 +588,13 @@ static void FindI2CDevices(const std::vector<fs::path>& i2cBuses,
+         //  this is  what we have tested with, use this range. Could be
+         //  changed in future.
+         if (DEBUG)
+-        {
+             std::cerr << "Scanning bus " << bus << "\n";
+-        }
+ 
+         // fd is closed in this function in case the bus locks up
+         getBusFRUs(file, 0x03, 0x77, bus, device);
+ 
+         if (DEBUG)
+-        {
+             std::cerr << "Done scanning bus " << bus << "\n";
+-        }
+     }
+ }
+ 
+@@ -767,12 +776,10 @@ void AddFRUObjectToDbus(
+         }
+         else if (!iface->register_property(key, property.second + '\0'))
+         {
+-            std::cerr << "illegal key: " << key << "\n";
++            if (DEBUG) std::cerr << "illegal key: " << key << "\n";
+         }
+         if (DEBUG)
+-        {
+-            std::cout << property.first << ": " << property.second << "\n";
+-        }
++            std::cerr << property.first << ": " << property.second << "\n";
+     }
+ 
+     // baseboard will be 0, 0
+@@ -807,13 +814,13 @@ bool writeFRU(uint8_t bus, uint8_t address, const std::vector<uint8_t>& fru)
+     boost::container::flat_map<std::string, std::string> tmp;
+     if (fru.size() > MAX_FRU_SIZE)
+     {
+-        std::cerr << "Invalid fru.size() during writeFRU\n";
++        if (DEBUG) std::cerr << "Invalid fru.size() during writeFRU\n";
+         return false;
+     }
+     // verify legal fru by running it through fru parsing logic
+     if (formatFRU(fru, tmp) != resCodes::resOK)
+     {
+-        std::cerr << "Invalid fru format during writeFRU\n";
++        if (DEBUG) std::cerr << "Invalid fru format during writeFRU\n";
+         return false;
+     }
+     // baseboard fru
+@@ -822,7 +829,7 @@ bool writeFRU(uint8_t bus, uint8_t address, const std::vector<uint8_t>& fru)
+         std::ofstream file(BASEBOARD_FRU_LOCATION, std::ios_base::binary);
+         if (!file.good())
+         {
+-            std::cerr << "Error opening file " << BASEBOARD_FRU_LOCATION
++            if (DEBUG) std::cerr << "Error opening file " << BASEBOARD_FRU_LOCATION
+                       << "\n";
+             throw DBusInternalError();
+             return false;
+@@ -838,7 +845,7 @@ bool writeFRU(uint8_t bus, uint8_t address, const std::vector<uint8_t>& fru)
+             int eeprom = open(path.c_str(), O_RDWR | O_CLOEXEC);
+             if (eeprom < 0)
+             {
+-                std::cerr << "unable to open i2c device " << path << "\n";
++                if (DEBUG) std::cerr << "unable to open i2c device " << path << "\n";
+                 throw DBusInternalError();
+                 return false;
+             }
+@@ -846,7 +853,7 @@ bool writeFRU(uint8_t bus, uint8_t address, const std::vector<uint8_t>& fru)
+             ssize_t writtenBytes = write(eeprom, fru.data(), fru.size());
+             if (writtenBytes < 0)
+             {
+-                std::cerr << "unable to write to i2c device " << path << "\n";
++                if (DEBUG) std::cerr << "unable to write to i2c device " << path << "\n";
+                 close(eeprom);
+                 throw DBusInternalError();
+                 return false;
+@@ -861,13 +868,13 @@ bool writeFRU(uint8_t bus, uint8_t address, const std::vector<uint8_t>& fru)
+         int file = open(i2cBus.c_str(), O_RDWR | O_CLOEXEC);
+         if (file < 0)
+         {
+-            std::cerr << "unable to open i2c device " << i2cBus << "\n";
++            if (DEBUG) std::cerr << "unable to open i2c device " << i2cBus << "\n";
+             throw DBusInternalError();
+             return false;
+         }
+         if (ioctl(file, I2C_SLAVE_FORCE, address) < 0)
+         {
+-            std::cerr << "unable to set device address\n";
++            if (DEBUG) std::cerr << "unable to set device address\n";
+             close(file);
+             throw DBusInternalError();
+             return false;
+@@ -885,7 +892,7 @@ bool writeFRU(uint8_t bus, uint8_t address, const std::vector<uint8_t>& fru)
+                 // with the third bit being a memory page address bit.
+                 if (ioctl(file, I2C_SLAVE_FORCE, ++address) < 0)
+                 {
+-                    std::cerr << "unable to set device address\n";
++                    if (DEBUG) std::cerr << "unable to set device address\n";
+                     close(file);
+                     throw DBusInternalError();
+                     return false;
+@@ -897,7 +904,7 @@ bool writeFRU(uint8_t bus, uint8_t address, const std::vector<uint8_t>& fru)
+             {
+                 if (!retries--)
+                 {
+-                    std::cerr << "error writing fru: " << strerror(errno)
++                    if (DEBUG) std::cerr << "error writing fru: " << strerror(errno)
+                               << "\n";
+                     close(file);
+                     throw DBusInternalError();
+@@ -938,7 +945,7 @@ void rescanOneBus(
+     {
+         if (dbusCall)
+         {
+-            std::cerr << "Unable to access i2c bus " << static_cast<int>(busNum)
++            if (DEBUG) std::cerr << "Unable to access i2c bus " << static_cast<int>(busNum)
+                       << "\n";
+             throw std::invalid_argument("Invalid Bus.");
+         }
+@@ -988,7 +995,7 @@ void rescanBusses(
+         boost::container::flat_map<size_t, fs::path> busPaths;
+         if (!getI2cDevicePaths(devDir, busPaths))
+         {
+-            std::cerr << "unable to find i2c devices\n";
++            if (DEBUG) std::cerr << "unable to find i2c devices\n";
+             return;
+         }
+ 
+@@ -1057,7 +1064,7 @@ bool updateFRUProperty(
+     size_t updatePropertyReqLen = updatePropertyReq.length();
+     if (updatePropertyReqLen == 1 || updatePropertyReqLen > 63)
+     {
+-        std::cerr
++        if (DEBUG) std::cerr
+             << "FRU field data cannot be of 1 char or more than 63 chars. "
+                "Invalid Length "
+             << updatePropertyReqLen << "\n";
+@@ -1072,7 +1079,7 @@ bool updateFRUProperty(
+     }
+     catch (std::invalid_argument& e)
+     {
+-        std::cerr << "Failure getting FRU Info" << e.what() << "\n";
++        if (DEBUG) std::cerr << "Failure getting FRU Info" << e.what() << "\n";
+         return false;
+     }
+ 
+@@ -1090,7 +1097,7 @@ bool updateFRUProperty(
+     auto it = std::find(FRU_AREA_NAMES.begin(), FRU_AREA_NAMES.end(), areaName);
+     if (it == FRU_AREA_NAMES.end())
+     {
+-        std::cerr << "Can't parse area name for property " << propertyName
++        if (DEBUG) std::cerr << "Can't parse area name for property " << propertyName
+                   << " \n";
+         return false;
+     }
+@@ -1115,13 +1122,13 @@ bool updateFRUProperty(
+             fruAreaFieldNames = &PRODUCT_FRU_AREAS;
+             break;
+         default:
+-            std::cerr << "Don't know how to handle property " << propertyName
++            if (DEBUG) std::cerr << "Don't know how to handle property " << propertyName
+                       << " \n";
+             return false;
+     }
+     if (fruAreaOffsetFieldValue == 0)
+     {
+-        std::cerr << "FRU Area for " << propertyName << " not present \n";
++        if (DEBUG) std::cerr << "FRU Area for " << propertyName << " not present \n";
+         return false;
+     }
+ 
+@@ -1148,7 +1155,7 @@ bool updateFRUProperty(
+         std::size_t pos = propertyName.find(FRU_CUSTOM_FIELD_NAME);
+         if (pos == std::string::npos)
+         {
+-            std::cerr << "PropertyName doesn't exist in FRU Area Vectors: "
++            if (DEBUG) std::cerr << "PropertyName doesn't exist in FRU Area Vectors: "
+                       << propertyName << "\n";
+             return false;
+         }
+@@ -1157,7 +1164,7 @@ bool updateFRUProperty(
+         size_t fieldNum = std::stoi(fieldNumStr);
+         if (fieldNum == 0)
+         {
+-            std::cerr << "PropertyName not recognized: " << propertyName
++            if (DEBUG) std::cerr << "PropertyName not recognized: " << propertyName
+                       << "\n";
+             return false;
+         }
+@@ -1179,7 +1186,7 @@ bool updateFRUProperty(
+     fieldLength = getFieldLength(fruData[fruUpdateFieldLoc]);
+     if (fieldLength < 0)
+     {
+-        std::cerr << "Property " << propertyName << " not present \n";
++        if (DEBUG) std::cerr << "Property " << propertyName << " not present \n";
+         return false;
+     }
+     fruDataIter += 1 + fieldLength;
+@@ -1239,7 +1246,7 @@ bool updateFRUProperty(
+         fruAreaSize = newFRUAreaSize;
+         fruAreaEnd = fruAreaStart + fruAreaSize;
+ #else
+-        std::cerr << "FRU field length: " << updatePropertyReqLen + 1
++        if (DEBUG) std::cerr << "FRU field length: " << updatePropertyReqLen + 1
+                   << " should not be greater than available FRU area size: "
+                   << fruAreaAvailableSize << "\n";
+         return false;
+@@ -1319,15 +1326,20 @@ bool updateFRUProperty(
+     return true;
+ }
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++
++    CLI::App app("FRU EEPROM read service");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     auto devDir = fs::path("/dev/");
+     auto matchString = std::string(R"(i2c-\d+$)");
+     std::vector<fs::path> i2cBuses;
+ 
+     if (!findFiles(devDir, matchString, i2cBuses))
+     {
+-        std::cerr << "unable to find i2c devices\n";
++        if (DEBUG) std::cerr << "unable to find i2c devices\n";
+         return 1;
+     }
+ 
+@@ -1408,7 +1420,7 @@ int main()
+                              std::size_t bytes_transferred) {
+             if (ec)
+             {
+-                std::cout << "Callback Error " << ec << "\n";
++                std::cerr << "Callback Error " << ec << "\n";
+                 return;
+             }
+             pendingBuffer += std::string(readBuffer.data(), bytes_transferred);
+diff --git a/src/FruUtils.cpp b/src/FruUtils.cpp
+index 32647d9..7a62e24 100644
+--- a/src/FruUtils.cpp
++++ b/src/FruUtils.cpp
+@@ -32,7 +32,7 @@ extern "C"
+ #include <linux/i2c.h>
+ }
+ 
+-static constexpr bool DEBUG = false;
++extern volatile bool DEBUG;
+ constexpr size_t fruVersion = 1; // Current FRU spec version number is 1
+ 
+ const std::tm intelEpoch(void)
+@@ -79,7 +79,7 @@ std::pair<DecodeState, std::string>
+     /* we need at least one byte to decode the type/len header */
+     if (iter == end)
+     {
+-        std::cerr << "Truncated FRU data\n";
++        if (DEBUG) std::cerr << "Truncated FRU data\n";
+         return make_pair(DecodeState::err, value);
+     }
+ 
+@@ -98,7 +98,7 @@ std::pair<DecodeState, std::string>
+     /* we should have at least len bytes of data available overall */
+     if (iter + len > end)
+     {
+-        std::cerr << "FRU data field extends past end of FRU area data\n";
++        if (DEBUG) std::cerr << "FRU data field extends past end of FRU area data\n";
+         return make_pair(DecodeState::err, value);
+     }
+ 
+@@ -127,7 +127,7 @@ std::pair<DecodeState, std::string>
+              */
+             if (!isLangEng)
+             {
+-                std::cerr << "Error: Non english string is not supported \n";
++                if (DEBUG) std::cerr << "Error: Non english string is not supported \n";
+                 return make_pair(DecodeState::err, value);
+             }
+ 
+@@ -172,7 +172,7 @@ bool checkLangEng(uint8_t lang)
+     // but we don't support that.
+     if (lang && lang != 25)
+     {
+-        std::cerr << "Warning: languages other than English is not "
++        if (DEBUG) std::cerr << "Warning: languages other than English is not "
+                      "supported\n";
+         // Return language flag as non english
+         return false;
+@@ -201,21 +201,21 @@ bool verifyOffset(const std::vector<uint8_t>& fruBytes, fruAreas currentArea,
+     // check if Fru data has at least 8 byte header
+     if (fruBytesSize <= fruBlockSize)
+     {
+-        std::cerr << "Error: trying to parse empty FRU\n";
++        if (DEBUG) std::cerr << "Error: trying to parse empty FRU\n";
+         return false;
+     }
+ 
+     // Check range of passed currentArea value
+     if (currentArea > fruAreas::fruAreaMultirecord)
+     {
+-        std::cerr << "Error: Fru area is out of range\n";
++        if (DEBUG) std::cerr << "Error: Fru area is out of range\n";
+         return false;
+     }
+ 
+     unsigned int currentAreaIndex = getHeaderAreaFieldOffset(currentArea);
+     if (currentAreaIndex > fruBytesSize)
+     {
+-        std::cerr << "Error: Fru area index is out of range\n";
++        if (DEBUG) std::cerr << "Error: Fru area index is out of range\n";
+         return false;
+     }
+ 
+@@ -235,7 +235,7 @@ bool verifyOffset(const std::vector<uint8_t>& fruBytes, fruAreas currentArea,
+         unsigned int areaIndex = getHeaderAreaFieldOffset(area);
+         if (areaIndex > fruBytesSize)
+         {
+-            std::cerr << "Error: Fru area index is out of range\n";
++            if (DEBUG) std::cerr << "Error: Fru area index is out of range\n";
+             return false;
+         }
+ 
+@@ -249,7 +249,7 @@ bool verifyOffset(const std::vector<uint8_t>& fruBytes, fruAreas currentArea,
+         // check for overlapping of current offset with given areaoffset
+         if (areaOffset == start || (areaOffset > start && areaOffset < end))
+         {
+-            std::cerr << getFruAreaName(currentArea)
++            if (DEBUG) std::cerr << getFruAreaName(currentArea)
+                       << " offset is overlapping with " << getFruAreaName(area)
+                       << " offset\n";
+             return false;
+@@ -264,7 +264,7 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+     resCodes ret = resCodes::resOK;
+     if (fruBytes.size() <= fruBlockSize)
+     {
+-        std::cerr << "Error: trying to parse empty FRU \n";
++        if (DEBUG) std::cerr << "Error: trying to parse empty FRU \n";
+         return resCodes::resErr;
+     }
+     result["Common_Format_Version"] =
+@@ -287,13 +287,13 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+             fruBytes.begin() + offset;
+         if (fruBytesIter + fruBlockSize >= fruBytes.end())
+         {
+-            std::cerr << "Not enough data to parse \n";
++            if (DEBUG) std::cerr << "Not enough data to parse \n";
+             return resCodes::resErr;
+         }
+         // check for format version 1
+         if (*fruBytesIter != 0x01)
+         {
+-            std::cerr << "Unexpected version " << *fruBytesIter << "\n";
++            if (DEBUG) std::cerr << "Unexpected version " << *fruBytesIter << "\n";
+             return resCodes::resErr;
+         }
+         ++fruBytesIter;
+@@ -322,7 +322,7 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+                << static_cast<int>(fruComputedChecksum) << "\n";
+             ss << "\tThe read checksum: 0x" << std::setw(2)
+                << static_cast<int>(*fruBytesIterEndArea) << "\n";
+-            std::cerr << ss.str();
++            if (DEBUG) std::cerr << ss.str();
+             ret = resCodes::resWarn;
+         }
+ 
+@@ -363,7 +363,7 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+                                            "%Y-%m-%d - %H:%M:%S", &fruTime);
+                 if (bytes == 0)
+                 {
+-                    std::cerr << "invalid time string encountered\n";
++                    if (DEBUG) std::cerr << "invalid time string encountered\n";
+                     return resCodes::resErr;
+                 }
+ 
+@@ -384,7 +384,7 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+             }
+             default:
+             {
+-                std::cerr << "Internal error: unexpected FRU area index: "
++                if (DEBUG) std::cerr << "Internal error: unexpected FRU area index: "
+                           << static_cast<int>(area) << " \n";
+                 return resCodes::resErr;
+             }
+@@ -423,13 +423,13 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+             }
+             else if (state == DecodeState::err)
+             {
+-                std::cerr << "Error while parsing " << name << "\n";
++                if (DEBUG) std::cerr << "Error while parsing " << name << "\n";
+                 ret = resCodes::resWarn;
+                 // Cancel decoding if failed to parse any of mandatory
+                 // fields
+                 if (fieldIndex < fruAreaFieldNames->size())
+                 {
+-                    std::cerr << "Failed to parse mandatory field \n";
++                    if (DEBUG) std::cerr << "Failed to parse mandatory field \n";
+                     return resCodes::resErr;
+                 }
+             }
+@@ -437,7 +437,7 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+             {
+                 if (fieldIndex < fruAreaFieldNames->size())
+                 {
+-                    std::cerr << "Mandatory fields absent in FRU area "
++                    if (DEBUG) std::cerr << "Mandatory fields absent in FRU area "
+                               << getFruAreaName(area) << " after " << name
+                               << "\n";
+                     ret = resCodes::resWarn;
+@@ -449,7 +449,7 @@ resCodes formatFRU(const std::vector<uint8_t>& fruBytes,
+             uint8_t c = *fruBytesIter;
+             if (c)
+             {
+-                std::cerr << "Non-zero byte after EndOfFields in FRU area "
++                if (DEBUG) std::cerr << "Non-zero byte after EndOfFields in FRU area "
+                           << getFruAreaName(area) << "\n";
+                 ret = resCodes::resWarn;
+                 break;
+@@ -538,7 +538,7 @@ bool validateHeader(const std::array<uint8_t, I2C_SMBUS_BLOCK_MAX>& blockData)
+     {
+         if (DEBUG)
+         {
+-            std::cerr << "FRU spec version " << (int)(blockData[0])
++            if (DEBUG) std::cerr << "FRU spec version " << (int)(blockData[0])
+                       << " not supported. Supported version is "
+                       << (int)(fruVersion) << "\n";
+         }
+@@ -550,7 +550,7 @@ bool validateHeader(const std::array<uint8_t, I2C_SMBUS_BLOCK_MAX>& blockData)
+     {
+         if (DEBUG)
+         {
+-            std::cerr << "PAD value in header is non zero, value is "
++            if (DEBUG) std::cerr << "PAD value in header is non zero, value is "
+                       << (int)(blockData[6]) << "\n";
+         }
+         return false;
+@@ -583,7 +583,7 @@ bool validateHeader(const std::array<uint8_t, I2C_SMBUS_BLOCK_MAX>& blockData)
+     {
+         if (DEBUG)
+         {
+-            std::cerr << "Checksum " << (int)(blockData[7])
++            if (DEBUG) std::cerr << "Checksum " << (int)(blockData[7])
+                       << " is invalid. calculated checksum is " << (int)(sum)
+                       << "\n";
+         }
+@@ -600,7 +600,7 @@ std::vector<uint8_t> readFRUContents(int flag, int file, uint16_t address,
+ 
+     if (readBlock(flag, file, address, 0x0, 0x8, blockData.data()) < 0)
+     {
+-        std::cerr << "failed to read " << errorHelp << "\n";
++        if (DEBUG) std::cerr << "failed to read " << errorHelp << "\n";
+         return {};
+     }
+ 
+@@ -609,7 +609,7 @@ std::vector<uint8_t> readFRUContents(int flag, int file, uint16_t address,
+     {
+         if (DEBUG)
+         {
+-            std::cerr << "Illegal header " << errorHelp << "\n";
++            if (DEBUG) std::cerr << "Illegal header " << errorHelp << "\n";
+         }
+ 
+         return {};
+@@ -638,7 +638,7 @@ std::vector<uint8_t> readFRUContents(int flag, int file, uint16_t address,
+          */
+         if (areaOffset <= prevOffset)
+         {
+-            std::cerr << "Fru area offsets are not in required order as per "
++            if (DEBUG) std::cerr << "Fru area offsets are not in required order as per "
+                          "Section 17 of Fru specification\n";
+             return {};
+         }
+@@ -657,7 +657,7 @@ std::vector<uint8_t> readFRUContents(int flag, int file, uint16_t address,
+         if (readBlock(flag, file, address, static_cast<uint16_t>(areaOffset),
+                       0x2, blockData.data()) < 0)
+         {
+-            std::cerr << "failed to read " << errorHelp << "\n";
++            if (DEBUG) std::cerr << "failed to read " << errorHelp << "\n";
+             return {};
+         }
+ 
+@@ -688,7 +688,7 @@ std::vector<uint8_t> readFRUContents(int flag, int file, uint16_t address,
+                           static_cast<uint16_t>(areaOffset), 0x3,
+                           blockData.data()) < 0)
+             {
+-                std::cerr << "failed to read " << errorHelp << "\n";
++                if (DEBUG) std::cerr << "failed to read " << errorHelp << "\n";
+                 return {};
+             }
+ 
+@@ -720,7 +720,7 @@ std::vector<uint8_t> readFRUContents(int flag, int file, uint16_t address,
+                       static_cast<uint8_t>(requestLength),
+                       blockData.data()) < 0)
+         {
+-            std::cerr << "failed to read " << errorHelp << "\n";
++            if (DEBUG) std::cerr << "failed to read " << errorHelp << "\n";
+             return {};
+         }
+ 
+-- 
+2.7.4
+

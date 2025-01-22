@@ -20,5 +20,7 @@ FMT = "../${TMPL}:${TGT}.wants/${INSTFMT}"
 
 SYSTEMD_LINK:${PN}:append:s6q := " ${@compose_list(d, 'FMT', 'EEPROMS_ESCAPED')}"
 
-IPMI_FRU_YAML:s6q="${STAGING_DIR_HOST}${datadir}/s6q-yaml-config/ipmi-fru-read.yaml"
-IPMI_FRU_PROP_YAML:s6q="${STAGING_DIR_HOST}${datadir}/s6q-yaml-config/ipmi-extra-properties.yaml"
+EXTRA_OECONF:append:s6q = " \
+    YAML_GEN=${STAGING_DIR_HOST}${datadir}/s6q-yaml-config/ipmi-fru-read.yaml \
+    PROP_YAML=${STAGING_DIR_HOST}${datadir}/s6q-yaml-config/ipmi-extra-properties.yaml \
+    "

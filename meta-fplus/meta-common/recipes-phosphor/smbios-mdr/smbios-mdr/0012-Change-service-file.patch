@@ -1,0 +1,32 @@
+From df3687954b5177d094ee7fa8b6445d4b00da1a3e Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 1 Feb 2022 09:00:06 +0000
+Subject: [PATCH] Change service file
+
+---
+ service_files/smbios-mdrv2.service | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/service_files/smbios-mdrv2.service b/service_files/smbios-mdrv2.service
+index b30f797..dc58de4 100644
+--- a/service_files/smbios-mdrv2.service
++++ b/service_files/smbios-mdrv2.service
+@@ -1,13 +1,16 @@
+ [Unit]
+ Description=Intel BMC SMBIOS MDR V2
+ After=xyz.openbmc_project.EntityManager.service
++Wants=xyz.openbmc_project.Software.BMC.Updater.service
++After=xyz.openbmc_project.Software.BMC.Updater.service
+ 
+ [Service]
+ Restart=always
+ RestartSec=5
+ StartLimitBurst=10
+-ExecStartPre=/bin/mkdir -p /var/lib/smbios
+-ExecStart=/usr/bin/smbiosmdrv2app
++ExecStartPre=/bin/bash -c "mkdir -p /var/lib/smbios; [ -s /var/lib/smbios/smbios2 ] || /usr/sbin/mmio_dump 0x9ff00000 65536 -b > /var/lib/smbios/smbios2 || :"
++ExecStart=/usr/bin/env /usr/bin/smbiosmdrv2app
++SyslogIdentifier=smbiosmdrv2app
+ 
+ [Install]
+ WantedBy=multi-user.target

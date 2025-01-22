@@ -9,8 +9,6 @@
 
 """Test cases for Toaster GUI and ReST."""
 
-import os
-import pytest
 from django.test import TestCase
 from django.test.client import RequestFactory
 from django.urls import reverse
@@ -21,7 +19,6 @@ from orm.models import Layer_Version, Recipe
 from orm.models import CustomImageRecipe
 from orm.models import CustomImagePackage
 
-from bldcontrol.models import BuildEnvironment
 import inspect
 import toastergui
 
@@ -35,32 +32,19 @@ PROJECT_NAME2 = "test project 2"
 CLI_BUILDS_PROJECT_NAME = 'Command line builds'
 
 
-
 class ViewTests(TestCase):
     """Tests to verify view APIs."""
 
     fixtures = ['toastergui-unittest-data']
-    builldir = os.environ.get('BUILDDIR')
 
     def setUp(self):
 
         self.project = Project.objects.first()
-
         self.recipe1 = Recipe.objects.get(pk=2)
-        # create a file and to recipe1 file_path
-        file_path = f"{self.builldir}/{self.recipe1.name.strip().replace(' ', '-')}.bb"
-        with open(file_path, 'w') as f:
-            f.write('foo')
-        self.recipe1.file_path = file_path
-        self.recipe1.save()
-
         self.customr = CustomImageRecipe.objects.first()
         self.cust_package = CustomImagePackage.objects.first()
         self.package = Package.objects.first()
         self.lver = Layer_Version.objects.first()
-        if BuildEnvironment.objects.count() == 0:
-            BuildEnvironment.objects.create(betype=BuildEnvironment.TYPE_LOCAL)
-
 
     def test_get_base_call_returns_html(self):
         """Basic test for all-projects view"""
@@ -242,7 +226,7 @@ class ViewTests(TestCase):
         recipe = CustomImageRecipe.objects.create(
                      name=name, project=self.project,
                      base_recipe=self.recipe1,
-                     file_path=f"{self.builldir}/testing",
+                     file_path="/tmp/testing",
                      layer_version=self.customr.layer_version)
         url = reverse('xhr_customrecipe_id', args=(recipe.id,))
         response = self.client.delete(url)
@@ -313,7 +297,7 @@ class ViewTests(TestCase):
         """Download the recipe file generated for the custom image"""
 
         # Create a dummy recipe file for the custom image generation to read
-        open(f"{self.builldir}/a_recipe.bb", 'a').close()
+        open("/tmp/a_recipe.bb", 'a').close()
         response = self.client.get(reverse('customrecipedownload',
                                            args=(self.project.id,
                                                  self.customr.id)))

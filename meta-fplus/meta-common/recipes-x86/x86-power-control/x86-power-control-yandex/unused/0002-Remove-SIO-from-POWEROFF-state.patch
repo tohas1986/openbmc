@@ -1,0 +1,29 @@
+From 30f698ca453ab6d4697abae23ed3e41acc8bef73 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Wed, 26 Aug 2020 10:13:48 +0000
+Subject: [PATCH] Remove SIO from POWEROFF state
+
+---
+ power-control-x86/src/power_control.cpp | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index b8bb313..30b7b79 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -1510,9 +1510,9 @@ static void powerStateOff(const Event event)
+         case Event::sioS5DeAssert:
+             setPowerState(PowerState::waitForPSPowerOK);
+             break;
+-        case Event::sioPowerGoodAssert:
+-            setPowerState(PowerState::on);
+-            break;
++        //case Event::sioPowerGoodAssert:
++        //    setPowerState(PowerState::on);
++        //    break;
+         case Event::powerButtonPressed:
+             psPowerOKWatchdogTimerStart();
+             setPowerState(PowerState::waitForPSPowerOK);
+-- 
+2.7.4
+

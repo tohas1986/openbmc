@@ -1,0 +1,232 @@
+From 64e56c7ec90c04bc4471b1484de6a099bab44d19 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 20 Dec 2021 12:30:51 +0000
+Subject: [PATCH] I2CSensor: Monitor I2C bus states
+
+---
+ meson_options.txt                             |   1 +
+ service_files/meson.build                     |   1 +
+ .../xyz.openbmc_project.i2csensor.service     |  13 ++
+ src/I2CSensorMain.cpp                         | 145 ++++++++++++++++++
+ src/meson.build                               |  18 +++
+ 5 files changed, 178 insertions(+)
+ create mode 100644 service_files/xyz.openbmc_project.i2csensor.service
+ create mode 100644 src/I2CSensorMain.cpp
+
+diff --git a/meson_options.txt b/meson_options.txt
+index 29c07b3..a0af03d 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -15,3 +15,4 @@ option('insecure-sensor-override', type : 'feature', value : 'disabled', descrip
+ option('nvmelegacy', type: 'feature', value: 'enabled', description: 'Enable NVMe legacy sensor.',)
+ option('health', type: 'feature', value: 'enabled', description: 'BMC Health sensor',)
+ option('sysfs', type: 'feature', value: 'enabled', description: 'Enable sysfs generic sensor.',)
++option('i2c', type: 'feature', value: 'enabled', description: 'Enable I2C bus state sensor.',)
+diff --git a/service_files/meson.build b/service_files/meson.build
+index 85ded50..de7ac70 100644
+--- a/service_files/meson.build
++++ b/service_files/meson.build
+@@ -13,6 +13,7 @@ unit_files = [
+     ['nvmelegacy', 'xyz.openbmc_project.nvmelegacysensor.service'],
+     ['health', 'xyz.openbmc_project.healthsensor.service'],
+     ['sysfs', 'xyz.openbmc_project.sysfssensor.service'],
++    ['i2c', 'xyz.openbmc_project.i2csensor.service'],
+ ]
+ 
+ foreach tuple : unit_files
+diff --git a/service_files/xyz.openbmc_project.i2csensor.service b/service_files/xyz.openbmc_project.i2csensor.service
+new file mode 100644
+index 0000000..e1d7892
+--- /dev/null
++++ b/service_files/xyz.openbmc_project.i2csensor.service
+@@ -0,0 +1,13 @@
++[Unit]
++Description=I2C status Sensor
++StopWhenUnneeded=false
++Requires=xyz.openbmc_project.EntityManager.service
++After=xyz.openbmc_project.EntityManager.service
++
++[Service]
++Restart=always
++RestartSec=5
++ExecStart=/usr/bin/i2csensor
++
++[Install]
++WantedBy=multi-user.target
+diff --git a/src/I2CSensorMain.cpp b/src/I2CSensorMain.cpp
+new file mode 100644
+index 0000000..257ab59
+--- /dev/null
++++ b/src/I2CSensorMain.cpp
+@@ -0,0 +1,145 @@
++/*
++// Copyright (c) 2021 Yandex LLC
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#include <Utils.hpp>
++#include <boost/algorithm/string/predicate.hpp>
++#include <boost/container/flat_map.hpp>
++#include <boost/asio/steady_timer.hpp>
++#include <boost/asio.hpp>
++#include <chrono>
++#include <ctime>
++#include <iostream>
++#include <ios>
++#include <sdbusplus/asio/connection.hpp>
++#include <sdbusplus/asio/object_server.hpp>
++#include <sdbusplus/asio/sd_event.hpp>
++#include <sdbusplus/bus.hpp>
++#include <sdbusplus/exception.hpp>
++#include <sdbusplus/server.hpp>
++#include <sdbusplus/timer.hpp>
++#include <sensor.hpp>
++#include <systemd/sd-journal.h>
++#include <sys/mman.h>
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <unistd.h>
++
++#include <CLI/CLI.hpp>
++bool DEBUG = false;
++
++static constexpr int timerPeriod = 5;
++
++static boost::container::flat_map<int, std::shared_ptr<sdbusplus::asio::dbus_interface>> ifaces;
++
++static int devmem_fd;
++static void *i2c_base_mmap;
++
++uint8_t get_bus_status(int bus)
++{
++    uint8_t rc = 0;
++    for(int i=0; i<10; i++)
++    {
++        // Status and command register
++        uint32_t offset = 0x40 * (bus + 1) + 0x14;
++        if (bus > 6)
++            offset += 0x100;
++
++        uint32_t status_reg = *(uint32_t *)(i2c_base_mmap + offset);
++        rc = (status_reg >> 16 ) & 0x01;
++        if (DEBUG)
++        {
++            std::ios oldState(nullptr);
++            oldState.copyfmt(std::cerr);
++            std::cerr << "Bus: " << +bus << " Status:" << +rc
++                      << std::hex << std::setfill('0')
++                      << " Offset:0x" << std::setw(3) << offset
++                      << " Reg:0x" << std::setw(8) << +status_reg << "\n";
++            std::cerr.copyfmt(oldState);
++        }
++
++        if (rc == 0)
++            return 0;
++    }
++
++    return rc;
++}
++
++boost::asio::io_service io;
++static boost::asio::steady_timer waitTimer(io);
++
++void updateSensors(const boost::system::error_code& /*e*/)
++{
++    for(int bus=0; bus < 14; bus++)
++        ifaces[bus]->set_property("Value", double(get_bus_status(bus)));
++
++    waitTimer.expires_from_now(std::chrono::seconds(timerPeriod));
++    waitTimer.async_wait(updateSensors);
++}
++
++int main(int argc, char* argv[])
++{
++    CLI::App app("Generic sysfs sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
++    auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
++    auto objServer = sdbusplus::asio::object_server(systemBus);
++
++    // setup object server, define interface
++    systemBus->request_name("xyz.openbmc_project.I2CSensor");
++
++    // Get access to physical memory
++    devmem_fd = open("/dev/mem", O_RDWR|O_SYNC);
++    if (devmem_fd < 0)
++    {
++        std::cerr << "/dev/mem open failed\n";
++        exit(0);
++    }
++
++    i2c_base_mmap = mmap(NULL, 0x1000, PROT_READ, MAP_SHARED, devmem_fd, 0x1e78a000);
++    if (i2c_base_mmap == MAP_FAILED)
++    {
++        std::cerr << "mmap failed\n";
++        close(devmem_fd);
++        exit(0);
++    }
++
++    // Walk through all 14 buses
++    for(int bus=0; bus < 14; bus++)
++    {
++        std::string sensorPath = "/xyz/openbmc_project/sensors/i2c/I2C_" + std::to_string(bus);
++
++        // add interface into sensor tree
++        std::shared_ptr<sdbusplus::asio::dbus_interface> iface =
++            objServer.add_interface(sensorPath, sensorValueInterface);
++
++        uint8_t i2cBusStatus = get_bus_status(bus);
++
++        iface->register_property("Value", double(i2cBusStatus));
++        //iface->register_property("MinValue", 0.0);
++        //iface->register_property("MaxValue", 0.1);
++        iface->initialize();
++        ifaces[bus] = iface;
++    }
++
++    waitTimer.expires_from_now(std::chrono::seconds(timerPeriod));
++    waitTimer.async_wait(updateSensors);
++
++    io.run();
++
++    return 0;
++}
+diff --git a/src/meson.build b/src/meson.build
+index d2f302f..973f80a 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -251,3 +251,21 @@ if get_option('sysfs').enabled()
+         ],
+     )
+ endif
++
++if get_option('i2c').enabled()
++    executable(
++        'i2csensor',
++        'I2CSensorMain.cpp',
++        dependencies: [
++            sdbusplus,
++            gpiodcxx,
++        ],
++        implicit_include_directories: false,
++        include_directories: '../include',
++        install: true,
++        link_with: [
++            thresholds_a,
++            utils_a,
++        ],
++    )
++endif

@@ -1,0 +1,37 @@
+From cd1e04d62c447a8166752ce0c94d8c19c100ce45 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 17 Apr 2020 11:37:45 +0300
+Subject: [PATCH 1/1] Dirty hack
+
+---
+ ipmi-whitelist.conf | 1 +
+ src/yandexoem.cpp   | 3 +++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/ipmi-whitelist.conf b/ipmi-whitelist.conf
+index e9a84bf..8e7aa59 100644
+--- a/ipmi-whitelist.conf
++++ b/ipmi-whitelist.conf
+@@ -157,6 +157,7 @@
+ 0x2c:0x29:0xff7f   //<Group Extension>:<Get TPM Configuration>
+ 0x2c:0x30:0x7f7f   //<Group Extension>:<Set TPM Configuration>
+ 0x2c:0x31:0x7f7f   //<Group Extension>:<TPM Configuration Update Complete>
++0x2e:0x99:0xffff   // Dirty hack
+ 0x2c:0x37:0xff7f   //<Group Extension>:<Read PCIe Cable EEPROM Data>
+ 0x30:0x02:0x7f7f   //<Intel General Application>:<Restore Configuration>
+ 0x30:0x03:0x7f7f   //<Intel General Application>:<Restore SDR>
+diff --git a/src/yandexoem.cpp b/src/yandexoem.cpp
+index 4b9f79e..9a0cd60 100644
+--- a/src/yandexoem.cpp
++++ b/src/yandexoem.cpp
+@@ -40,4 +40,7 @@ void register_yandex_commands()
+     ipmi::registerHandler(ipmi::prioOemBase, ipmi::intel::netFnPlatform,
+                           ipmi::intel::platform::cmdPrintTest,
+                           ipmi::Privilege::Admin, ipmi::printTest);
++    ipmi::registerHandler(ipmi::prioOemBase, 0x2e,
++                          0x99,
++                          ipmi::Privilege::Admin, ipmi::printTest);
+ }
+-- 
+1.9.1
+

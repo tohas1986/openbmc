@@ -18,7 +18,6 @@ RPI_KERNEL_DEVICETREE_OVERLAYS ?= " \
     overlays/overlay_map.dtb \
     overlays/at86rf233.dtbo \
     overlays/disable-bt.dtbo \
-    overlays/disable-wifi.dtbo \
     overlays/dwc2.dtbo \
     overlays/gpio-ir.dtbo \
     overlays/gpio-ir-tx.dtbo \
@@ -26,16 +25,8 @@ RPI_KERNEL_DEVICETREE_OVERLAYS ?= " \
     overlays/gpio-poweroff.dtbo \
     overlays/gpio-shutdown.dtbo \
     overlays/hifiberry-amp.dtbo \
-    overlays/hifiberry-amp100.dtbo \
-    overlays/hifiberry-amp3.dtbo \
-    overlays/hifiberry-amp4pro.dtbo \
     overlays/hifiberry-dac.dtbo \
     overlays/hifiberry-dacplus.dtbo \
-    overlays/hifiberry-dacplusadc.dtbo \
-    overlays/hifiberry-dacplusadcpro.dtbo \
-    overlays/hifiberry-dacplusdsp.dtbo \
-    overlays/hifiberry-dacplushd.dtbo \
-    overlays/hifiberry-digi-pro.dtbo \
     overlays/hifiberry-digi.dtbo \
     overlays/justboom-both.dtbo \
     overlays/justboom-dac.dtbo \
@@ -44,7 +35,6 @@ RPI_KERNEL_DEVICETREE_OVERLAYS ?= " \
     overlays/i2c-rtc.dtbo \
     overlays/imx219.dtbo \
     overlays/imx477.dtbo \
-    overlays/imx708.dtbo \
     overlays/iqaudio-dac.dtbo \
     overlays/iqaudio-dacplus.dtbo \
     overlays/mcp2515-can0.dtbo \
@@ -62,7 +52,6 @@ RPI_KERNEL_DEVICETREE_OVERLAYS ?= " \
     overlays/vc4-fkms-v3d-pi4.dtbo \
     overlays/vc4-kms-v3d.dtbo \
     overlays/vc4-kms-v3d-pi4.dtbo \
-    overlays/vc4-kms-v3d-pi5.dtbo \
     overlays/vc4-kms-dsi-7inch.dtbo \
     overlays/w1-gpio.dtbo \
     overlays/w1-gpio-pullup.dtbo \
@@ -70,23 +59,22 @@ RPI_KERNEL_DEVICETREE_OVERLAYS ?= " \
     "
 
 RPI_KERNEL_DEVICETREE ?= " \
-    broadcom/bcm2708-rpi-zero.dtb \
-    broadcom/bcm2708-rpi-zero-w.dtb \
-    broadcom/bcm2708-rpi-b.dtb \
-    broadcom/bcm2708-rpi-b-rev1.dtb \
-    broadcom/bcm2708-rpi-b-plus.dtb \
-    broadcom/bcm2709-rpi-2-b.dtb \
-    broadcom/bcm2710-rpi-2-b.dtb \
-    broadcom/bcm2710-rpi-3-b.dtb \
-    broadcom/bcm2710-rpi-3-b-plus.dtb \
-    broadcom/bcm2710-rpi-zero-2.dtb \
-    broadcom/bcm2711-rpi-4-b.dtb \
-    broadcom/bcm2711-rpi-400.dtb \
-    broadcom/bcm2708-rpi-cm.dtb \
-    broadcom/bcm2710-rpi-cm3.dtb \
-    broadcom/bcm2711-rpi-cm4.dtb \
-    broadcom/bcm2711-rpi-cm4s.dtb \
-    broadcom/bcm2712-rpi-5-b.dtb \
+    bcm2708-rpi-zero.dtb \
+    bcm2708-rpi-zero-w.dtb \
+    bcm2708-rpi-b.dtb \
+    bcm2708-rpi-b-rev1.dtb \
+    bcm2708-rpi-b-plus.dtb \
+    bcm2709-rpi-2-b.dtb \
+    bcm2710-rpi-2-b.dtb \
+    bcm2710-rpi-3-b.dtb \
+    bcm2710-rpi-3-b-plus.dtb \
+    bcm2710-rpi-zero-2.dtb \
+    bcm2711-rpi-4-b.dtb \
+    bcm2711-rpi-400.dtb \
+    bcm2708-rpi-cm.dtb \
+    bcm2710-rpi-cm3.dtb \
+    bcm2711-rpi-cm4.dtb \
+    bcm2711-rpi-cm4s.dtb \
     "
 
 KERNEL_DEVICETREE ??= " \
@@ -123,6 +111,9 @@ SERIAL_CONSOLES_CHECK ??= "${SERIAL_CONSOLES}"
 # This variable is referred to by recipes fetching / generating the files.
 BOOTFILES_DIR_NAME ?= "bootfiles"
 
+# Set Raspberrypi splash image
+SPLASH ?= "psplash-raspberrypi"
+
 def make_dtb_boot_files(d):
     # Generate IMAGE_BOOT_FILES entries for device tree files listed in
     # KERNEL_DEVICETREE.
@@ -158,11 +149,7 @@ IMAGE_BOOT_FILES ?= "${BOOTFILES_DIR_NAME}/* \
                  ${@make_dtb_boot_files(d)} \
                  ${RPI_EXTRA_IMAGE_BOOT_FILES} \
                  "
-
-EXTRA_IMAGEDEPENDS += "rpi-bootfiles"
-
 do_image_wic[depends] += " \
-    virtual/kernel:do_deploy \
     rpi-bootfiles:do_deploy \
     ${@bb.utils.contains('RPI_USE_U_BOOT', '1', 'u-boot:do_deploy', '',d)} \
     "

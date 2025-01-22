@@ -37,14 +37,14 @@ FILES:${PN}-win32 = " \
 "
 
 RDEPENDS:${PN} = "\
-    python3-fcntl \
-    python3-io \
-    python3-logging \
-    python3-netclient \
-    python3-numbers \
-    python3-shell \
-    python3-stringold \
-    python3-threading \
+    ${PYTHON_PN}-fcntl \
+    ${PYTHON_PN}-io \
+    ${PYTHON_PN}-logging \
+    ${PYTHON_PN}-netclient \
+    ${PYTHON_PN}-numbers \
+    ${PYTHON_PN}-shell \
+    ${PYTHON_PN}-stringold \
+    ${PYTHON_PN}-threading \
 "
 
 BBCLASSEXTEND = "native nativesdk"
@@ -54,8 +54,7 @@ SRC_URI += " \
 "
 
 RDEPENDS:${PN}-ptest += " \
-    python3-pytest \
-    python3-unittest-automake-output \
+	${PYTHON_PN}-pytest \
 "
 
 do_install_ptest() {

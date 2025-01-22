@@ -1,3 +1,16 @@
-#! /bin/sh
+#!/bin/sh
 
-CK_AUTOMAKE=1 ./check-all
+num_fail=0
+
+for test in check*
+do
+    ./"$test" \
+         && echo "PASS: $test" \
+         || {
+            echo "FAIL: $test"
+            num_fail=$(( ${num_fail} + 1))
+         }
+
+done
+
+exit $num_fail

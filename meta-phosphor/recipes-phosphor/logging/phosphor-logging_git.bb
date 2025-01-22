@@ -15,8 +15,7 @@ DEPENDS += "virtual/phosphor-logging-callouts"
 DEPENDS += "libcereal"
 DEPENDS += "sdeventplus"
 DEPENDS += "packagegroup-obmc-yaml-providers"
-DEPENDS += "dbus"
-SRCREV = "d763db35ef85da1cabae911d704a219175347621"
+SRCREV = "26919f07088bc9335e9280c19c94ec147a2d5e5e"
 PACKAGECONFIG ??= ""
 PACKAGECONFIG[openpower-pels] = " \
         -Dopenpower-pel-extension=enabled, \
@@ -27,7 +26,7 @@ PACKAGECONFIG[openpower-pels] = " \
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
-SRC_URI = "git://github.com/openbmc/phosphor-logging;branch=master;protocol=https"
+SRC_URI += "git://github.com/openbmc/phosphor-logging;branch=master;protocol=https"
 
 SYSTEMD_PACKAGES = "${LOGGING_PACKAGES}"
 S = "${WORKDIR}/git"
@@ -38,23 +37,10 @@ inherit obmc-phosphor-dbus-service
 inherit phosphor-logging
 inherit phosphor-dbus-yaml
 
-def get_info_cap(d):
-    flash_size = int(d.getVar('FLASH_SIZE') or 0)
-    if flash_size <= 32768:
-        return "10"
-    elif flash_size <= 65536:
-        return "128"
-    else:
-        return "256"
-
-ERR_INFO_CAP ??= "${@get_info_cap(d)}"
-ERR_INFO_CAP:df-phosphor-mmc ?= "256"
-
 EXTRA_OEMESON = " \
         -Dtests=disabled \
         -Dyamldir=${STAGING_DIR_TARGET}${yaml_dir} \
         -Dcallout_yaml=${STAGING_DIR_NATIVE}${callouts_datadir}/callouts.yaml \
-        -Derror_info_cap=${ERR_INFO_CAP} \
         "
 
 FILES:${PN}-test = "${bindir}/*-test"
@@ -62,7 +48,6 @@ FILES:${PN}-base += " \
         ${datadir}/dbus-1 \
         ${bindir}/phosphor-log-manager \
         ${libdir}/libphosphor_logging.so.* \
-        ${datadir}/dbus-1/system-services/xyz.openbmc_project.Logging.service \
 "
 FILES:phosphor-rsyslog-config += " \
         ${bindir}/phosphor-rsyslog-conf \

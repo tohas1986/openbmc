@@ -1,0 +1,37 @@
+From 75ef4bd1ffbb75248c88c512d02a4c3b7589dcda Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 28 Mar 2023 16:47:05 +0000
+Subject: [PATCH] WIP: ftgmac100 hack
+
+---
+ drivers/net/ethernet/faraday/ftgmac100.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/net/ethernet/faraday/ftgmac100.c b/drivers/net/ethernet/faraday/ftgmac100.c
+index 22b05d01cdc1..d74c64e98381 100644
+--- a/drivers/net/ethernet/faraday/ftgmac100.c
++++ b/drivers/net/ethernet/faraday/ftgmac100.c
+@@ -32,14 +32,14 @@
+ #define DRV_NAME	"ftgmac100"
+ 
+ /* Arbitrary values, I am not sure the HW has limits */
+-#define MAX_RX_QUEUE_ENTRIES	1024
+-#define MAX_TX_QUEUE_ENTRIES	1024
+-#define MIN_RX_QUEUE_ENTRIES	32
+-#define MIN_TX_QUEUE_ENTRIES	32
++#define MAX_RX_QUEUE_ENTRIES	32768
++#define MAX_TX_QUEUE_ENTRIES	32768
++#define MIN_RX_QUEUE_ENTRIES	1024
++#define MIN_TX_QUEUE_ENTRIES	1024
+ 
+ /* Defaults */
+-#define DEF_RX_QUEUE_ENTRIES	128
+-#define DEF_TX_QUEUE_ENTRIES	128
++#define DEF_RX_QUEUE_ENTRIES	8192
++#define DEF_TX_QUEUE_ENTRIES	8192
+ 
+ #define MAX_PKT_SIZE		1536
+ #define RX_BUF_SIZE		MAX_PKT_SIZE	/* must be smaller than 0x3fff */
+-- 
+2.34.1
+

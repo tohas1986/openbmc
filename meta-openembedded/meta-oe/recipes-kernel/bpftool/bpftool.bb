@@ -2,12 +2,12 @@ SUMMARY = "Inspect and manipulate eBPF programs and maps"
 DESCRIPTION = "bpftool is a kernel tool for inspection and simple manipulation \
 of eBPF programs and maps."
 LICENSE = "GPL-2.0-only"
-DEPENDS = "binutils elfutils elfutils-native"
+DEPENDS = "binutils elfutils"
 PROVIDES = "virtual/bpftool"
 
 inherit bash-completion kernelsrc kernel-arch
 
-do_populate_lic[depends] += "virtual/kernel:do_shared_workdir"
+do_populate_lic[depends] += "virtual/kernel:do_patch"
 
 EXTRA_OEMAKE = "\
     V=1 \
@@ -15,11 +15,9 @@ EXTRA_OEMAKE = "\
     O=${B} \
     CROSS=${TARGET_PREFIX} \
     CC="${CC} ${DEBUG_PREFIX_MAP} -fdebug-prefix-map=${STAGING_KERNEL_DIR}=${KERNEL_SRC_PATH}" \
-    HOSTCC="${BUILD_CC} ${BUILD_CFLAGS}" \
     LD="${LD}" \
     AR=${AR} \
     ARCH=${ARCH} \
-    bash_compdir=${prefix}/share/bash-completion \
 "
 
 SECURITY_CFLAGS = ""
@@ -44,7 +42,3 @@ python do_package:prepend() {
 }
 
 B = "${WORKDIR}/${BPN}-${PV}"
-
-FILES:${PN} += "${exec_prefix}/sbin/*"
-
-BBCLASSEXTEND = "native nativesdk"

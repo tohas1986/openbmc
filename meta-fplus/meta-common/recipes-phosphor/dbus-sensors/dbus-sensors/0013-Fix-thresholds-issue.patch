@@ -1,0 +1,219 @@
+From da9272574d30105d8a683ebb2b111b4cfe21f5c4 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Wed, 12 Jan 2022 11:28:47 +0000
+Subject: [PATCH] Fix-thresholds-issue
+
+---
+ src/GPUSensor.cpp        | 21 +++++++++++----------
+ src/HealthSensor.cpp     | 21 +++++++++++----------
+ src/NMSensor.cpp         | 21 +++++++++++----------
+ src/NVMELegacySensor.cpp | 21 +++++++++++----------
+ src/SysfsSensor.cpp      | 22 +++++++++++-----------
+ 5 files changed, 55 insertions(+), 51 deletions(-)
+
+diff --git a/src/GPUSensor.cpp b/src/GPUSensor.cpp
+index 526674f..64b4ea4 100644
+--- a/src/GPUSensor.cpp
++++ b/src/GPUSensor.cpp
+@@ -125,16 +125,13 @@ GPUSensor::GPUSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+     sensorInterface = objectServer.add_interface(
+         objPath, "xyz.openbmc_project.Sensor.Value");
+ 
+-    if (thresholds::hasWarningInterface(thresholds))
++    for (const auto& threshold : thresholds)
+     {
+-        thresholdInterfaceWarning = objectServer.add_interface(
+-            objPath, "xyz.openbmc_project.Sensor.Threshold.Warning");
+-    }
+-    if (thresholds::hasCriticalInterface(thresholds))
+-    {
+-        thresholdInterfaceCritical = objectServer.add_interface(
+-            objPath, "xyz.openbmc_project.Sensor.Threshold.Critical");
++        std::string interface = thresholds::getInterface(threshold.level);
++        thresholdInterfaces[static_cast<size_t>(threshold.level)] =
++            objectServer.add_interface(objPath, interface);
+     }
++
+     association = objectServer.add_interface(
+         objPath, association::interface);
+ }
+@@ -142,8 +139,12 @@ GPUSensor::GPUSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+ GPUSensor::~GPUSensor()
+ {
+     waitTimer.cancel();
+-    objectServer.remove_interface(thresholdInterfaceWarning);
+-    objectServer.remove_interface(thresholdInterfaceCritical);
++
++    for (const auto& iface : thresholdInterfaces)
++    {
++        objectServer.remove_interface(iface);
++    }
++
+     objectServer.remove_interface(sensorInterface);
+     objectServer.remove_interface(association);
+ }
+diff --git a/src/HealthSensor.cpp b/src/HealthSensor.cpp
+index 5acbfc6..d86916c 100644
+--- a/src/HealthSensor.cpp
++++ b/src/HealthSensor.cpp
+@@ -102,16 +102,13 @@ HealthSensor::HealthSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+     sensorInterface = objectServer.add_interface(
+         objPath, "xyz.openbmc_project.Sensor.Value");
+ 
+-    if (thresholds::hasWarningInterface(thresholds))
++    for (const auto& threshold : thresholds)
+     {
+-        thresholdInterfaceWarning = objectServer.add_interface(
+-            objPath, "xyz.openbmc_project.Sensor.Threshold.Warning");
+-    }
+-    if (thresholds::hasCriticalInterface(thresholds))
+-    {
+-        thresholdInterfaceCritical = objectServer.add_interface(
+-            objPath, "xyz.openbmc_project.Sensor.Threshold.Critical");
++        std::string interface = thresholds::getInterface(threshold.level);
++        thresholdInterfaces[static_cast<size_t>(threshold.level)] =
++            objectServer.add_interface(objPath, interface);
+     }
++
+     association = objectServer.add_interface(
+         objPath, association::interface);
+ }
+@@ -119,8 +116,12 @@ HealthSensor::HealthSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+ HealthSensor::~HealthSensor()
+ {
+     waitTimer.cancel();
+-    objectServer.remove_interface(thresholdInterfaceWarning);
+-    objectServer.remove_interface(thresholdInterfaceCritical);
++
++    for (const auto& iface : thresholdInterfaces)
++    {
++        objectServer.remove_interface(iface);
++    }
++
+     objectServer.remove_interface(sensorInterface);
+     objectServer.remove_interface(association);
+ }
+diff --git a/src/NMSensor.cpp b/src/NMSensor.cpp
+index 3d20b8d..4ac332b 100644
+--- a/src/NMSensor.cpp
++++ b/src/NMSensor.cpp
+@@ -86,24 +86,25 @@ NMSensor::NMSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+     sensorInterface = objectServer.add_interface(
+         dbusPath, "xyz.openbmc_project.Sensor.Value");
+ 
+-    if (thresholds::hasWarningInterface(thresholds))
++    for (const auto& threshold : thresholds)
+     {
+-        thresholdInterfaceWarning = objectServer.add_interface(
+-            dbusPath, "xyz.openbmc_project.Sensor.Threshold.Warning");
+-    }
+-    if (thresholds::hasCriticalInterface(thresholds))
+-    {
+-        thresholdInterfaceCritical = objectServer.add_interface(
+-            dbusPath, "xyz.openbmc_project.Sensor.Threshold.Critical");
++        std::string interface = thresholds::getInterface(threshold.level);
++        thresholdInterfaces[static_cast<size_t>(threshold.level)] =
++            objectServer.add_interface(dbusPath, interface);
+     }
++
+     association = objectServer.add_interface(dbusPath, association::interface);
+ }
+ 
+ NMSensor::~NMSensor()
+ {
+     waitTimer.cancel();
+-    objectServer.remove_interface(thresholdInterfaceWarning);
+-    objectServer.remove_interface(thresholdInterfaceCritical);
++
++    for (const auto& iface : thresholdInterfaces)
++    {
++        objectServer.remove_interface(iface);
++    }
++
+     objectServer.remove_interface(sensorInterface);
+     objectServer.remove_interface(association);
+ }
+diff --git a/src/NVMELegacySensor.cpp b/src/NVMELegacySensor.cpp
+index bbc0206..649a6f3 100644
+--- a/src/NVMELegacySensor.cpp
++++ b/src/NVMELegacySensor.cpp
+@@ -91,16 +91,13 @@ NVMELegacySensor::NVMELegacySensor(std::shared_ptr<sdbusplus::asio::connection>&
+     sensorInterface = objectServer.add_interface(
+         objPath, "xyz.openbmc_project.Sensor.Value");
+ 
+-    if (thresholds::hasWarningInterface(thresholds))
++    for (const auto& threshold : thresholds)
+     {
+-        thresholdInterfaceWarning = objectServer.add_interface(
+-            objPath, "xyz.openbmc_project.Sensor.Threshold.Warning");
+-    }
+-    if (thresholds::hasCriticalInterface(thresholds))
+-    {
+-        thresholdInterfaceCritical = objectServer.add_interface(
+-            objPath, "xyz.openbmc_project.Sensor.Threshold.Critical");
++        std::string interface = thresholds::getInterface(threshold.level);
++        thresholdInterfaces[static_cast<size_t>(threshold.level)] =
++            objectServer.add_interface(objPath, interface);
+     }
++
+     association = objectServer.add_interface(
+         objPath, association::interface);
+ }
+@@ -108,8 +105,12 @@ NVMELegacySensor::NVMELegacySensor(std::shared_ptr<sdbusplus::asio::connection>&
+ NVMELegacySensor::~NVMELegacySensor()
+ {
+     waitTimer.cancel();
+-    objectServer.remove_interface(thresholdInterfaceWarning);
+-    objectServer.remove_interface(thresholdInterfaceCritical);
++
++    for (const auto& iface : thresholdInterfaces)
++    {
++        objectServer.remove_interface(iface);
++    }
++
+     objectServer.remove_interface(sensorInterface);
+     objectServer.remove_interface(association);
+ }
+diff --git a/src/SysfsSensor.cpp b/src/SysfsSensor.cpp
+index 858a85f..01a762e 100644
+--- a/src/SysfsSensor.cpp
++++ b/src/SysfsSensor.cpp
+@@ -71,18 +71,14 @@ SysfsSensor::SysfsSensor(const std::string& path, const std::string& objectType,
+     sensorInterface = objectServer.add_interface(
+         dbusPath, "xyz.openbmc_project.Sensor.Value");
+ 
+-    if (thresholds::hasWarningInterface(thresholds))
++    for (const auto& threshold : thresholds)
+     {
+-        thresholdInterfaceWarning = objectServer.add_interface(
+-            dbusPath, "xyz.openbmc_project.Sensor.Threshold.Warning");
+-    }
+-    if (thresholds::hasCriticalInterface(thresholds))
+-    {
+-        thresholdInterfaceCritical = objectServer.add_interface(
+-            dbusPath, "xyz.openbmc_project.Sensor.Threshold.Critical");
++        std::string interface = thresholds::getInterface(threshold.level);
++        thresholdInterfaces[static_cast<size_t>(threshold.level)] =
++            objectServer.add_interface(dbusPath, interface);
+     }
+ 
+-    // This should be called before initializing association.
++    // This sh uld be called before initializing association.
+     // createInventoryAssoc() does add more associations before doing
+     // register and initialize "Associations" property.
+     if (label.empty() || tSize == thresholds.size())
+@@ -120,8 +116,12 @@ SysfsSensor::~SysfsSensor()
+ {
+     waitTimer.cancel();
+     objServer.remove_interface(sensorInterface);
+-    objServer.remove_interface(thresholdInterfaceWarning);
+-    objServer.remove_interface(thresholdInterfaceCritical);
++
++    for (const auto& iface : thresholdInterfaces)
++    {
++        objServer.remove_interface(iface);
++    }
++
+     objServer.remove_interface(association);
+ }
+ 

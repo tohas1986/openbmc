@@ -12,6 +12,7 @@ RCONFLICTS:${PN} = "matchbox-common"
 SRC_URI = "file://matchbox-session"
 S = "${WORKDIR}"
 
+PR = "r4"
 
 inherit update-alternatives
 

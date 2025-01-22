@@ -1,0 +1,104 @@
+From 6c5cc79733bd1f0677113b621b8b79ad2af80f42 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 21 Dec 2020 10:19:48 +0000
+Subject: [PATCH] mapper-waiter: add verbose output
+
+---
+ libmapper/app.c | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/libmapper/app.c b/libmapper/app.c
+index c8b4f20..788e135 100644
+--- a/libmapper/app.c
++++ b/libmapper/app.c
+@@ -22,8 +22,11 @@
+ 
+ #include "mapper.h"
+ 
++static char * waitService;
++
+ static void quit(int r, void* loop)
+ {
++    fprintf(stderr, "mapper-wait: %s quit\n", waitService);
+     sd_event_exit((sd_event*)loop, r);
+ }
+ 
+@@ -42,6 +45,10 @@ static int wait_main(int argc, char* argv[])
+         exit(EXIT_FAILURE);
+     }
+ 
++    waitService = argv[2];
++
++    fprintf(stderr, "mapper-wait: %s starting wait\n", waitService);
++
+     /* Mapper waits are typically run early in the boot process, and in some
+      * cases the CPU and/or object manager daemon are so busy that the
+      * GetObject call may fail with a timeout and cause the event loop to exit.
+@@ -50,19 +57,20 @@ static int wait_main(int argc, char* argv[])
+     while (1)
+     {
+         attempts++;
++        fprintf(stderr, "mapper-wait: %s attempt #%i\n", waitService, attempts);
+ 
+         r = sd_bus_default(&conn);
+         if (r < 0)
+         {
+-            fprintf(stderr, "Error connecting to system bus: %s\n",
+-                    strerror(-r));
++            fprintf(stderr, "mapper-wait: %s Error connecting to system bus: %s\n",
++                    waitService, strerror(-r));
+             goto finish;
+         }
+ 
+         r = sd_event_default(&loop);
+         if (r < 0)
+         {
+-            fprintf(stderr, "Error obtaining event loop: %s\n", strerror(-r));
++            fprintf(stderr, "mapper-wait: %s error obtaining event loop: %s\n", waitService, strerror(-r));
+ 
+             goto finish;
+         }
+@@ -71,8 +79,8 @@ static int wait_main(int argc, char* argv[])
+         if (r < 0)
+         {
+             fprintf(stderr,
+-                    "Failed to attach system "
+-                    "bus to event loop: %s\n",
++                    "mapper-wait: %s failed to attach system "
++                    "bus to event loop: %s\n", waitService,
+                     strerror(-r));
+             goto finish;
+         }
+@@ -80,20 +88,20 @@ static int wait_main(int argc, char* argv[])
+         r = mapper_wait_async(conn, loop, argv + 2, quit, loop, &wait);
+         if (r < 0)
+         {
+-            fprintf(stderr, "Error configuring waitlist: %s\n", strerror(-r));
++            fprintf(stderr, "mapper-wait: %s Error configuring waitlist: %s\n", waitService, strerror(-r));
+             goto finish;
+         }
+ 
+         r = sd_event_loop(loop);
+         if (r < 0)
+         {
+-            fprintf(stderr, "Event loop exited: %s\n", strerror(-r));
++            fprintf(stderr, "mapper-wait: Event loop exited: %s\n", strerror(-r));
+ 
+             if (-r == ETIMEDOUT || -r == EHOSTUNREACH)
+             {
+                 if (attempts <= max_attempts)
+                 {
+-                    fprintf(stderr, "Retrying in 5s\n");
++                    fprintf(stderr, "mapper-wait: %s Retrying in 5s\n", waitService);
+                     sleep(5);
+                     sd_event_unref(loop);
+                     sd_bus_unref(conn);
+@@ -101,7 +109,7 @@ static int wait_main(int argc, char* argv[])
+                 }
+                 else
+                 {
+-                    fprintf(stderr, "Giving up\n");
++                    fprintf(stderr, "mapper-wait: %s giving up\n", waitService);
+                 }
+             }
+             else

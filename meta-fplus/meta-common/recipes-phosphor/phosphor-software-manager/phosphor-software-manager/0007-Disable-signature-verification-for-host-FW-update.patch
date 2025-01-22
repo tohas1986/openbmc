@@ -1,0 +1,88 @@
+From 3c4b5c973470fa0dfc5bda036f59fcadd91e7827 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 24 Aug 2023 10:59:12 +0000
+Subject: [PATCH] Disable signature verification for host FW update
+
+---
+ activation.cpp | 42 +++++++++++++++++++++++++++---------------
+ 1 file changed, 27 insertions(+), 15 deletions(-)
+
+diff --git a/activation.cpp b/activation.cpp
+index 8c98649..0076fc8 100644
+--- a/activation.cpp
++++ b/activation.cpp
+@@ -92,18 +92,31 @@ auto Activation::activation(Activations value) -> Activations
+ 
+     if (value == softwareServer::Activation::Activations::Activating)
+     {
++        bool need_signature_check = true;
++#ifdef HOST_BIOS_UPGRADE
++        auto bios_purpose = parent.versions.find(versionId)->second->purpose();
++        if (bios_purpose == VersionPurpose::Host)
++        {
++            std::cerr << __FUNCTION__ << ":" << __LINE__ << " Host BIOS update, skipping signature verification\n";
++            need_signature_check = false;
++        }
++#endif
++
+ #ifdef WANT_SIGNATURE_VERIFY
+-        fs::path uploadDir(IMG_UPLOAD_DIR);
+-        if (!verifySignature(uploadDir / versionId, SIGNED_IMAGE_CONF_PATH))
++        if (need_signature_check)
+         {
+-            using InvalidSignatureErr = sdbusplus::xyz::openbmc_project::
+-                Software::Version::Error::InvalidSignature;
+-            report<InvalidSignatureErr>();
+-            // Stop the activation process, if fieldMode is enabled.
+-            if (parent.control::FieldMode::fieldModeEnabled())
++            fs::path uploadDir(IMG_UPLOAD_DIR);
++            if (!verifySignature(uploadDir / versionId, SIGNED_IMAGE_CONF_PATH))
+             {
+-                return softwareServer::Activation::activation(
+-                    softwareServer::Activation::Activations::Failed);
++                using InvalidSignatureErr = sdbusplus::xyz::openbmc_project::
++                    Software::Version::Error::InvalidSignature;
++                report<InvalidSignatureErr>();
++                // Stop the activation process, if fieldMode is enabled.
++                if (parent.control::FieldMode::fieldModeEnabled())
++                {
++                    return softwareServer::Activation::activation(
++                        softwareServer::Activation::Activations::Failed);
++                }
+             }
+         }
+ #endif
+@@ -152,7 +165,6 @@ auto Activation::activation(Activations value) -> Activations
+         }
+ 
+ #ifdef HOST_BIOS_UPGRADE
+-        auto bios_purpose = parent.versions.find(versionId)->second->purpose();
+         if (bios_purpose == VersionPurpose::Host)
+         {
+             // Enable systemd signals
+@@ -460,17 +472,17 @@ void Activation::onStateChangesBios(sdbusplus::message_t& msg)
+ 
+     auto biosServiceFile = "obmc-flash-host-bios@" + versionId + ".service";
+ 
+-	if(activationProgress->progress() != 95)
+-	{
+-		activationProgress->progress(activationProgress->progress() + 5);
+-	}
++        if(activationProgress->progress() != 95)
++        {
++                activationProgress->progress(activationProgress->progress() + 5);
++        }
+ 
+     if (newStateUnit == biosServiceFile)
+     {
+         // unsubscribe to systemd signals
+         unsubscribeFromSystemdSignals();
+ 
+-		std::cerr << newStateResult << "\n";
++        std::cerr << newStateResult << "\n";
+ 
+         if (newStateResult == "done")
+         {
+-- 
+2.34.1
+

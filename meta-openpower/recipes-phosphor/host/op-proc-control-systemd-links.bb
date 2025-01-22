@@ -15,7 +15,6 @@ pkg_postinst:${PN}() {
 	mkdir -p $D$systemd_system_unitdir/obmc-host-stop@0.target.wants
 	mkdir -p $D$systemd_system_unitdir/obmc-host-force-warm-reboot@0.target.requires
 	mkdir -p $D$systemd_system_unitdir/obmc-host-startmin@0.target.requires
-	mkdir -p $D$systemd_system_unitdir/obmc-host-startmin@0.target.wants
 	mkdir -p $D$systemd_system_unitdir/obmc-host-diagnostic-mode@0.target.requires
 	mkdir -p $D$systemd_system_unitdir/obmc-chassis-poweron@0.target.requires
 	mkdir -p $D$systemd_system_unitdir/obmc-host-quiesce@0.target.wants
@@ -24,20 +23,12 @@ pkg_postinst:${PN}() {
 	TARGET="../op-stop-instructions@.service"
 	ln -s $TARGET $LINK
 
-	LINK="$D$systemd_system_unitdir/obmc-host-quiesce@0.target.wants/op-clear-sys-dump-active@0.service"
-	TARGET="../op-clear-sys-dump-active@.service"
-	ln -s $TARGET $LINK
-
 	LINK="$D$systemd_system_unitdir/obmc-host-quiesce@0.target.wants/op-stop-instructions@0.service"
 	TARGET="../op-stop-instructions@.service"
 	ln -s $TARGET $LINK
 
 	LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.requires/op-cfam-reset.service"
 	TARGET="../op-cfam-reset.service"
-	ln -s $TARGET $LINK
-
-	LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.wants/xyz.openbmc_project.Control.Host.NMI.service"
-	TARGET="../xyz.openbmc_project.Control.Host.NMI.service"
 	ln -s $TARGET $LINK
 
 	LINK="$D$systemd_system_unitdir/obmc-chassis-poweron@0.target.requires/op-cfam-reset.service"
@@ -100,11 +91,6 @@ pkg_postinst:${PN}() {
 		LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.wants/op-clock-data-logger@0.service"
 		TARGET="../op-clock-data-logger@.service"
 		ln -s $TARGET $LINK
-
-		mkdir -p $D$systemd_system_unitdir/obmc-chassis-poweroff@0.target.wants
-		LINK="$D$systemd_system_unitdir/obmc-chassis-poweroff@0.target.wants/set-spi-mux.service"
-		TARGET="../set-spi-mux.service"
-		ln -s $TARGET $LINK
 	fi
 
 	# If the memory preserving reboot feature is enabled, set it up
@@ -140,8 +126,6 @@ pkg_prerm:${PN}() {
 	rm $LINK
 	LINK="$D$systemd_system_unitdir/obmc-chassis-poweron@0.target.requires/op-cfam-reset.service"
 	rm $LINK
-	LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.wants/xyz.openbmc_project.Control.Host.NMI.service"
-	rm $LINK
 	# Only uninstall cfam override if p9 system
 	if [ "${@bb.utils.contains("MACHINE_FEATURES", "p9-cfam-override", "True", "False", d)}" = True ]; then
 		LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.requires/cfam_override@0.service"
@@ -156,9 +140,6 @@ pkg_prerm:${PN}() {
 		rm $LINK
 
 		LINK="$D$systemd_system_unitdir/obmc-chassis-poweroff@0.target.requires/proc-pre-poweroff@0.service"
-		rm $LINK
-
-		LINK="$D$systemd_system_unitdir/obmc-chassis-poweroff@0.target.wants/set-spi-mux.service"
 		rm $LINK
 
 		LINK="$D$systemd_system_unitdir/multi-user.target.wants/phal-import-devtree@0.service"

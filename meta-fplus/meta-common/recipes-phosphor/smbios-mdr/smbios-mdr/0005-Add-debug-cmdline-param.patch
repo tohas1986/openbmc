@@ -1,0 +1,37 @@
+From b9415ddafa6c789d48b019d2f179994d48f185a0 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 27 Sep 2022 06:25:41 +0000
+Subject: [PATCH] Add debug cmdline param
+
+---
+ src/mdrv2_main.cpp | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/mdrv2_main.cpp b/src/mdrv2_main.cpp
+index 7ab907a..9fd5fb5 100644
+--- a/src/mdrv2_main.cpp
++++ b/src/mdrv2_main.cpp
+@@ -21,6 +21,9 @@
+ #include <phosphor-logging/elog.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
++#include <CLI/CLI.hpp>
++
++bool DEBUG = false;
+ 
+ boost::asio::io_context io;
+ auto connection = std::make_shared<sdbusplus::asio::connection>(io);
+@@ -31,8 +34,12 @@ sdbusplus::asio::object_server& getObjectServer(void)
+     return objServer;
+ }
+ 
+-int main(void)
++int main(int argc, char* argv[])
+ {
++    CLI::App app("SMBIOS table parser");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     sdbusplus::bus_t& bus = static_cast<sdbusplus::bus_t&>(*connection);
+     sdbusplus::server::manager_t objManager(bus,
+                                             "/xyz/openbmc_project/inventory");

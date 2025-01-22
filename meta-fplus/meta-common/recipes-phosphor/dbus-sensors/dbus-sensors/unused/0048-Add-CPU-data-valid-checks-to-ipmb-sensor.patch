@@ -1,0 +1,44 @@
+From c383ae404dd29b066d74fb528ebf772fc4cb7daa Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Tue, 2 Mar 2021 15:13:56 +0000
+Subject: [PATCH] Add CPU data valid checks to ipmb sensor
+
+---
+ src/IpmbSensor.cpp | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index ac6c5e9..450b399 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -41,6 +41,7 @@
+ #include <variant>
+ #include <vector>
+ #include <chrono>
++#include <cmath>
+ 
+ bool DEBUG = false;
+ 
+@@ -384,15 +385,16 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+             {
+                 return false;
+             }
+-            if (TjmaxValue > 0)
++            if (TjmaxValue > 0 && ipmi::sensor::isValid(data))
+             {
+                 resp = TjmaxValue - data[3];
+                 return true;
+-            } else
++            }
++            /*else if(ipmi::sensor::isValid(data))
+             {
+                 resp = 100 - data[3];
+                 return true;
+-            }
++            }*/
+             return false;
+         }
+         default:
+-- 
+2.7.4
+

@@ -1,5 +1,3 @@
-.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
-
 Release 3.0 (zeus)
 ==================
 
@@ -49,7 +47,7 @@ The following recipes have been removed.
 -  ``core-image-lsb-sdk``: Part of removed LSB support.
 
 -  ``cve-check-tool``: Functionally replaced by the ``cve-update-db``
-   recipe and :ref:`ref-classes-cve-check` class.
+   recipe and :ref:`cve-check <ref-classes-cve-check>` class.
 
 -  ``eglinfo``: No longer maintained. ``eglinfo`` from ``mesa-demos`` is
    an adequate and maintained alternative.
@@ -144,13 +142,13 @@ CVE Checking
 ------------
 
 ``cve-check-tool`` has been functionally replaced by a new
-``cve-update-db`` recipe and functionality built into the :ref:`ref-classes-cve-check`
+``cve-update-db`` recipe and functionality built into the :ref:`cve-check <ref-classes-cve-check>`
 class. The result uses NVD JSON data feeds rather than the deprecated
 XML feeds that ``cve-check-tool`` was using, supports CVSSv3 scoring,
 and makes other improvements.
 
 Additionally, the ``CVE_CHECK_CVE_WHITELIST`` variable has been replaced
-by ``CVE_CHECK_WHITELIST`` (replaced by :term:`CVE_CHECK_IGNORE` in version 4.0).
+by ``CVE_CHECK_WHITELIST`` (replaced by :term:`CVE_CHECK_IGNORE` in version 3.5).
 
 .. _migration-3.0-bitbake-changes:
 
@@ -224,7 +222,7 @@ The following sanity check changes occurred.
 
    -  Github archive tarballs --- these are not guaranteed to be stable.
       Consequently, it is likely that the tarballs will be refreshed and
-      thus the :term:`SRC_URI` checksums will fail to apply. It is recommended
+      thus the SRC_URI checksums will fail to apply. It is recommended
       that you fetch either an official release tarball or a specific
       revision from the actual Git repository instead.
 
@@ -261,9 +259,7 @@ The following miscellaneous changes have occurred.
 
 -  The ``gnome`` class has been removed because it now does very little.
    You should update recipes that previously inherited this class to do
-   the following::
-
-      inherit gnomebase gtk-icon-cache gconf mime
+   the following: inherit gnomebase gtk-icon-cache gconf mime
 
 -  The ``meta/recipes-kernel/linux/linux-dtb.inc`` file has been
    removed. This file was previously deprecated in favor of setting
@@ -286,8 +282,8 @@ The following miscellaneous changes have occurred.
 -  You must change the host distro identifier used in
    :term:`NATIVELSBSTRING` to use all lowercase
    characters even if it does not contain a version number. This change
-   is necessary only if you are not using
-   :ref:`ref-classes-uninative` and :term:`SANITY_TESTED_DISTROS`.
+   is necessary only if you are not using ``uninative`` and
+   :term:`SANITY_TESTED_DISTROS`.
 
 -  In the ``base-files`` recipe, writing the hostname into
    ``/etc/hosts`` and ``/etc/hostname`` is now done within the main

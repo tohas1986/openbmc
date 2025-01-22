@@ -1,0 +1,33 @@
+From 413d2a99ed517b0c95aa9738358cde4e0c9b6cc5 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 25 Feb 2020 12:32:38 +0300
+Subject: [PATCH 1/1] change i2c order in makefile
+
+---
+ drivers/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/Makefile b/drivers/Makefile
+index 297047d..4d0623c 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -73,6 +73,7 @@ obj-y				+= base/ block/ misc/ mfd/ nfc/
+ obj-$(CONFIG_LIBNVDIMM)		+= nvdimm/
+ obj-$(CONFIG_DAX)		+= dax/
+ obj-$(CONFIG_DMA_SHARED_BUFFER) += dma-buf/
++obj-y				+= i2c/
+ obj-$(CONFIG_NUBUS)		+= nubus/
+ obj-y				+= macintosh/
+ obj-$(CONFIG_IDE)		+= ide/
+@@ -110,7 +111,7 @@ obj-$(CONFIG_SERIO)		+= input/serio/
+ obj-$(CONFIG_GAMEPORT)		+= input/gameport/
+ obj-$(CONFIG_INPUT)		+= input/
+ obj-$(CONFIG_RTC_LIB)		+= rtc/
+-obj-y				+= i2c/ i3c/ media/
++obj-y				+= i3c/ media/
+ obj-$(CONFIG_PPS)		+= pps/
+ obj-y				+= ptp/
+ obj-$(CONFIG_W1)		+= w1/
+-- 
+1.9.1
+

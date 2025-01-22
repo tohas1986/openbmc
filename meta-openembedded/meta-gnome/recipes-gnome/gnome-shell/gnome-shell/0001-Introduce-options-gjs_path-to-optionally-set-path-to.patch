@@ -1,22 +1,7 @@
-From e9835f650d70bf22ad0e5d8c2179aa01b2d18955 Mon Sep 17 00:00:00 2001
+From 3bf597b16e23cd2ce0ee3b05c23b46add5e26cd4 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Andreas=20M=C3=BCller?= <schnitzeltony@gmail.com>
 Date: Thu, 28 Oct 2021 18:57:24 +0200
 Subject: [PATCH] Introduce options 'gjs_path' to optionally set path to gjs
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-
-From: =?UTF-8?q?Andreas=20M=C3=BCller?= <schnitzeltony@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-
-From: =?UTF-8?q?Andreas=20M=C3=BCller?= <schnitzeltony@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-
-From: =?UTF-8?q?Andreas=20M=C3=BCller?= <schnitzeltony@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -34,10 +19,10 @@ Signed-off-by: Andreas Müller <schnitzeltony@gmail.com>
  6 files changed, 25 insertions(+), 4 deletions(-)
 
 diff --git a/js/dbusServices/meson.build b/js/dbusServices/meson.build
-index 48b7f89..700b590 100644
+index eb941ed..16efaeb 100644
 --- a/js/dbusServices/meson.build
 +++ b/js/dbusServices/meson.build
-@@ -22,7 +22,7 @@ foreach service, dir : dbus_services
+@@ -27,7 +27,7 @@ foreach service, dir : dbus_services
  
    serviceconf = configuration_data()
    serviceconf.set('service', service)
@@ -47,10 +32,10 @@ index 48b7f89..700b590 100644
  
    configure_file(
 diff --git a/meson.build b/meson.build
-index a6d83b1..2c612a8 100644
+index 8d7478f..7c9cc6a 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -134,7 +134,11 @@ endif
+@@ -138,7 +138,11 @@ endif
  
  mutter_typelibdir = mutter_dep.get_variable('typelibdir')
  python = find_program('python3')
@@ -64,12 +49,12 @@ index a6d83b1..2c612a8 100644
  cc = meson.get_compiler('c')
  
 diff --git a/meson_options.txt b/meson_options.txt
-index 6e83d92..1bf0ecb 100644
+index f0f2ecf..a45f2e4 100644
 --- a/meson_options.txt
 +++ b/meson_options.txt
-@@ -45,3 +45,9 @@ option('systemd',
+@@ -45,3 +45,9 @@ option('soup2',
    value: true,
-   description: 'Enable systemd integration'
+   description: 'Use Soup 2.4 instead of Soup 3. Must be in sync with libgweather'
  )
 +
 +option('gjs_path',
@@ -78,7 +63,7 @@ index 6e83d92..1bf0ecb 100644
 +  description: 'Instead of searching gjs executable, configure path'
 +)
 diff --git a/subprojects/extensions-app/js/meson.build b/subprojects/extensions-app/js/meson.build
-index c9a67f8..91ae887 100644
+index ce2a776..8f7bba4 100644
 --- a/subprojects/extensions-app/js/meson.build
 +++ b/subprojects/extensions-app/js/meson.build
 @@ -9,7 +9,7 @@ endif
@@ -91,11 +76,11 @@ index c9a67f8..91ae887 100644
  configure_file(
    input: prgname + '.in',
 diff --git a/subprojects/extensions-app/meson.build b/subprojects/extensions-app/meson.build
-index 45f391b..d581408 100644
+index c260d7a..c5b7554 100644
 --- a/subprojects/extensions-app/meson.build
 +++ b/subprojects/extensions-app/meson.build
-@@ -47,7 +47,12 @@ metainfodir = join_paths(datadir, 'metainfo')
- schemadir = join_paths(datadir, 'glib-2.0', 'schemas')
+@@ -44,7 +44,12 @@ localedir = join_paths(datadir, 'locale')
+ metainfodir = join_paths(datadir, 'metainfo')
  servicedir = join_paths(datadir, 'dbus-1', 'services')
  
 -gjs = find_program('gjs')
@@ -106,8 +91,8 @@ index 45f391b..d581408 100644
 +endif
 +
  appstream_util = find_program('appstream-util', required: false)
- appstreamcli = find_program('appstreamcli', required: false)
  desktop_file_validate = find_program('desktop-file-validate', required: false)
+ 
 diff --git a/subprojects/extensions-app/meson_options.txt b/subprojects/extensions-app/meson_options.txt
 index ca2eb41..2787785 100644
 --- a/subprojects/extensions-app/meson_options.txt
@@ -122,3 +107,6 @@ index ca2eb41..2787785 100644
 +  value: '',
 +  description: 'Instead of searching gjs executable, configure path'
 +)
+-- 
+2.34.1
+

@@ -13,9 +13,8 @@ SRC_URI = "${XORG_MIRROR}/individual/driver/${BPN}-${PV}${XORG_DRIVER_COMPRESSOR
 
 FILES:${PN} += " ${libdir}/xorg/modules/drivers/*.so"
 
-inherit pkgconfig features_check
 XORGBUILDCLASS ??= "autotools"
-inherit_defer ${XORGBUILDCLASS}
+inherit ${XORGBUILDCLASS} pkgconfig features_check
 
 # depends on virtual/xserver
 REQUIRED_DISTRO_FEATURES = "x11"

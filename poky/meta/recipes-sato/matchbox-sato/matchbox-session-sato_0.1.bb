@@ -7,6 +7,7 @@ LIC_FILES_CHKSUM = "file://session;endline=3;md5=f8a5c5b9c279e52dc094d10e11c2be6
 
 SECTION = "x11"
 RDEPENDS:${PN} = "formfactor matchbox-theme-sato matchbox-panel-2 matchbox-desktop matchbox-session gconf"
+PR = "r30"
 
 # This package is architecture specific because the session script is modified
 # based on the machine architecture.
@@ -25,7 +26,7 @@ FILES:${PN} += "${datadir}/themes/Sato/index.theme"
 
 do_install() {
 	# This is the set of machine features that the script has markers for
-	FEATURES="acpi phone"
+	FEATURES="acpi apm phone"
 	SCRIPT="${S}/sedder"
 	rm -f $SCRIPT
 	touch $SCRIPT

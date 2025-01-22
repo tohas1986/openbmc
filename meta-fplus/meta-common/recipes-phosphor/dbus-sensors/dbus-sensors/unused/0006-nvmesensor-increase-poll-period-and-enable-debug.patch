@@ -1,0 +1,22 @@
+From 270b3e1e8382d151f12e11e7056b0d2499fd9ee6 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 5 Jun 2020 13:42:42 +0000
+Subject: [PATCH] nvmesensor: increase poll period and enable debug
+
+---
+ src/NVMeSensor.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/NVMeSensor.cpp b/src/NVMeSensor.cpp
+index 46b2b52..8b93519 100644
+--- a/src/NVMeSensor.cpp
++++ b/src/NVMeSensor.cpp
+@@ -388,7 +388,7 @@ NVMeContext::NVMeContext(boost::asio::io_service& io, int rootBus) :
+ 
+ void NVMeContext::pollNVMeDevices()
+ {
+-    scanTimer.expires_from_now(boost::posix_time::seconds(1));
++    scanTimer.expires_from_now(boost::posix_time::seconds(5));
+     scanTimer.async_wait(
+         [self{shared_from_this()}](const boost::system::error_code errorCode) {
+             if (errorCode == boost::asio::error::operation_aborted)

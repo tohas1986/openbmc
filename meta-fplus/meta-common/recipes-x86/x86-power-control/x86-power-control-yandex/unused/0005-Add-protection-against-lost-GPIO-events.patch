@@ -1,0 +1,79 @@
+From 4850a42b241e5121aa90724f73b7f71f54e59331 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 08:37:55 +0000
+Subject: [PATCH 1/1] Add protection against lost GPIO events
+
+---
+ power-control-x86/src/power_control.cpp | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index 73ce3f2..26dafd2 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -1293,9 +1293,17 @@ static void psPowerOKWatchdogTimerStart()
+                 "power supply power OK watchdog timer canceled");
+             return;
+         }
+-        phosphor::logging::log<phosphor::logging::level::INFO>(
+-            "power supply power OK watchdog timer expired");
+-        sendPowerControlEvent(Event::psPowerOKWatchdogTimerExpired);
++
++        /* Issue current PSOK status */
++        if (power_control::psPowerOKLine.get_value() > 0)
++        {
++            std::cerr << "psPowerOKWatchdogTimer expired, PowerOK is active\n";
++            sendPowerControlEvent(Event::psPowerOKAssert);
++        } else
++        {
++            std::cerr << "psPowerOKWatchdogTimer expired, PowerOK is inactive\n";
++            sendPowerControlEvent(Event::psPowerOKDeAssert);
++        }
+     });
+ }
+ 
+@@ -1525,8 +1533,6 @@ static void powerStateOn(const Event event)
+     {
+         case Event::psPowerOKDeAssert:
+             setPowerState(PowerState::off);
+-            // DC power is unexpectedly lost, beep
+-            beep(beepPowerFail);
+             break;
+         case Event::sioS5Assert:
+             setPowerState(PowerState::transitionToOff);
+@@ -1594,6 +1600,7 @@ static void powerStateWaitForPSPowerOK(const Event event)
+             }
+             break;
+         }
++        case Event::psPowerOKDeAssert:
+         case Event::psPowerOKWatchdogTimerExpired:
+             setPowerState(PowerState::off);
+             psPowerOKFailedLog();
+@@ -1694,6 +1701,7 @@ static void powerStateGracefulTransitionToOff(const Event event)
+             gracefulPowerOffTimer.cancel();
+             setPowerState(PowerState::off);
+             break;
++        case Event::psPowerOKAssert:
+         case Event::gracefulPowerOffTimerExpired:
+             setPowerState(PowerState::on);
+             break;
+@@ -1786,6 +1794,7 @@ static void powerStateGracefulTransitionToCycleOff(const Event event)
+             setPowerState(PowerState::cycleOff);
+             powerCycleTimerStart();
+             break;
++        case Event::psPowerOKAssert:
+         case Event::gracefulPowerOffTimerExpired:
+             setPowerState(PowerState::on);
+             break;
+@@ -1826,8 +1835,6 @@ static void powerStateCheckForWarmReset(const Event event)
+         case Event::psPowerOKDeAssert:
+             warmResetCheckTimer.cancel();
+             setPowerState(PowerState::off);
+-            // DC power is unexpectedly lost, beep
+-            beep(beepPowerFail);
+             break;
+         default:
+             phosphor::logging::log<phosphor::logging::level::INFO>(
+-- 
+2.7.4
+

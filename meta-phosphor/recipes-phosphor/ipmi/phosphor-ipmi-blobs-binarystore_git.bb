@@ -3,11 +3,12 @@ DESCRIPTION = "This package provides a read/write/serialize abstraction for stor
 HOMEPAGE = "http://github.com/openbmc/phosphor-ipmi-blobs-binarystore"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
+DEPENDS += "autoconf-archive-native"
 DEPENDS += "phosphor-ipmi-blobs"
 DEPENDS += "phosphor-logging"
-DEPENDS += "nanopb-generator-native"
-DEPENDS += "nanopb-runtime"
-SRCREV = "719b65fd9eac8517029d89d300de11c2cc787bcc"
+DEPENDS += "protobuf-native"
+DEPENDS += "protobuf"
+SRCREV = "62872f5cb38e755a5325a7f4875a053bd357ef1a"
 PACKAGECONFIG ??= ""
 PACKAGECONFIG[blobtool] = "-Dblobtool=enabled,-Dblobtool=disabled"
 PV = "1.0+git${SRCPV}"
@@ -17,9 +18,7 @@ SRC_URI = "git://github.com/openbmc/phosphor-ipmi-blobs-binarystore;branch=maste
 
 S = "${WORKDIR}/git"
 
-inherit meson pkgconfig systemd
-
-SYSTEMD_SERVICE:${PN} += "${@bb.utils.contains('PACKAGECONFIG', 'blobtool', 'binarystore-migration.service', '', d)}"
+inherit meson pkgconfig
 
 EXTRA_OEMESON:append = " -Dtests=disabled"
 

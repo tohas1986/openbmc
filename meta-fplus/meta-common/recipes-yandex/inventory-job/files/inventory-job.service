@@ -1,0 +1,11 @@
+[Unit]
+Description=Do jobs after inventory is ready
+After=mapper-wait@-xyz-openbmc_project-inventory-system-board.service
+Wants=mapper-wait@-xyz-openbmc_project-inventory-system-board.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/inventory-job
+
+[Install]
+WantedBy=multi-user.target

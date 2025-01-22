@@ -1,0 +1,22 @@
+From 0ce0d8ead994fec40d801579cb01bf5b361ca599 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 1 Apr 2021 12:38:47 +0000
+Subject: [PATCH] Increase-poll-time
+
+---
+ include/PSUSensor.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/PSUSensor.hpp b/include/PSUSensor.hpp
+index 476a1d8..33cb1b0 100644
+--- a/include/PSUSensor.hpp
++++ b/include/PSUSensor.hpp
+@@ -145,7 +145,7 @@ class PSUSensor : public Sensor, public std::enable_shared_from_this<PSUSensor>
+ 
+     std::optional<BridgeGpio> bridgeGpio;
+ 
+-    static constexpr unsigned int sensorPollMs = 1000;
++    static constexpr unsigned int sensorPollMs = 5000;
+     static constexpr unsigned int gpioBridgeEnableMs = 100;
+     static constexpr size_t warnAfterErrorCount = 10;
+ };

@@ -1,4 +1,4 @@
-From 2beb35c34c45320144f37b12ef4d72fb8734280e Mon Sep 17 00:00:00 2001
+From 785c0072c80c2f6e0839478453cf65fdeac15da0 Mon Sep 17 00:00:00 2001
 From: Khem Raj <raj.khem@gmail.com>
 Date: Mon, 29 Aug 2022 19:53:28 -0700
 Subject: [PATCH] Add missing prototypes to function declarations
@@ -29,23 +29,23 @@ Signed-off-by: Khem Raj <raj.khem@gmail.com>
  10 files changed, 12 insertions(+), 13 deletions(-)
 
 diff --git a/checksum.c b/checksum.c
-index cb21882..736818b 100644
+index fb8c0a0..174c28c 100644
 --- a/checksum.c
 +++ b/checksum.c
-@@ -779,7 +779,7 @@ static void verify_digest(struct name_num_item *nni, BOOL check_auth_list)
+@@ -629,7 +629,7 @@ int sum_end(char *sum)
+ 	return csum_len_for_type(cursum_type, 0);
  }
- #endif
  
 -void init_checksum_choices()
 +void init_checksum_choices(void)
  {
- #if defined SUPPORT_XXH3 || defined USE_OPENSSL
- 	struct name_num_item *nni;
+ #ifdef SUPPORT_XXH3
+ 	char buf[32816];
 diff --git a/exclude.c b/exclude.c
-index 87edbcf..ae0de2f 100644
+index adc82e2..79f5a82 100644
 --- a/exclude.c
 +++ b/exclude.c
-@@ -363,7 +363,7 @@ void implied_include_partial_string(const char *s_start, const char *s_end)
+@@ -358,7 +358,7 @@ void implied_include_partial_string(const char *s_start, const char *s_end)
  	memcpy(partial_string_buf, s_start, partial_string_len);
  }
  
@@ -53,9 +53,9 @@ index 87edbcf..ae0de2f 100644
 +void free_implied_include_partial_string(void)
  {
  	if (partial_string_buf) {
- 		if (partial_string_len)
+ 		free(partial_string_buf);
 diff --git a/hlink.c b/hlink.c
-index 20291f2..5c26a6b 100644
+index 66810a3..6511dfb 100644
 --- a/hlink.c
 +++ b/hlink.c
 @@ -117,8 +117,7 @@ static void match_gnums(int32 *ndx_list, int ndx_count)
@@ -82,7 +82,7 @@ index a1a7245..4eae062 100644
  
  	/* statistical data */
 diff --git a/log.c b/log.c
-index e4ba1cc..8482b71 100644
+index 44344e2..991e359 100644
 --- a/log.c
 +++ b/log.c
 @@ -131,7 +131,7 @@ static void logit(int priority, const char *buf)
@@ -95,10 +95,10 @@ index e4ba1cc..8482b71 100644
  	int options = LOG_PID;
  
 diff --git a/main.c b/main.c
-index 0c60b86..4bc664a 100644
+index 9ebfbea..affa244 100644
 --- a/main.c
 +++ b/main.c
-@@ -246,7 +246,7 @@ void read_del_stats(int f)
+@@ -244,7 +244,7 @@ void read_del_stats(int f)
  	stats.deleted_files += stats.deleted_specials = read_varint(f);
  }
  
@@ -168,3 +168,6 @@ index bbba7b2..61f8dc9 100644
  {
      uLong flags;
  
+-- 
+2.37.2
+

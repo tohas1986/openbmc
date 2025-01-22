@@ -1,5 +1,3 @@
-Upstream-Status: Pending
-
 --- a/linux_syscall_support.h
 +++ b/linux_syscall_support.h
 @@ -119,14 +119,7 @@ extern "C" {

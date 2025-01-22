@@ -2,6 +2,7 @@ SUMMARY = "Enhances systemd compatilibity with existing SysVinit scripts"
 HOMEPAGE = "http://www.freedesktop.org/wiki/Software/systemd"
 LICENSE = "MIT"
 
+PR = "r29"
 
 PACKAGE_WRITE_DEPS += "systemd-systemctl-native"
 
@@ -13,8 +14,7 @@ INHIBIT_DEFAULT_DEPS = "1"
 
 ALLOW_EMPTY:${PN} = "1"
 
-REQUIRED_DISTRO_FEATURES += "systemd"
-REQUIRED_DISTRO_FEATURES += "usrmerge"
+REQUIRED_DISTRO_FEATURES = "systemd"
 
 SYSTEMD_DISABLED_SYSV_SERVICES = " \
   busybox-udhcpc \
@@ -27,8 +27,7 @@ SYSTEMD_DISABLED_SYSV_SERVICES = " \
 
 pkg_postinst:${PN} () {
 
-	test -d $D${sysconfdir}/init.d  ||  exit 0
-	cd $D${sysconfdir}/init.d
+	cd $D${sysconfdir}/init.d  ||  exit 0
 
 	echo "Disabling the following sysv scripts: "
 

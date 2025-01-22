@@ -1,0 +1,54 @@
+From a11d762a945f43665b2228e5aff615600920f144 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 24 Feb 2023 13:18:40 +0000
+Subject: [PATCH] Remove NTP check from storagehandler (SetSelTime)
+
+---
+ storagehandler.cpp | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/storagehandler.cpp b/storagehandler.cpp
+index 2f5fc22..ab04746 100644
+--- a/storagehandler.cpp
++++ b/storagehandler.cpp
+@@ -598,17 +598,10 @@ ipmi::RspType<> ipmiStorageSetSelTime(uint32_t selDeviceTime)
+ {
+     using namespace std::chrono;
+     microseconds usec{seconds(selDeviceTime)};
+-    
++
+     try
+     {
+         sdbusplus::bus_t bus{ipmid_get_sd_bus_connection()};
+-        bool ntp = std::get<bool>(
+-            ipmi::getDbusProperty(bus, SystemdTimeService, SystemdTimePath,
+-                                  SystemdTimeInterface, "NTP"));
+-        if (ntp)
+-        {
+-            return ipmi::responseCommandNotAvailable();
+-        }
+ 
+         auto service = ipmi::getService(bus, TIME_INTERFACE, BMC_TIME_PATH);
+         std::variant<uint64_t> value{(uint64_t)usec.count()};
+@@ -621,6 +614,9 @@ ipmi::RspType<> ipmiStorageSetSelTime(uint32_t selDeviceTime)
+         auto reply = bus.call(method);
+         if (reply.is_method_error())
+         {
++            std::cerr << __FILE__ << ":" << __LINE__ << " " << __FUNCTION__
++		      << " Error setting time. Service:" << service
++		      << " Path:" << BMC_TIME_PATH << "\n";
+             log<level::ERR>("Error setting time",
+                             entry("SERVICE=%s", service.c_str()),
+                             entry("PATH=%s", BMC_TIME_PATH));
+@@ -637,7 +633,7 @@ ipmi::RspType<> ipmiStorageSetSelTime(uint32_t selDeviceTime)
+         log<level::ERR>(e.what());
+         return ipmi::responseUnspecifiedError();
+     }
+-    
++
+     return ipmi::responseSuccess();
+ }
+ 
+-- 
+2.34.1
+

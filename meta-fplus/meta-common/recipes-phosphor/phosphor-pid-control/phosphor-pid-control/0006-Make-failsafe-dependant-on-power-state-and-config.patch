@@ -1,0 +1,366 @@
+From 790b03917f647ffb4627a47f7f823f44328c01d2 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 13 Dec 2022 11:49:29 +0000
+Subject: [PATCH] Make failsafe dependant on power state and config
+
+Introduce new configuration parameter for temperature sensors:
+"failsafeCritical": true/false (default: false)
+When set to true and missing when host power is on - go to failsafe mode.
+Otherwise stay in normal mode as most of the sensors may disappear when power is off.
+Currently only CPU temperature sensors are critical.
+
+onPowerOn controller property
+
+Introduce onPowerOn controller property that causes controller
+to be processed when host is powered off.
+Only controller now is for DCDC that works all the time.
+Default value is false.
+
+---
+ conf.hpp                   |  3 +++
+ pid/builder.cpp            |  9 +++++++++
+ pid/buildjson.cpp          |  6 ++++++
+ pid/controller.hpp         |  4 ++++
+ pid/fancontroller.hpp      |  9 +++++++++
+ pid/pidcontroller.hpp      | 11 +++++++++++
+ pid/stepwisecontroller.hpp | 11 +++++++++++
+ pid/thermalcontroller.hpp  |  2 ++
+ pid/zone.cpp               | 34 +++++++++++++++++++++++++++++++---
+ pid/zone.hpp               |  2 ++
+ sensors/builder.cpp        |  4 +++-
+ sensors/buildjson.cpp      |  9 +++++++++
+ sensors/sensor.hpp         | 12 ++++++++++++
+ 13 files changed, 112 insertions(+), 4 deletions(-)
+
+diff --git a/conf.hpp b/conf.hpp
+index d7d34f5..c485beb 100644
+--- a/conf.hpp
++++ b/conf.hpp
+@@ -28,6 +28,7 @@ struct SensorConfig
+     int64_t timeout;
+     bool ignoreDbusMinMax;
+     bool unavailableAsFailed;
++    bool fsCritical;
+ };
+ 
+ /*
+@@ -40,6 +41,8 @@ struct ControllerInfo
+     double setpoint;                 // initial setpoint for thermal.
+     ec::pidinfo pidInfo;             // pid details
+     ec::StepwiseInfo stepwiseInfo;
++    bool onPowerOff;                 // if this controller should be processed
++                                     // when server is powered off
+ };
+ 
+ struct CycleTime
+diff --git a/pid/builder.cpp b/pid/builder.cpp
+index d7a60b4..9301d7a 100644
+--- a/pid/builder.cpp
++++ b/pid/builder.cpp
+@@ -108,6 +108,10 @@ std::unordered_map<int64_t, std::shared_ptr<ZoneInterface>>
+                     zone.get(), name, inputs, info.setpoint, info.pidInfo,
+                     getThermalType(info.type));
+ 
++                if (info.onPowerOff)
++                    pid->setOnPowerOff(true);
++                else
++                    pid->setOnPowerOff(false);
+                 zone->addThermalPID(std::move(pid));
+             }
+             else if (info.type == "stepwise")
+@@ -119,6 +123,11 @@ std::unordered_map<int64_t, std::shared_ptr<ZoneInterface>>
+                 }
+                 auto stepwise = StepwiseController::createStepwiseController(
+                     zone.get(), name, inputs, info.stepwiseInfo);
++
++                if (info.onPowerOff)
++                    stepwise->setOnPowerOff(true);
++                else
++                    stepwise->setOnPowerOff(false);
+                 zone->addThermalPID(std::move(stepwise));
+             }
+ 
+diff --git a/pid/buildjson.cpp b/pid/buildjson.cpp
+index 47aa752..7411c5c 100644
+--- a/pid/buildjson.cpp
++++ b/pid/buildjson.cpp
+@@ -37,6 +37,12 @@ void from_json(const json& j, conf::ControllerInfo& c)
+     j.at("inputs").get_to(c.inputs);
+     j.at("setpoint").get_to(c.setpoint);
+ 
++    c.onPowerOff = false;
++    if (j.find("onPowerOff") != j.end())
++    {
++        j.at("onPowerOff").get_to(c.onPowerOff);
++    }
++
+     /* TODO: We need to handle parsing other PID controller configurations.
+      * We can do that by checking for different keys and making the decision
+      * accordingly.
+diff --git a/pid/controller.hpp b/pid/controller.hpp
+index 5680052..d211758 100644
+--- a/pid/controller.hpp
++++ b/pid/controller.hpp
+@@ -25,6 +25,10 @@ struct Controller
+     virtual void process(void) = 0;
+ 
+     virtual std::string getID(void) = 0;
++
++    virtual bool getOnPowerOff(void) = 0;
++
++    virtual void setOnPowerOff(bool) = 0;
+ };
+ 
+ } // namespace pid_control
+diff --git a/pid/fancontroller.hpp b/pid/fancontroller.hpp
+index 89b3d5e..d93a1aa 100644
+--- a/pid/fancontroller.hpp
++++ b/pid/fancontroller.hpp
+@@ -44,6 +44,15 @@ class FanController : public PIDController
+         _direction = direction;
+     };
+ 
++    bool getOnPowerOff(void) override
++    {
++        return true;
++    }
++
++    void setOnPowerOff(bool s) override
++    {
++    }
++
+   private:
+     std::vector<std::string> _inputs;
+     FanSpeedDirection _direction;
+diff --git a/pid/pidcontroller.hpp b/pid/pidcontroller.hpp
+index fcc021c..f70e440 100644
+--- a/pid/pidcontroller.hpp
++++ b/pid/pidcontroller.hpp
+@@ -73,6 +73,16 @@ class PIDController : public Controller
+         return lastInput;
+     }
+ 
++    bool getOnPowerOff(void) override
++    {
++        return onPowerOff;
++    }
++
++    void setOnPowerOff(bool s) override
++    {
++        onPowerOff = s;
++    }
++
+   protected:
+     ZoneInterface* _owner;
+     std::string _id;
+@@ -82,6 +92,7 @@ class PIDController : public Controller
+     ec::pid_info_t _pid_info;
+     double _setpoint = 0;
+     double lastInput = std::numeric_limits<double>::quiet_NaN();
++    bool onPowerOff;
+ };
+ 
+ } // namespace pid_control
+diff --git a/pid/stepwisecontroller.hpp b/pid/stepwisecontroller.hpp
+index a3b3965..185118e 100644
+--- a/pid/stepwisecontroller.hpp
++++ b/pid/stepwisecontroller.hpp
+@@ -49,6 +49,16 @@ class StepwiseController : public Controller
+         _stepwise_info = value;
+     }
+ 
++    bool getOnPowerOff(void) override
++    {
++        return onPowerOff;
++    }
++
++    void setOnPowerOff(bool s) override
++    {
++        onPowerOff = s;
++    }
++
+   protected:
+     ZoneInterface* _owner;
+ 
+@@ -59,6 +69,7 @@ class StepwiseController : public Controller
+     std::vector<std::string> _inputs;
+     double lastInput = std::numeric_limits<double>::quiet_NaN();
+     double lastOutput = std::numeric_limits<double>::quiet_NaN();
++    bool onPowerOff;
+ };
+ 
+ } // namespace pid_control
+diff --git a/pid/thermalcontroller.hpp b/pid/thermalcontroller.hpp
+index 752c105..16ca06b 100644
+--- a/pid/thermalcontroller.hpp
++++ b/pid/thermalcontroller.hpp
+@@ -61,6 +61,8 @@ class ThermalController : public PIDController
+     double setptProc(void) override;
+     void outputProc(double value) override;
+ 
++    bool onPowerOff;
++
+   private:
+     std::vector<std::string> _inputs;
+     ThermalType type;
+diff --git a/pid/zone.cpp b/pid/zone.cpp
+index e9aaafc..9c57450 100644
+--- a/pid/zone.cpp
++++ b/pid/zone.cpp
+@@ -24,6 +24,7 @@
+ #include "pid/stepwisecontroller.hpp"
+ #include "pid/thermalcontroller.hpp"
+ #include "pid/tuning.hpp"
++#include "dbus/dbushelper.hpp"
+ 
+ #include <algorithm>
+ #include <chrono>
+@@ -438,6 +439,30 @@ void DbusPidZone::updateSensors(void)
+     /* margin and temp are stored as temp */
+     tstamp now = high_resolution_clock::now();
+ 
++    /* Get current power state */
++    DbusHelper helper(sdbusplus::bus::new_system());
++    std::string strPowerOn = "";
++    try
++    {
++        helper.getProperty("xyz.openbmc_project.State.Chassis",
++                           "/xyz/openbmc_project/state/chassis0",
++                           "xyz.openbmc_project.State.Chassis",
++                           "CurrentPowerState", strPowerOn);
++    }
++    catch (const sdbusplus::exception::SdBusError& ex)
++    {
++        powerState = true;
++    }
++
++    if (strPowerOn == "xyz.openbmc_project.State.Chassis.PowerState.On")
++    {
++        powerState = true;
++    }
++    else
++    {
++        powerState = false;
++    }
++
+     for (const auto& t : _thermalInputs)
+     {
+         auto sensor = _mgr.getSensor(t);
+@@ -456,7 +481,7 @@ void DbusPidZone::updateSensors(void)
+                       << "\n";
+         }
+ 
+-        if (sensor->getFailed())
++        if (sensor->getFailed() && powerState && sensor->getFsCritical())
+         {
+             _failSafeSensors.insert(t);
+             if (debugEnabled)
+@@ -464,7 +489,7 @@ void DbusPidZone::updateSensors(void)
+                 std::cerr << t << " temperature sensor get failed\n";
+             }
+         }
+-        else if (timeout != 0 && duration >= period)
++        else if (timeout != 0 && duration >= period && powerState && sensor->getFsCritical())
+         {
+             // std::cerr << "Entering fail safe mode.\n";
+             _failSafeSensors.insert(t);
+@@ -546,7 +571,10 @@ void DbusPidZone::processThermals(void)
+ {
+     for (auto& p : _thermals)
+     {
+-        p->process();
++        if (powerState || p->getOnPowerOff())
++        {
++            p->process();
++        }
+     }
+ }
+ 
+diff --git a/pid/zone.hpp b/pid/zone.hpp
+index 945e18d..1daf369 100644
+--- a/pid/zone.hpp
++++ b/pid/zone.hpp
+@@ -100,6 +100,8 @@ class DbusPidZone : public ZoneInterface, public ModeObject
+     /* Method for reading whether in fail-safe mode over dbus */
+     bool failSafe() const override;
+ 
++    bool powerState = true;
++
+   private:
+     std::ofstream _log;
+ 
+diff --git a/sensors/builder.cpp b/sensors/builder.cpp
+index 7c335c6..d12c030 100644
+--- a/sensors/builder.cpp
++++ b/sensors/builder.cpp
+@@ -59,7 +59,8 @@ SensorManager
+         const conf::SensorConfig* info = &it.second;
+ 
+         std::cerr << "Sensor: " << name << " " << info->type << " ";
+-        std::cerr << info->readPath << " " << info->writePath << "\n";
++        std::cerr << info->readPath << " " << info->writePath;
++        std:: cerr << " Failsafe Critical: " << info->fsCritical << "\n";
+ 
+         IOInterfaceType rtype = getReadInterfaceType(info->readPath);
+         IOInterfaceType wtype = getWriteInterfaceType(info->writePath);
+@@ -188,6 +189,7 @@ SensorManager
+                 wi = std::make_unique<ReadOnlyNoExcept>();
+                 auto sensor = std::make_unique<PluggableSensor>(
+                     name, info->timeout, std::move(ri), std::move(wi));
++                sensor->setFsCritical(info->fsCritical);
+                 mgmr.addSensor(info->type, name, std::move(sensor));
+             }
+         }
+diff --git a/sensors/buildjson.cpp b/sensors/buildjson.cpp
+index b8120a8..2fb48e9 100644
+--- a/sensors/buildjson.cpp
++++ b/sensors/buildjson.cpp
+@@ -103,6 +103,15 @@ void from_json(const json& j, conf::SensorConfig& s)
+     {
+         j.at("timeout").get_to(s.timeout);
+     }
++
++    /* By default sensor is not failsafe-critical
++     */
++    s.fsCritical = false;
++
++    if (j.find("failsafeCritical") != j.end())
++    {
++        j.at("failsafeCritical").get_to(s.fsCritical);
++    }
+ }
+ } // namespace conf
+ 
+diff --git a/sensors/sensor.hpp b/sensors/sensor.hpp
+index f5f01c2..edf5391 100644
+--- a/sensors/sensor.hpp
++++ b/sensors/sensor.hpp
+@@ -3,6 +3,7 @@
+ #include "interfaces.hpp"
+ 
+ #include <string>
++#include <iostream>
+ 
+ namespace pid_control
+ {
+@@ -62,9 +63,20 @@ class Sensor
+         return _timeout;
+     }
+ 
++    bool getFsCritical(void) const
++    {
++        return _fsCritical;
++    }
++
++    void setFsCritical(bool s)
++    {
++        _fsCritical = s;
++    }
++
+   private:
+     std::string _name;
+     int64_t _timeout;
++    bool _fsCritical = false;
+ };
+ 
+ } // namespace pid_control

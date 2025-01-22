@@ -1,0 +1,73 @@
+[
+    {
+        "Desc" :
+        {
+            "Name" : "SYS_PWR",
+            "SensorType" : "power",
+            "MaxValue" : 6000,
+            "MinValue" : 0
+        },
+        "Threshold" :
+        {
+            "CriticalHigh": 6000,
+            "CriticalLow": 70,
+            "WarningHigh": 5900,
+            "WarningLow": 100
+        },
+        "Params":
+        {
+            "DbusParam" :
+            [
+                {
+                    "ParamName" : "PWR1",
+                    "Desc" :
+                    {
+                        "Name" : "TOT_HSC_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR2",
+                    "Desc" :
+                    {
+                        "Name" : "NV_SW_G0_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR3",
+                    "Desc" :
+                    {
+                        "Name" : "NV_SW_G1_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR4",
+                    "Desc" :
+                    {
+                        "Name" : "FAN_BRD1_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR5",
+                    "Desc" :
+                    {
+                        "Name" : "FAN_BRD2_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR6",
+                    "Desc" :
+                    {
+                        "Name" : "INF_BRD_PWR",
+                        "SensorType" : "power"
+                    }
+                }
+            ]
+        },
+        "Expression" : "PWR1 + PWR2 + PWR3 + PWR4 + PWR5 + PWR6"
+    }
+]

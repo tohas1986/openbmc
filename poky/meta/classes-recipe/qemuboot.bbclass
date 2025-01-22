@@ -13,7 +13,6 @@
 # QB_OPT_APPEND: options to append to qemu, e.g., "-device usb-mouse"
 #
 # QB_DEFAULT_KERNEL: default kernel to boot, e.g., "bzImage"
-#                                            e.g., "bzImage-initramfs-qemux86-64.bin" if INITRAMFS_IMAGE_BUNDLE is set to 1.
 #
 # QB_DEFAULT_FSTYPE: default FSTYPE to boot, e.g., "ext4"
 #
@@ -62,8 +61,8 @@
 # QB_SLIRP_OPT: network option for SLIRP mode, e.g., -netdev user,id=net0"
 #
 # QB_CMDLINE_IP_SLIRP: If QB_NETWORK_DEVICE adds more than one network interface to qemu, usually the
-#                      ip= kernel command line argument needs to be changed accordingly. Details are documented
-#                      in the kernel documentation https://www.kernel.org/doc/Documentation/filesystems/nfs/nfsroot.txt
+#                      ip= kernel comand line argument needs to be changed accordingly. Details are documented
+#                      in the kernel docuemntation https://www.kernel.org/doc/Documentation/filesystems/nfs/nfsroot.txt
 #                      Example to configure only the first interface: "ip=eth0:dhcp"
 # QB_CMDLINE_IP_TAP: This parameter is similar to the QB_CMDLINE_IP_SLIRP parameter. Since the tap interface requires
 #                    static IP configuration @CLIENT@ and @GATEWAY@ place holders are replaced by the IP and the gateway
@@ -86,8 +85,6 @@
 #                      without the need to specify a dedicated qemu configuration
 #
 # QB_GRAPHICS: QEMU video card type (e.g. "-vga std")
-# QB_NFSROOTFS_EXTRA_OPT: extra options to be appended to the nfs rootfs options in kernel boot arg, e.g.,
-#                         "wsize=4096,rsize=4096"
 #
 # Usage:
 # IMAGE_CLASSES += "qemuboot"
@@ -96,28 +93,15 @@
 QB_MEM ?= "-m 256"
 QB_SMP ?= ""
 QB_SERIAL_OPT ?= "-serial mon:stdio -serial null"
-QB_DEFAULT_KERNEL ?= "${@bb.utils.contains("INITRAMFS_IMAGE_BUNDLE", "1", "${KERNEL_IMAGETYPE}-${INITRAMFS_LINK_NAME}.bin", "${KERNEL_IMAGETYPE}", d)}"
+QB_DEFAULT_KERNEL ?= "${KERNEL_IMAGETYPE}"
 QB_DEFAULT_FSTYPE ?= "ext4"
 QB_RNG ?= "-object rng-random,filename=/dev/urandom,id=rng0 -device virtio-rng-pci,rng=rng0"
 QB_OPT_APPEND ?= ""
 QB_NETWORK_DEVICE ?= "-device virtio-net-pci,netdev=net0,mac=@MAC@"
-
-# qemurunner needs ip information first, so append QB_NO_PNI
-#
-QB_NO_PNI ?= "${@bb.utils.contains('DISTRO_FEATURES', 'pni-names', '', 'net.ifnames=0', d)}"
 QB_CMDLINE_IP_SLIRP ?= "ip=dhcp"
-QB_CMDLINE_IP_TAP ?= "ip=192.168.7.@CLIENT@::192.168.7.@GATEWAY@:255.255.255.0::eth0:off:8.8.8.8 ${QB_NO_PNI}"
-
+QB_CMDLINE_IP_TAP ?= "ip=192.168.7.@CLIENT@::192.168.7.@GATEWAY@:255.255.255.0::eth0:off:8.8.8.8"
 QB_ROOTFS_EXTRA_OPT ?= ""
 QB_GRAPHICS ?= ""
-QB_NFSROOTFS_EXTRA_OPT ?= ""
-
-# With 6.5+ (specifically, if DMA_BOUNCE_UNALIGNED_KMALLOC is set) the SW IO TLB
-# is used, and it defaults to 64MB. This is too much when there's only 256MB of
-# RAM, so request 0 slabs and lets the kernel round up to the appropriate minimum
-# (1MB, typically). In virtual hardware there's very little need for these bounce
-# buffers, so the 64MB would be mostly wasted.
-QB_KERNEL_CMDLINE_APPEND:append = " swiotlb=0"
 
 # This should be kept align with ROOT_VM
 QB_DRIVE_TYPE ?= "/dev/sd"
@@ -155,7 +139,7 @@ python do_write_qemuboot_conf() {
         # contains all tools required by runqemu
         if k == 'STAGING_BINDIR_NATIVE':
             val = os.path.join(d.getVar('BASE_WORKDIR'), d.getVar('BUILD_SYS'),
-                               'qemu-helper-native/1.0/recipe-sysroot-native/usr/bin/')
+                               'qemu-helper-native/1.0-r1/recipe-sysroot-native/usr/bin/')
         else:
             val = d.getVar(k)
         if val is None:
@@ -185,5 +169,3 @@ python do_write_qemuboot_conf() {
            os.remove(qemuboot_link)
         os.symlink(os.path.basename(qemuboot), qemuboot_link)
 }
-
-EXTRA_IMAGEDEPENDS += "qemu-system-native qemu-helper-native:do_addto_recipe_sysroot"

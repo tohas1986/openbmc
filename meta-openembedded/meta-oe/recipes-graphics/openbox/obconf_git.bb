@@ -1,4 +1,5 @@
 SUMMARY = "Openbox configuration tool"
+AUTHOR = "Dana Jansens & Tim Riley & Javeed Shaikh"
 HOMEPAGE = "http://openbox.org/wiki/ObConf:About"
 SECTION = "x11/wm"
 LICENSE = "GPL-2.0-or-later"
@@ -8,7 +9,7 @@ DEPENDS = " \
     startup-notification \
     gtk+3 \
 "
-PV = "2.0.4+git"
+PV = "2.0.4+git${SRCPV}"
 
 SRCREV = "63ec47c5e295ad4f09d1df6d92afb7e10c3fec39"
 SRC_URI = " \

@@ -1,0 +1,6 @@
+[Unit]
+Description=Set Interface Board Power Property On
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/setPowerProperty.sh on

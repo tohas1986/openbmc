@@ -1,0 +1,65 @@
+From 8192dc01e19e65b3525b542b935f02402e1929ed Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 9 Jun 2022 10:54:00 +0000
+Subject: [PATCH] Add separate fancontrol functions
+
+---
+ ipmi/manual_messages.hpp |  2 ++
+ ipmi/manualcmds.cpp      | 22 +++++++++++++++++++++-
+ 2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/ipmi/manual_messages.hpp b/ipmi/manual_messages.hpp
+index 45c7397..aae8e38 100644
+--- a/ipmi/manual_messages.hpp
++++ b/ipmi/manual_messages.hpp
+@@ -27,6 +27,8 @@ struct FanCtrlRequestSet
+     uint8_t command;
+     uint8_t zone;
+     uint8_t value;
++    uint8_t action;
++    uint8_t fannumber;
+ } __attribute__((packed));
+ 
+ } // namespace ipmi
+diff --git a/ipmi/manualcmds.cpp b/ipmi/manualcmds.cpp
+index d56a627..0df2ba8 100644
+--- a/ipmi/manualcmds.cpp
++++ b/ipmi/manualcmds.cpp
+@@ -144,8 +144,26 @@ ipmi_ret_t ZoneControlIpmiHandler::setFanPwm(const uint8_t* reqBuf,
+ 
+     /* Value between 0 and 100 */
+     uint8_t target_pwm = static_cast<uint8_t>(request->value);
++    /*  
++        1 - Rotate all fans simultaneously
++        0 - Rotate each fan separatly
++    */
++    uint8_t target_action = static_cast<uint8_t>(request->action);
++    /*
++        Target Fan Number:
++        1-4 for Compute Node
++        1-8 for JBOG
++    */
++    uint8_t target_fannumber = static_cast<uint8_t>(request->fannumber);
++    
+     if (target_pwm > 100)
+         return IPMI_CC_INVALID;
++    
++    if ((target_action > 1) || (target_action < 0))
++        return IPMI_CC_INVALID;
++
++    if (target_fannumber > 8)
++        return IPMI_CC_INVALID;
+ 
+     ipmi_ret_t rc = IPMI_CC_OK;
+     /* Uncomment to join set to manual control and fan set */
+@@ -161,7 +179,9 @@ ipmi_ret_t ZoneControlIpmiHandler::setFanPwm(const uint8_t* reqBuf,
+     std::string cmd_str;
+     char command[255];
+ 
+-    cmd << "/bin/sh -c 'source /usr/share/openrack/functions; setfans " << +target_pwm << "'";
++    cmd << "/bin/sh -c 'source /usr/share/openrack/functions; setfans " << +target_pwm << " ";
++    cmd << +target_action << " ";
++    cmd << +target_fannumber << "'";
+     cmd_str = cmd.str();
+     std::cerr << __FUNCTION__ << " Setting fans: " << cmd_str << "\n";
+ 

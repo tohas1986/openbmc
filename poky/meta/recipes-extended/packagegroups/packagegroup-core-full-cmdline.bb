@@ -4,6 +4,7 @@
 
 SUMMARY = "Standard full-featured Linux system"
 DESCRIPTION = "Package group bringing in packages needed for a more traditional full-featured Linux system"
+PR = "r6"
 
 inherit packagegroup
 
@@ -42,7 +43,7 @@ RDEPENDS:packagegroup-core-full-cmdline-utils = "\
     less \
     makedevs \
     mc \
-    mc-shell \
+    mc-fish \
     mc-helpers \
     mc-helpers-perl \
     ncurses \

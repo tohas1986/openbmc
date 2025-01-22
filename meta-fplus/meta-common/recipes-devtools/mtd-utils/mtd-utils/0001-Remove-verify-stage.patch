@@ -1,0 +1,23 @@
+From 0c31aa4bc1e457367b48a277c7af37768f67c2c9 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 11 Dec 2020 13:48:56 +0000
+Subject: [PATCH] Remove verify stage
+
+---
+ misc-utils/flashcp.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/misc-utils/flashcp.c b/misc-utils/flashcp.c
+index d7b0a59..6063743 100644
+--- a/misc-utils/flashcp.c
++++ b/misc-utils/flashcp.c
+@@ -357,6 +357,9 @@ int main (int argc,char *argv[])
+ 				KB ((unsigned long long)filestat.st_size));
+ 	DEBUG("Wrote %d / %lluk bytes\n",written,(unsigned long long)filestat.st_size);
+ 
++	/* No need to verify */
++	exit (EXIT_SUCCESS);
++
+ 	/**********************************
+ 	 * verify that flash == file data *
+ 	 **********************************/

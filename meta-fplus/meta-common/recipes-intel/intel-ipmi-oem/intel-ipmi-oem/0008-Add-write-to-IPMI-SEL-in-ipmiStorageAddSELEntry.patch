@@ -1,0 +1,61 @@
+From a159170bff0505bcd9ffb34c6aefccc0b122de4c Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 7 Apr 2021 17:00:48 +0000
+Subject: [PATCH] Add write to IPMI SEL in ipmiStorageAddSELEntry
+
+---
+ src/storagecommands.cpp | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)
+
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index c47d2cb..3454d32 100644
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -1186,6 +1186,12 @@ ipmi::RspType<uint16_t, // Next Record ID
+     return ipmi::responseUnspecifiedError();
+ }
+ 
++static constexpr char const* ipmiSELService =    "xyz.openbmc_project.Logging.IPMI";
++static constexpr char const* ipmiSELPath = "/xyz/openbmc_project/Logging/IPMI";
++static constexpr char const* ipmiSELAddInterface = "xyz.openbmc_project.Logging.IPMI";
++
++static const std::string ipmiSELAddMessage = "SEL Entry";
++
+ ipmi::RspType<uint16_t> ipmiStorageAddSELEntry(
+     uint16_t recordID, uint8_t recordType, uint32_t timestamp,
+     uint16_t generatorID, uint8_t evmRev, uint8_t sensorType, uint8_t sensorNum,
+@@ -1203,6 +1209,34 @@ ipmi::RspType<uint16_t> ipmiStorageAddSELEntry(
+         sensorNum, eventType, eventData1, eventData2, eventData3);
+ 
+     uint16_t responseID = 0xFFFF;
++
++    //log SEL
++    std::vector<uint8_t> eventData(9, 0xFF);
++    eventData[0] = generatorID;
++    eventData[1] = generatorID >> 8;
++    eventData[2] = evmRev;
++    eventData[3] = sensorType;
++    eventData[4] = sensorNum;
++    eventData[5] = eventType;
++    eventData[6] = eventData1;
++    eventData[7] = eventData2;
++    eventData[8] = eventData3;
++
++    std::shared_ptr<sdbusplus::asio::connection> bus = getSdBus();
++    sdbusplus::message::message writeSEL = bus->new_method_call(
++        ipmiSELService, ipmiSELPath, ipmiSELAddInterface, "IpmiSelAddOem");
++    writeSEL.append(ipmiSELAddMessage,  eventData, recordType);
++
++    try
++    {
++        auto ret = bus->call(writeSEL);
++        ret.read(responseID);
++    }
++    catch (sdbusplus::exception_t& e)
++    {
++        std::cerr << "call IpmiSelAdd failed\n";
++    }
++
+     return ipmi::responseSuccess(responseID);
+ }
+ 

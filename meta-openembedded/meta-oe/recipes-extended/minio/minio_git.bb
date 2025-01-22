@@ -6,7 +6,7 @@ DESCRIPTION = "MinIO Client (mc) provides a modern alternative to \
                cloud storage service (AWS Signature v2 and v4). \
 "
 
-SRC_URI = "git://github.com/minio/mc;branch=master;name=mc;protocol=https \
+SRC_URI = "git://github.com/minio/mc;nobranch=1;name=mc;protocol=https \
            file://modules.txt \
           "
 
@@ -14,11 +14,9 @@ include src_uri.inc
 
 SRCREV_mc = "01b87ecc02ffad47dfe13c2154ac31db3e3115df"
 
-SRCREV_FORMAT .= "_mc"
-
 GO_IMPORT = "import"
 
-LICENSE = "AGPL-3.0-only"
+LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://src/${GO_IMPORT}/LICENSE;md5=eb1e647870add0502f8f010b19de32af"
 
 PV = "${SRCREV_mc}"
@@ -26,11 +24,7 @@ PV = "${SRCREV_mc}"
 inherit go
 inherit goarch
 
-# | ./github.com/minio/mc/main.go:27:(.text+0xd258b8): relocation R_MIPS_HI16 against `a local symbol' cannot be used when making a shared object; recompile with -fPIC
-COMPATIBLE_HOST:mips = "null"
-# ERROR: QA Issue: minio: ELF binary /usr/sbin/mc has relocations in .text [textrel]
-# Needs fixing with go >= 1.20.4"
-EXCLUDE_FROM_WORLD = "1"
+CGO_LDFLAGS:append:mips = " -no-pie"
 
 DEPENDS += "rsync-native"
 

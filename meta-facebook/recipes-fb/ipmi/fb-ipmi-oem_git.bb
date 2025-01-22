@@ -5,7 +5,7 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=9e69ba356fa59848ffd865152a3ccc13"
 
 SRC_URI = "git://github.com/openbmc/fb-ipmi-oem;branch=master;protocol=https"
-SRCREV = "d8d95a3d35071cfef54b519db4a7ffb5beb4b5bf"
+SRCREV = "e9baaff1437783d916e18b19d32d3b1fcb58e01a"
 
 S = "${WORKDIR}/git"
 PV = "0.1+git${SRCPV}"
@@ -38,5 +38,6 @@ FILES:${PN}:append = " ${libdir}/net-ipmid/lib*${SOLIBS}"
 FILES:${PN}-dev:append = " ${libdir}/ipmid-providers/lib*${SOLIBSDEV}"
 
 do_install:append(){
-   install -d ${D}/var/lib/${PN}
+   install -d ${D}${includedir}/fb-ipmi-oem
+   install -m 0644 -D ${S}/include/*.hpp ${D}${includedir}/fb-ipmi-oem
 }

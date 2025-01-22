@@ -1,0 +1,21 @@
+From 01ed25d722f3672d7023e261af06e9aaafa3af84 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 29 Sep 2022 09:05:58 +0000
+Subject: [PATCH] fru_device: ignore incorrect CRC
+
+---
+ src/fru_utils.cpp | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/fru_utils.cpp b/src/fru_utils.cpp
+index 51f5963..de05738 100644
+--- a/src/fru_utils.cpp
++++ b/src/fru_utils.cpp
+@@ -585,7 +585,6 @@ bool validateHeader(const std::array<uint8_t, I2C_SMBUS_BLOCK_MAX>& blockData)
+                       << " is invalid. calculated checksum is " << (int)(sum)
+                       << "\n";
+         }
+-        return false;
+     }
+     return true;
+ }

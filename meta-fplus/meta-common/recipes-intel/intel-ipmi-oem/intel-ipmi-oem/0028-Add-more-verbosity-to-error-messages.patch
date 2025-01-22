@@ -1,0 +1,72 @@
+From 8a78d921c4fc18731e338b09c4178bd932bd8e55 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 16 Dec 2022 15:05:40 +0000
+Subject: [PATCH] Add more verbosity to error messages
+
+%% original patch: 0028-Add-more-verbosity-to-error-messages.patch
+---
+ src/sensorcommands.cpp  | 14 ++++++++++++++
+ src/storagecommands.cpp |  3 +++
+ 2 files changed, 17 insertions(+)
+
+diff --git a/src/sensorcommands.cpp b/src/sensorcommands.cpp
+index 54667b0..fa2cfff 100644
+--- a/src/sensorcommands.cpp
++++ b/src/sensorcommands.cpp
+@@ -251,6 +251,9 @@ static bool getSensorMap(boost::asio::yield_context yield,
+             phosphor::logging::log<phosphor::logging::level::ERR>(
+                 "GetMangagedObjects for getSensorMap failed",
+                 phosphor::logging::entry("ERROR=%s", ec.message().c_str()));
++            std::cerr << __FILE__ << ":" << __FUNCTION__ << ":" << __LINE__
++                      << " error code: " << ec.message()
++                      << " connection: " << sensorConnection << "\n";
+             return false;
+         }
+ 
+@@ -262,11 +265,15 @@ static bool getSensorMap(boost::asio::yield_context yield,
+     auto connection = SensorCache.find(sensorConnection);
+     if (connection == SensorCache.end())
+     {
++        std::cerr << __FILE__ << ":" << __FUNCTION__ << ":" << __LINE__
++                  << " Empty connection:" << sensorConnection << "\n";
+         return false;
+     }
+     auto path = connection->second.find(sensorPath);
+     if (path == connection->second.end())
+     {
++        std::cerr << __FILE__ << ":" << __FUNCTION__ << ":" << __LINE__
++                  << " Empty path:" << sensorPath << "\n";
+         return false;
+     }
+     sensorMap = path->second;
+@@ -1726,6 +1733,13 @@ ipmi::RspType<uint8_t,  // sdr version
+         return ipmi::response(ret);
+     }
+ 
++    std::cerr << __FUNCTION__ << ":" << __LINE__
++              << " NumberOfSensors:" << getNumberOfSensors()
++              << " fruCount:" << +fruCount
++              << " type12Count:" << +ipmi::storage::type12Count
++              << " nmDiscoverSDRCount:" << +ipmi::storage::nmDiscoverySDRCount
++              << "\n";
++
+     uint16_t recordCount = getNumberOfSensors() + fruCount +
+                            ipmi::storage::type12Count +
+                            ipmi::storage::nmDiscoverySDRCount;
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index a07a7c1..2bd84c2 100644
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -720,6 +720,9 @@ ipmi_ret_t getFruSdrs(ipmi::Context::ptr ctx, size_t index,
+             "GetMangagedObjects for getSensorMap failed",
+             phosphor::logging::entry("ERROR=%s", ec.message().c_str()));
+ 
++        std::cerr << __FILE__ << ":" << __FUNCTION__ << ":" << __LINE__
++                              << " error code: " << ec.message() << "\n";
++
+         return ipmi::ccResponseError;
+     }
+ 
+-- 
+2.36.1
+

@@ -1,0 +1,117 @@
+From 6c44035d78510da96e220c753fbb1517aee81d8d Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 6 Oct 2022 09:49:49 +0000
+Subject: [PATCH] Fixup BIOS version and release date
+
+---
+ include/smbios_mdrv2.hpp |  4 +---
+ include/system.hpp       |  1 +
+ src/mdrv2.cpp            | 47 +++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 46 insertions(+), 6 deletions(-)
+
+diff --git a/include/smbios_mdrv2.hpp b/include/smbios_mdrv2.hpp
+index 68661d0..6062dd9 100644
+--- a/include/smbios_mdrv2.hpp
++++ b/include/smbios_mdrv2.hpp
+@@ -243,7 +243,6 @@ static inline uint8_t* getSMBIOSTypePtr(uint8_t* smbiosDataIn, uint8_t typeId,
+         uint32_t len = *(smbiosData + 1);
+         if (*smbiosData != typeId)
+         {
+-
+             smbiosData += len;
+             while ((*smbiosData != '\0') || (*(smbiosData + 1) != '\0'))
+             {
+@@ -259,8 +258,7 @@ static inline uint8_t* getSMBIOSTypePtr(uint8_t* smbiosDataIn, uint8_t typeId,
+         }
+         if (len < size)
+         {
+-            phosphor::logging::log<phosphor::logging::level::ERR>(
+-                "Record size mismatch!");
++            std::cerr << __FUNCTION__ << "Record size mismatch!";
+             return nullptr;
+         }
+         return reinterpret_cast<uint8_t*>(smbiosData);
+diff --git a/include/system.hpp b/include/system.hpp
+index a57be3d..ab47ed9 100644
+--- a/include/system.hpp
++++ b/include/system.hpp
+@@ -62,6 +62,7 @@ class System :
+     std::string version(std::string value) override;
+ 
+     std::string releaseDate(std::string value) override;
++
+     sdbusplus::bus_t& bus;
+ 
+   private:
+diff --git a/src/mdrv2.cpp b/src/mdrv2.cpp
+index a474c32..c7a625b 100644
+--- a/src/mdrv2.cpp
++++ b/src/mdrv2.cpp
+@@ -233,15 +233,56 @@ bool MDR_V2::readDataFromFlash(MDRSMBIOSHeader* mdrHdr, uint8_t* data)
+             " MDR V2 file size is smaller than mdr header\n";
+         return false;
+     }
++
++    /* Detect if it's full file with entry point */
++    smbiosFile.read(reinterpret_cast<char *>(data), 7);
++
++    int fileOffset = 0;
++    int tableOffset = 0;
++    int smbiosVer = 0;
++    if (strncmp(reinterpret_cast<char *>(data), "_SM3_", 5) == 0)
++    {
++        fileOffset = data[6];
++        fileOffset = 0;
++        smbiosVer = 3;
++        tableOffset = 0x18;
++    }
++    else if (strncmp(reinterpret_cast<char *>(data), "_SM_", 4) == 0)
++    {
++        fileOffset = data[5];
++        fileOffset = 0;
++        smbiosVer = 2;
++        tableOffset = 0x1f;
++    } else {
++        fileOffset = 0;
++        smbiosVer = 0;
++        tableOffset = 0;
++    }
++
++    smbiosFile.seekg(fileOffset, std::ios_base::beg);
++
+     smbiosFile.read(reinterpret_cast<char*>(mdrHdr), sizeof(MDRSMBIOSHeader));
+-    if (mdrHdr->dataSize > smbiosTableStorageSize)
++    if (smbiosVer == 0 && mdrHdr->dataSize > smbiosTableStorageSize)
+     {
+         std::cerr << __FUNCTION__ <<
+             " Data size out of limitation\n";
+         smbiosFile.close();
+         return false;
+     }
+-    fileLength -= sizeof(MDRSMBIOSHeader);
++
++    /* Keep old logic if it's prepared file, cut entry point if it's not */
++    if (smbiosVer == 0 )
++    {
++        fileLength -= sizeof(MDRSMBIOSHeader);
++    }
++    else
++    {
++        fileLength -= fileOffset;
++        mdrHdr->dataSize = fileLength;
++    }
++
++    smbiosFile.seekg(tableOffset, std::ios_base::beg);
++
+     if (fileLength < mdrHdr->dataSize)
+     {
+         smbiosFile.read(reinterpret_cast<char*>(data), fileLength);
+@@ -751,7 +792,7 @@ bool MDR_V2::agentSynchronizeData()
+         return false;
+     }
+ 
+-    if (!checkSMBIOSVersion(smbiosDir.dir[smbiosDirIndex].dataStorage))
++    if (0 && !checkSMBIOSVersion(smbiosDir.dir[smbiosDirIndex].dataStorage))
+     {
+         phosphor::logging::log<phosphor::logging::level::ERR>(
+             "Unsupported SMBIOS table version");

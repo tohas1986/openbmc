@@ -3,6 +3,7 @@ OBMC_IMAGE_EXTRA_INSTALL:append = " \
     plat-svc \
     motor-ctrl \
     phosphor-virtual-sensor \
+    usbutils \
     idevicerestore \
     fw-update \
     phosphor-sel-logger \
@@ -13,5 +14,4 @@ OBMC_IMAGE_EXTRA_INSTALL:append = " \
     board-type-checker \
     obmc-phosphor-buttons-signals \
     obmc-phosphor-buttons-handler \
-    phosphor-state-manager \
 "

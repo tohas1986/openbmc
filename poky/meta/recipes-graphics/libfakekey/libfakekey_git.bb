@@ -11,9 +11,9 @@ DEPENDS = "libxtst"
 SECTION = "x11/wm"
 
 SRCREV = "7ad885912efb2131e80914e964d5e635b0d07b40"
-PV = "0.3+git"
+PV = "0.3+git${SRCPV}"
 
-SRC_URI = "git://git.yoctoproject.org/${BPN};branch=master;protocol=https"
+SRC_URI = "git://git.yoctoproject.org/${BPN};branch=master"
 
 S = "${WORKDIR}/git"
 

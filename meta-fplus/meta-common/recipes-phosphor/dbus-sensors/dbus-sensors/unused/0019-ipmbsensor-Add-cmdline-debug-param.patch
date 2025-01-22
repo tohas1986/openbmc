@@ -1,0 +1,46 @@
+From 669124b8d71bdd9db6be99e642bdca33bc19c8ff Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 2 Apr 2021 10:12:52 +0000
+Subject: [PATCH] ipmbsensor-Add-cmdline-debug-param
+
+---
+ src/IpmbSensor.cpp | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 7883660..3fdae57 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -35,8 +35,9 @@
+ #include <tuple>
+ #include <variant>
+ #include <vector>
++#include <CLI/CLI.hpp>
+ 
+-constexpr const bool debug = false;
++bool DEBUG = false;
+ 
+ constexpr const char* configInterface =
+     "xyz.openbmc_project.Configuration.IpmbSensor";
+@@ -346,7 +347,7 @@ void IpmbSensor::read(void)
+                     return;
+                 }
+                 const std::vector<uint8_t>& data = std::get<5>(response);
+-                if constexpr (debug)
++                if (DEBUG)
+                 {
+                     std::cout << name << ": ";
+                     for (size_t d : data)
+@@ -580,8 +581,11 @@ void reinitSensors(sdbusplus::message::message& message)
+     }
+ }
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++    CLI::App app("IPMB (ME) sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
+ 
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);

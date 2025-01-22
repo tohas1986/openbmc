@@ -1,0 +1,42 @@
+From ebb18197987bed97a72e52229d4526acf9fff9f8 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 20 Sep 2022 12:49:07 +0000
+Subject: [PATCH] Post only changed post code
+
+---
+ main.cpp | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/main.cpp b/main.cpp
+index 57897f9..cae1c50 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -45,6 +45,7 @@
+ #endif
+ 
+ static size_t codeSize = 1; /* Size of each POST code in bytes */
++static uint64_t old_code = 0xffffffff;
+ const char* defaultHostInstances = "0";
+ #ifdef ENABLE_IPMI_SNOOP
+ const uint8_t minPositionVal = 0;
+@@ -127,8 +128,15 @@ void PostCodeEventHandler(PostReporter* reporter, bool verbose,
+         // HACK: Always send property changed signal even for the same code
+         // since we are single threaded, external users will never see the
+         // first value.
+-        reporter->value(std::make_tuple(~code, secondary_post_code_t{}), true);
+-        reporter->value(std::make_tuple(code, secondary_post_code_t{}));
++        if (code != old_code)
++        {
++            if (verbose)
++                fprintf(stderr, "Code: 0x%" PRIx64 "\n", code);
++
++            reporter->value(std::make_tuple(~code, secondary_post_code_t{}), true);
++            reporter->value(std::make_tuple(code, secondary_post_code_t{}));
++            old_code = code;
++        }
+ 
+         // read depends on old data being cleared since it doens't always read
+         // the full code size
+-- 
+2.36.0
+

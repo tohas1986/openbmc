@@ -1,0 +1,216 @@
+From b80f1c79ccded2a582b45d3093e8d42164e2bf21 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 13 Dec 2022 11:34:20 +0000
+Subject: [PATCH] Add ntpd restart and direct system setting via date
+
+---
+ bmc_epoch.cpp | 164 +++++++++++++++++++++++++++++++++++++++++++++-----
+ manager.cpp   |   2 +
+ 2 files changed, 151 insertions(+), 15 deletions(-)
+
+diff --git a/bmc_epoch.cpp b/bmc_epoch.cpp
+index aa05060..dc3a884 100644
+--- a/bmc_epoch.cpp
++++ b/bmc_epoch.cpp
+@@ -10,6 +10,17 @@
+ #include <phosphor-logging/lg2.hpp>
+ #include <xyz/openbmc_project/Common/error.hpp>
+ #include <xyz/openbmc_project/Time/error.hpp>
++#include <iomanip>
++#include <sstream>
++#include <iostream>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/socket.h>
++#include <arpa/inet.h>
++#include <sys/time.h>
++#include <error.h>
++#define NTP_PORT  123
+ 
+ // Need to do this since its not exported outside of the kernel.
+ // Refer : https://gist.github.com/lethean/446cea944b7441228298
+@@ -34,6 +45,108 @@ constexpr auto METHOD_SET_TIME = "SetTime";
+ 
+ PHOSPHOR_LOG2_USING;
+ 
++
++/* value of Byte1 and Byte2 in the ntpmsg       */
++#define B1VAL 0x16   /* VN = 2, Mode = 6 */
++#define B2VAL 2      /* Response = 0; ( this makes the packet a command )
++                        Error    = 0;
++                        More     = 0;
++                        Op Code  = 2 (read variables command) */
++#define RMASK 0x80  /* bit mask for the response bit in Status Byte2 */
++#define EMASK 0x40  /* bit mask for the error bit in Status Byte2 */
++#define MMASK 0x20  /* bit mask for the more bit in Status Byte2 */
++#define PAYLOADSIZE 468 /* size in bytes of the message payload string */
++
++int getNtpStatus(void) {
++  struct sockaddr_in    sock;
++  struct in_addr        address;
++  int                   sd;        /* file descriptor for socket */
++  fd_set                fds;
++  struct timeval        tv;
++  int                   n;         /* number returned from select call */
++  unsigned char         byte1ok;
++  unsigned char         byte2ok;
++
++  struct  {               /* RFC-1305 NTP control message format */
++    unsigned char byte1;  /* Version Number: bits 3 - 5; Mode: bits 0 - 2; */
++    unsigned char byte2;  /* Response: bit 7;
++                             Error: bit 6;
++                             More: bit 5;
++                             Op code: bits 0 - 4 */
++    unsigned short sequence;
++    unsigned char  status1;  /* LI and clock source */
++    unsigned char  status2;  /* count and code */
++    unsigned short AssocID;
++    unsigned short Offset;
++    unsigned short Count;
++    char payload[PAYLOADSIZE];
++    char authenticator[96];
++  } ntpmsg;
++
++  /* initialise timeout value */
++  tv.tv_sec = 1;
++  tv.tv_usec = 0;
++
++  /* initialise file descriptor set */
++  FD_ZERO(&fds);
++
++  inet_aton("127.0.0.1", &address);
++  sock.sin_family = AF_INET;
++  sock.sin_addr = address;
++  sock.sin_port = htons(NTP_PORT);
++
++  /*----------------------------------------------------------------*/
++  /* Compose the command message */
++
++  memset ( &ntpmsg, 0, sizeof(ntpmsg));
++  ntpmsg.byte1 = B1VAL;
++  ntpmsg.byte2 = B2VAL;  ntpmsg.sequence=htons(1);
++  /*---------------------------------------------------------------------*/
++  /* Send the command message */
++  if ((sd = socket (PF_INET, SOCK_DGRAM, 0)) < 0)
++    return -1;
++
++  if (connect(sd, (struct sockaddr *)&sock, sizeof(sock)) < 0)
++    return -1;
++
++  FD_SET(sd, &fds);
++
++  if (send(sd, &ntpmsg, sizeof(ntpmsg), 0) < 0)
++    return -1;
++
++  /*----------------------------------------------------------------------*/
++  /* Receive the reply message */
++  n = select (sd+1, &fds, (fd_set *)0, (fd_set *)0 , &tv);
++
++  if (n == 0 || n == -1 || (n = recv (sd, &ntpmsg, sizeof(ntpmsg), 0)) < 0)
++    return -1;
++
++  /*----------------------------------------------------------------------*/
++  /* Interpret the received NTP control message */
++  //printf("NTP mode 6 message\n");
++  //printf("cmd = %0x%0x\n",ntpmsg.byte1,ntpmsg.byte2);
++  //printf("status = %0x%0x\n",ntpmsg.status1,ntpmsg.status2);
++  //printf("AssocID = %0x\n",ntpmsg.AssocID);
++  //printf("Offset = %0x\n",ntpmsg.Offset);
++  //printf("%s\n\n",ntpmsg.payload);
++  /* For the reply message to be valid, the first byte should be as sent,
++     and the second byte should be the same, with the response bit set */
++  byte1ok = ((ntpmsg.byte1&0x3F) == B1VAL);
++  byte2ok = ((ntpmsg.byte2 & ~MMASK) == (B2VAL|RMASK));
++  if (!(byte1ok && byte2ok))
++    return -1;
++
++  if (!(ntpmsg.byte2 | EMASK))
++    return -1;
++
++  /* if the leap indicator (LI), which is the two most significant bits
++     in status byte1, are both one, then the clock is not synchronised. */
++  if ((ntpmsg.status1 >> 6) == 3)
++    return 0;
++
++  return 1;
++}
++
+ namespace server = sdbusplus::xyz::openbmc_project::Time::server;
+ using namespace phosphor::logging;
+ using FailedError = sdbusplus::xyz::openbmc_project::Time::Error::Failed;
+@@ -121,22 +234,43 @@ void BmcEpoch::onModeChanged(Mode mode)
+ 
+ bool BmcEpoch::setTime(const microseconds& usec)
+ {
+-    auto method = bus.new_method_call(SYSTEMD_TIME_SERVICE, SYSTEMD_TIME_PATH,
+-                                      SYSTEMD_TIME_INTERFACE, METHOD_SET_TIME);
+-    method.append(static_cast<int64_t>(usec.count()),
+-                  false,  // relative
+-                  false); // user_interaction
++    char command[100];
++    int rc;
++
++    rc = getNtpStatus();
++    if (rc == 1)
++     {
++        std::cerr << "Set time request declined, BMC is synchronized to NTP\n";
++        return true;
++     }
++
++    std::ostringstream cmd_set;
++    uint32_t seconds = usec.count()/1000000;
++
++    auto now = system_clock::now().time_since_epoch();
++    uint32_t bmc_seconds = duration_cast<std::chrono::seconds>(now).count();
++
++    if (seconds < bmc_seconds && (bmc_seconds - seconds) > (24*60*60))
++     {
++        std::cerr << "Set time request declined, time provided is in the past\n";
++        return true;
++     }
++
++    cmd_set << "date +%s -s @" << +seconds;
++    std::string cmd_set_str = cmd_set.str();
++    memset(command,0,sizeof(command));
++    std::copy(cmd_set_str.begin(), cmd_set_str.end(), command);
++    rc = system(command);
++    std::cerr << "Setting time: " << cmd_set_str << " rc=" << +rc << "\n";
++
++    std::cerr << "Restarting ntpd\n";
++    std::ostringstream cmd_start;
++    cmd_start << "systemctl restart --no-block ntpd";
++    std::string cmd_start_str = cmd_start.str();
++    memset(command,0,sizeof(command));
++    std::copy(cmd_start_str.begin(), cmd_start_str.end(), command);
++    rc = system(command);
+ 
+-    try
+-    {
+-        bus.call_noreply(method);
+-    }
+-    catch (const sdbusplus::exception_t& ex)
+-    {
+-        error("Error in setting system time: {ERROR}", "ERROR", ex);
+-        using namespace xyz::openbmc_project::Time;
+-        elog<FailedError>(Failed::REASON(ex.what()));
+-    }
+     return true;
+ }
+ 
+diff --git a/manager.cpp b/manager.cpp
+index 169fb30..98a1764 100644
+--- a/manager.cpp
++++ b/manager.cpp
+@@ -70,6 +70,8 @@ int Manager::onSettingsChanged(sdbusplus::message_t& msg)
+ 
+ void Manager::updateNtpSetting(const std::string& value)
+ {
++	return;
++
+     try
+     {
+         bool isNtp =
+-- 
+2.36.1
+

@@ -7,20 +7,17 @@ PROVIDES = "${PACKAGES}"
 PACKAGES = ' \
     packagegroup-meta-filesystems \
     packagegroup-meta-filesystems-support \
-    packagegroup-meta-filesystems-utils \
+    packagegroup-meta-filesystems-utls \
 '
 
 RDEPENDS:packagegroup-meta-filesystems = "\
     packagegroup-meta-filesystems \
     packagegroup-meta-filesystems-support \
-    packagegroup-meta-filesystems-utils \
+    packagegroup-meta-filesystems-utls \
 "
 
 RDEPENDS:packagegroup-meta-filesystems = "\
     ifuse \
-    libisofs \
-    libburn \
-    libisoburn \
     logfsprogs \
     fuse-exfat \
     owfs \

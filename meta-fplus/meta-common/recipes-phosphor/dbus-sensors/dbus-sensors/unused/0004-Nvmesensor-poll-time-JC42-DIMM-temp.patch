@@ -1,0 +1,46 @@
+From 1d27764ba5e7b392b70643f487ab08e48fceefbd Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 1 Apr 2021 12:14:44 +0000
+Subject: [PATCH] Nvmesensor poll time:JC42-DIMM-temp [RNDEMBED-351]
+
+---
+ src/HwmonTempMain.cpp | 5 +++--
+ src/NVMeSensor.cpp    | 2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/HwmonTempMain.cpp b/src/HwmonTempMain.cpp
+index af474e2..70c96ad 100644
+--- a/src/HwmonTempMain.cpp
++++ b/src/HwmonTempMain.cpp
+@@ -40,7 +40,7 @@ static constexpr bool debug = false;
+ static constexpr float pollRateDefault = 0.5;
+ 
+ namespace fs = std::filesystem;
+-static constexpr std::array<const char*, 14> sensorTypes = {
++static constexpr std::array<const char*, 15> sensorTypes = {
+     "xyz.openbmc_project.Configuration.EMC1412",
+     "xyz.openbmc_project.Configuration.EMC1413",
+     "xyz.openbmc_project.Configuration.EMC1414",
+@@ -54,7 +54,8 @@ static constexpr std::array<const char*, 14> sensorTypes = {
+     "xyz.openbmc_project.Configuration.TMP421",
+     "xyz.openbmc_project.Configuration.TMP441",
+     "xyz.openbmc_project.Configuration.TMP75",
+-    "xyz.openbmc_project.Configuration.NCT7802"};
++    "xyz.openbmc_project.Configuration.NCT7802",
++    "xyz.openbmc_project.Configuration.JC42"};
+ 
+ void createSensors(
+     boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,
+diff --git a/src/NVMeSensor.cpp b/src/NVMeSensor.cpp
+index 1c78354..5119ab9 100644
+--- a/src/NVMeSensor.cpp
++++ b/src/NVMeSensor.cpp
+@@ -395,7 +395,7 @@ NVMeContext::NVMeContext(boost::asio::io_service& io, int rootBus) :
+ 
+ void NVMeContext::pollNVMeDevices()
+ {
+-    scanTimer.expires_from_now(boost::posix_time::seconds(1));
++    scanTimer.expires_from_now(boost::posix_time::seconds(5));
+     scanTimer.async_wait(
+         [self{shared_from_this()}](const boost::system::error_code errorCode) {
+             if (errorCode == boost::asio::error::operation_aborted)

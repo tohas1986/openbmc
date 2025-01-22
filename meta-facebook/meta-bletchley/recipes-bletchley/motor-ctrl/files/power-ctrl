@@ -10,9 +10,9 @@ export PATH=$PATH:/usr/sbin:/usr/libexec
 source /usr/libexec/bletchley-common-functions
 
 DELAY_POWER_ON="0.5"
-DELAY_POWER_OFF="10"
+DELAY_POWER_OFF="5"
 DELAY_POWER_RECOVERY_MODE="10"
-POWER_BTN_TIMEOUT_SEC=10
+POWER_BTN_TIMEOUT_CNT=60
 
 REV_EVT="EVT"
 REV_DVT="DVT"
@@ -98,6 +98,23 @@ function get_board_rev()
     return 0
 }
 
+#Switch pull low while it be touched
+function wait_for_switch()
+{
+    TARGET_PIN=$1
+    TARGET_SWITCH=1
+    TIME_CNT=0
+    while  [ "$TARGET_SWITCH" -eq 1 ]  ;do
+        TARGET_SWITCH=$(get_gpio "$TARGET_PIN")
+        sleep 0.1
+        TIME_CNT=$(( TIME_CNT +1))
+         if [  $TIME_CNT -gt $POWER_BTN_TIMEOUT_CNT ];then
+             echo "Error: Too long to get target switch, force exit"  >&2
+             break
+         fi
+    done
+}
+
 function trigger_power_button()
 {
     local sled_num=$1
@@ -110,7 +127,7 @@ function trigger_power_button()
 
     echo "Motor go forward to press Power key"
     motor-ctrl "sled${sled_num}" f >/dev/null
-    wait_gpio_falling "${GPIO_DETECT_PIN0}" "$POWER_BTN_TIMEOUT_SEC"
+    wait_for_switch "${GPIO_DETECT_PIN0}"
     motor-ctrl "sled${sled_num}" s >/dev/null
 
     if [ "$(get_gpio  "$GPIO_DETECT_PIN0")" -eq 0 ];then
@@ -122,7 +139,7 @@ function trigger_power_button()
     fi
 
     motor-ctrl "sled${sled_num}" r >/dev/null
-    wait_gpio_falling "${GPIO_DETECT_PIN1}" "$POWER_BTN_TIMEOUT_SEC"
+    wait_for_switch "${GPIO_DETECT_PIN1}"
     motor-ctrl "sled${sled_num}" s >/dev/null
     if [ "$(get_gpio  "$GPIO_DETECT_PIN1")" -eq 0 ];then
         echo "Motor reverse to initial position successful"
@@ -142,7 +159,7 @@ function release_power_button()
     fi
 
     motor-ctrl "sled${sled_num}" r >/dev/null
-    wait_gpio_falling "${GPIO_DETECT_PIN1}" "$POWER_BTN_TIMEOUT_SEC"
+    wait_for_switch "${GPIO_DETECT_PIN1}"
     motor-ctrl "sled${sled_num}" s >/dev/null
     if [ "$(get_gpio  "$GPIO_DETECT_PIN1")" -eq 0 ];then
         echo "Motor reverse to initial position successful"
@@ -161,7 +178,7 @@ function press_power_button()
 
     echo "Motor go forward to press Power button"
     motor-ctrl "sled${sled_num}" f >/dev/null
-    wait_gpio_falling "${GPIO_DETECT_PIN0}" "$POWER_BTN_TIMEOUT_SEC"
+    wait_for_switch "${GPIO_DETECT_PIN0}"
     motor-ctrl "sled${sled_num}" s >/dev/null
 
     if [ "$(get_gpio  "$GPIO_DETECT_PIN0")" -eq 0 ];then
@@ -367,7 +384,6 @@ function do_action_ac_on()
     local SLED_NUM=$1
     echo "sled${SLED_NUM}: turn on AC"
     set_gpio "power-host${SLED_NUM}" 1
-    sleep 3 # Newer versions of the managed system needs 3 second delay
     echo "$ACTION_AC_ON" > "/tmp/sled${SLED_NUM}-last-action"
 }
 
@@ -455,9 +471,6 @@ function host_state_on_action_handler()
         "$ACTION_CYCLE")
             do_action_cycle "$SLED_NUM"
             ;;
-        "$ACTION_ON")
-            echo "already on"
-            ;;
         *)
             echo "Invalid action ($ACTION) for current host state (On)"
             return 1
@@ -516,9 +529,6 @@ function host_state_off_action_handler()
             ;;
         "$ACTION_CYCLE")
             do_action_cycle "$SLED_NUM"
-            ;;
-        "$ACTION_OFF")
-            echo "already off"
             ;;
         *)
             echo "Invalid action ($ACTION) for current host state (Off)"

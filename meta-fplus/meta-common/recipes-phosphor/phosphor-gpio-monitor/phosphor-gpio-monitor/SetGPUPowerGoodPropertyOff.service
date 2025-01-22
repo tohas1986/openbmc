@@ -1,0 +1,6 @@
+[Unit]
+Description=Set GPU Power Property Off
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/setGPUPowerProperty.sh off

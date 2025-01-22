@@ -1,0 +1,102 @@
+From c4cc1ce9075855cb3c6d49848342ebf470811536 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 9 Jun 2020 15:39:02 +0000
+Subject: [PATCH 1/1] Add raw logging to stderr
+
+---
+ kcsbridged.cpp | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 56 insertions(+), 1 deletion(-)
+
+diff --git a/kcsbridged.cpp b/kcsbridged.cpp
+index a37cf5f..c8cccf6 100644
+--- a/kcsbridged.cpp
++++ b/kcsbridged.cpp
+@@ -22,9 +22,39 @@
+ #include <phosphor-logging/log.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
++#include <chrono>
++#include <ctime>
++#include <iomanip>
++#include <sstream>
++#include <string>
+ 
+ using namespace phosphor::logging;
+ 
++std::string time_in_HH_MM_SS_MMM()
++{
++    using namespace std::chrono;
++
++    // get current time
++    auto now = system_clock::now();
++
++    // get number of milliseconds for the current second
++    // (remainder after division into seconds)
++    auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
++
++    // convert to std::time_t in order to convert to std::tm (broken time)
++    auto timer = system_clock::to_time_t(now);
++
++    // convert to broken time
++    std::tm bt = *std::localtime(&timer);
++
++    std::ostringstream oss;
++
++    oss << std::put_time(&bt, "%H:%M:%S"); // HH:MM:SS
++    oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
++
++    return oss.str();
++}
++
+ namespace
+ {
+ namespace io_control
+@@ -162,12 +192,25 @@ class SmsChannel
+         uint8_t netfn = *rawIter >> netFnShift;
+         uint8_t lun = *rawIter++ & lunMask;
+         uint8_t cmd = *rawIter++;
++
+         if (verbose)
+         {
++            std::stringstream ss;
++            std::vector<uint8_t> raw_packet(xferBuffer.cbegin() + 1, rawEnd);
++            ss << "netfn 0x" << std::hex << std::setfill('0') << std::setw(2) << +netfn;
++            ss << " cmd 0x" << std::hex << std::setfill('0') << std::setw(2) << +cmd;
++            ss << " raw 0x";
++            for(uint8_t b : raw_packet)
++                ss << std::hex << std::setfill('0') << std::setw(2) << +b;
++            std::string rawstr = ss.str();
++            std::cerr << time_in_HH_MM_SS_MMM() << " <<<< " << rawstr << "\n";
++
+             log<level::INFO>("Read req msg", entry("NETFN=0x%02x", netfn),
+                              entry("LUN=0x%02x", lun),
+-                             entry("CMD=0x%02x", cmd));
++                             entry("CMD=0x%02x", cmd),
++                             entry("RAW=0x%s", rawstr.c_str()));
+         }
++
+         // copy out payload
+         std::vector<uint8_t> data(rawIter, rawEnd);
+         // non-session bridges still need to pass an empty options map
+@@ -219,6 +262,18 @@ class SmsChannel
+                 }
+                 if (verbose)
+                 {
++                    std::stringstream ss;
++                    std::vector<uint8_t> raw_packet(rsp.cbegin() + 1, rsp.cend());
++                    ss << "netfn 0x" << std::hex << std::setfill('0') << std::setw(2) << +netfn;
++                    ss << " cmd 0x" << std::hex << std::setfill('0') << std::setw(2) << +cmd;
++                    ss << " raw 0x";
++                    for(uint8_t b : raw_packet)
++                        ss << std::hex << std::setfill('0') << std::setw(2) << +b;
++                    ss << " cc 0x" << std::hex << std::setfill('0') << std::setw(2) << +cc;
++
++                    std::string rawstr = ss.str();
++                    std::cerr << time_in_HH_MM_SS_MMM() << " >>>> " << rawstr << "\n";
++
+                     log<level::INFO>(
+                         "Send rsp msg", entry("NETFN=0x%02x", netfn),
+                         entry("LUN=0x%02x", lun), entry("CMD=0x%02x", cmd),
+-- 
+2.7.4
+

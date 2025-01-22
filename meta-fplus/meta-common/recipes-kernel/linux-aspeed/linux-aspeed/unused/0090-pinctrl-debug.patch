@@ -1,0 +1,252 @@
+From 2a60b9c65f381f304ce51334eed2f9c734ee247f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 22 Oct 2020 13:23:54 +0000
+Subject: [PATCH 1/1] pinctrl debug
+
+---
+ drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c |  4 ++--
+ drivers/pinctrl/aspeed/pinctrl-aspeed.c    | 20 ++++++++++----------
+ drivers/pinctrl/aspeed/pinmux-aspeed.c     |  2 +-
+ drivers/pinctrl/core.c                     | 18 +++++++++---------
+ drivers/pinctrl/pinconf.c                  |  4 ++--
+ 5 files changed, 24 insertions(+), 24 deletions(-)
+
+diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
+index 115a154..810983b 100644
+--- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
++++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
+@@ -2643,7 +2643,7 @@ static struct regmap *aspeed_g5_acquire_regmap(struct aspeed_pinmux_data *ctx,
+ 			return ERR_PTR(-ENODEV);
+ 
+ 		ctx->maps[ASPEED_IP_GFX] = map;
+-		dev_dbg(ctx->dev, "Acquired GFX regmap");
++		dev_info(ctx->dev, "Acquired GFX regmap");
+ 		return map;
+ 	}
+ 
+@@ -2662,7 +2662,7 @@ static struct regmap *aspeed_g5_acquire_regmap(struct aspeed_pinmux_data *ctx,
+ 			return ERR_PTR(-ENODEV);
+ 
+ 		ctx->maps[ASPEED_IP_LPC] = map;
+-		dev_dbg(ctx->dev, "Acquired LPC regmap");
++		dev_info(ctx->dev, "Acquired LPC regmap");
+ 		return map;
+ 	}
+ 
+diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed.c b/drivers/pinctrl/aspeed/pinctrl-aspeed.c
+index 90fda90..b8b1bf7 100644
+--- a/drivers/pinctrl/aspeed/pinctrl-aspeed.c
++++ b/drivers/pinctrl/aspeed/pinctrl-aspeed.c
+@@ -76,7 +76,7 @@ static int aspeed_sig_expr_enable(struct aspeed_pinmux_data *ctx,
+ {
+ 	int ret;
+ 
+-	pr_debug("Enabling signal %s for %s\n", expr->signal,
++	pr_info("Enabling signal %s for %s\n", expr->signal,
+ 		 expr->function);
+ 
+ 	ret = aspeed_sig_expr_eval(ctx, expr, true);
+@@ -94,7 +94,7 @@ static int aspeed_sig_expr_disable(struct aspeed_pinmux_data *ctx,
+ {
+ 	int ret;
+ 
+-	pr_debug("Disabling signal %s for %s\n", expr->signal,
++	pr_info("Disabling signal %s for %s\n", expr->signal,
+ 		 expr->function);
+ 
+ 	ret = aspeed_sig_expr_eval(ctx, expr, true);
+@@ -235,7 +235,7 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
+ 		const struct aspeed_sig_expr **funcs;
+ 		const struct aspeed_sig_expr ***prios;
+ 
+-		pr_debug("Muxing pin %s for %s\n", pdesc->name, pfunc->name);
++		pr_info("Muxing pin %s for %s\n", pdesc->name, pfunc->name);
+ 
+ 		if (!pdesc)
+ 			return -EINVAL;
+@@ -276,7 +276,7 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
+ 		if (ret)
+ 			return ret;
+ 
+-		pr_debug("Muxed pin %s as %s for %s\n", pdesc->name, expr->signal,
++		pr_info("Muxed pin %s as %s for %s\n", pdesc->name, expr->signal,
+ 			 expr->function);
+ 	}
+ 
+@@ -326,7 +326,7 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
+ 	if (!prios)
+ 		return -ENXIO;
+ 
+-	pr_debug("Muxing pin %s for GPIO\n", pdesc->name);
++	pr_info("Muxing pin %s for GPIO\n", pdesc->name);
+ 
+ 	/* Disable any functions of higher priority than GPIO */
+ 	while ((funcs = *prios)) {
+@@ -358,7 +358,7 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
+ 	 * expression.
+ 	 */
+ 	if (!expr) {
+-		pr_debug("Muxed pin %s as GPIO\n", pdesc->name);
++		pr_info("Muxed pin %s as GPIO\n", pdesc->name);
+ 		return 0;
+ 	}
+ 
+@@ -370,7 +370,7 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
+ 	if (ret)
+ 		return ret;
+ 
+-	pr_debug("Muxed pin %s as %s\n", pdesc->name, expr->signal);
++	pr_info("Muxed pin %s as %s\n", pdesc->name, expr->signal);
+ 
+ 	return 0;
+ }
+@@ -391,7 +391,7 @@ void aspeed_gpio_disable_free(struct pinctrl_dev *pctldev,
+ 	if (offset != 25 && offset != 27)
+ 		return;
+ 
+-	dev_dbg(pctldev->dev,
++	dev_info(pctldev->dev,
+ 		"Freeing pass-through pin %s (%d). Re-enabling pass-through.\n",
+ 		pdesc->name, offset);
+ 
+@@ -599,7 +599,7 @@ int aspeed_pin_config_set(struct pinctrl_dev *pctldev, unsigned int offset,
+ 		if (rc < 0)
+ 			return rc;
+ 
+-		pr_debug("%s: Set SCU%02X[0x%08X]=%d for param %d(=%d) on pin %d\n",
++		pr_info("%s: Set SCU%02X[0x%08X]=%d for param %d(=%d) on pin %d\n",
+ 				__func__, pconf->reg, pconf->mask,
+ 				val, param, arg, offset);
+ 	}
+@@ -637,7 +637,7 @@ int aspeed_pin_config_group_set(struct pinctrl_dev *pctldev,
+ 	int rc;
+ 	int i;
+ 
+-	pr_debug("%s: Fetching pins for group selector %d\n",
++	pr_info("%s: Fetching pins for group selector %d\n",
+ 			__func__, selector);
+ 	rc = aspeed_pinctrl_get_group_pins(pctldev, selector, &pins, &npins);
+ 	if (rc < 0)
+diff --git a/drivers/pinctrl/aspeed/pinmux-aspeed.c b/drivers/pinctrl/aspeed/pinmux-aspeed.c
+index 57305ca..3f0b150 100644
+--- a/drivers/pinctrl/aspeed/pinmux-aspeed.c
++++ b/drivers/pinctrl/aspeed/pinmux-aspeed.c
+@@ -14,7 +14,7 @@ static const char *const aspeed_pinmux_ips[] = {
+ static inline void aspeed_sig_desc_print_val(
+ 		const struct aspeed_sig_desc *desc, bool enable, u32 rv)
+ {
+-	pr_debug("Want %s%X[0x%08X]=0x%X, got 0x%X from 0x%08X\n",
++	pr_info("Want %s%X[0x%08X]=0x%X, got 0x%X from 0x%08X\n",
+ 			aspeed_pinmux_ips[desc->ip], desc->reg,
+ 			desc->mask, enable ? desc->enable : desc->disable,
+ 			(rv & desc->mask) >> __ffs(desc->mask), rv);
+diff --git a/drivers/pinctrl/core.c b/drivers/pinctrl/core.c
+index 821242b..3ce7659 100644
+--- a/drivers/pinctrl/core.c
++++ b/drivers/pinctrl/core.c
+@@ -234,7 +234,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
+ 	pindesc->drv_data = pin->drv_data;
+ 
+ 	radix_tree_insert(&pctldev->pin_desc_tree, pin->number, pindesc);
+-	pr_debug("registered pin %d (%s) on %s\n",
++	pr_info("registered pin %d (%s) on %s\n",
+ 		 pin->number, pindesc->name, pctldev->desc->name);
+ 	return 0;
+ }
+@@ -721,7 +721,7 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
+ 		const char *gname = pctlops->get_group_name(pctldev,
+ 							    group_selector);
+ 		if (gname && !strcmp(gname, pin_group)) {
+-			dev_dbg(pctldev->dev,
++			dev_info(pctldev->dev,
+ 				"found group selector %u for %s\n",
+ 				group_selector,
+ 				pin_group);
+@@ -1124,7 +1124,7 @@ struct pinctrl *pinctrl_get(struct device *dev)
+ 	 */
+ 	p = find_pinctrl(dev);
+ 	if (p) {
+-		dev_dbg(dev, "obtain a copy of previously claimed pinctrl\n");
++		dev_info(dev, "obtain a copy of previously claimed pinctrl\n");
+ 		kref_get(&p->users);
+ 		return p;
+ 	}
+@@ -1210,7 +1210,7 @@ struct pinctrl_state *pinctrl_lookup_state(struct pinctrl *p,
+ 	if (!state) {
+ 		if (pinctrl_dummy_state) {
+ 			/* create dummy state */
+-			dev_dbg(p->dev, "using pinctrl dummy state (%s)\n",
++			dev_info(p->dev, "using pinctrl dummy state (%s)\n",
+ 				name);
+ 			state = create_state(p, name);
+ 		} else
+@@ -1390,7 +1390,7 @@ int pinctrl_register_mappings(const struct pinctrl_map *maps,
+ 	int i, ret;
+ 	struct pinctrl_maps *maps_node;
+ 
+-	pr_debug("add %u pinctrl maps\n", num_maps);
++	pr_info("add %u pinctrl maps\n", num_maps);
+ 
+ 	/* First sanity check the new mapping */
+ 	for (i = 0; i < num_maps; i++) {
+@@ -1989,7 +1989,7 @@ pinctrl_init_controller(struct pinctrl_desc *pctldesc, struct device *dev,
+ 	}
+ 
+ 	/* Register all the pins */
+-	dev_dbg(dev, "try to register %d pins ...\n",  pctldesc->npins);
++	dev_info(dev, "try to register %d pins ...\n",  pctldesc->npins);
+ 	ret = pinctrl_register_pins(pctldev, pctldesc->pins, pctldesc->npins);
+ 	if (ret) {
+ 		dev_err(dev, "error during pin registration\n");
+@@ -2010,7 +2010,7 @@ static int pinctrl_claim_hogs(struct pinctrl_dev *pctldev)
+ {
+ 	pctldev->p = create_pinctrl(pctldev->dev, pctldev);
+ 	if (PTR_ERR(pctldev->p) == -ENODEV) {
+-		dev_dbg(pctldev->dev, "no hogs found\n");
++		dev_info(pctldev->dev, "no hogs found\n");
+ 
+ 		return 0;
+ 	}
+@@ -2025,7 +2025,7 @@ static int pinctrl_claim_hogs(struct pinctrl_dev *pctldev)
+ 	pctldev->hog_default =
+ 		pinctrl_lookup_state(pctldev->p, PINCTRL_STATE_DEFAULT);
+ 	if (IS_ERR(pctldev->hog_default)) {
+-		dev_dbg(pctldev->dev,
++		dev_info(pctldev->dev,
+ 			"failed to lookup the default state\n");
+ 	} else {
+ 		if (pinctrl_select_state(pctldev->p,
+@@ -2038,7 +2038,7 @@ static int pinctrl_claim_hogs(struct pinctrl_dev *pctldev)
+ 		pinctrl_lookup_state(pctldev->p,
+ 				     PINCTRL_STATE_SLEEP);
+ 	if (IS_ERR(pctldev->hog_sleep))
+-		dev_dbg(pctldev->dev,
++		dev_info(pctldev->dev,
+ 			"failed to lookup the sleep state\n");
+ 
+ 	return 0;
+diff --git a/drivers/pinctrl/pinconf.c b/drivers/pinctrl/pinconf.c
+index 02c075c..fdd5cd6 100644
+--- a/drivers/pinctrl/pinconf.c
++++ b/drivers/pinctrl/pinconf.c
+@@ -59,7 +59,7 @@ int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
+ 	const struct pinconf_ops *ops = pctldev->desc->confops;
+ 
+ 	if (!ops || !ops->pin_config_get) {
+-		dev_dbg(pctldev->dev,
++		dev_info(pctldev->dev,
+ 			"cannot get pin configuration, .pin_config_get missing in driver\n");
+ 		return -ENOTSUPP;
+ 	}
+@@ -85,7 +85,7 @@ int pin_config_group_get(const char *dev_name, const char *pin_group,
+ 	ops = pctldev->desc->confops;
+ 
+ 	if (!ops || !ops->pin_config_group_get) {
+-		dev_dbg(pctldev->dev,
++		dev_info(pctldev->dev,
+ 			"cannot get configuration for pin group, missing group config get function in driver\n");
+ 		ret = -ENOTSUPP;
+ 		goto unlock;
+-- 
+2.7.4
+

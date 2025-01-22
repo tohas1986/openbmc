@@ -1,0 +1,61 @@
+From 73c2216d1667279958cc899ad36fa108f5d809d8 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 1 Apr 2021 07:36:26 +0000
+Subject: [PATCH] 
+ Add-NCT7802:Disable-System-Error-spam:Enable-default-NVME-sensor
+
+---
+ meson_options.txt     | 2 +-
+ src/HwmonTempMain.cpp | 5 +++--
+ src/PSUSensor.cpp     | 2 +-
+ 3 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/meson_options.txt b/meson_options.txt
+index 918d206..6a614de 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -6,7 +6,7 @@ option('hwmon-temp', type: 'feature', value: 'enabled', description: 'Enable HWM
+ option('intrusion', type: 'feature', value: 'enabled', description: 'Enable intrusion sensor.',)
+ option('ipmb', type: 'feature', value: 'enabled', description: 'Enable IPMB sensor.',)
+ option('mcu', type: 'feature', value: 'enabled', description: 'Enable MCU sensor.',)
+-option('nvme', type: 'feature', value: 'disabled', description: 'Enable NVMe sensor.',)
++option('nvme', type: 'feature', value: 'enabled', description: 'Enable NVMe sensor.',)
+ option('psu', type: 'feature', value: 'enabled', description: 'Enable PSU sensor.',)
+ option('external', type: 'feature', value: 'enabled', description: 'Enable External sensor.',)
+ option('tests', type: 'feature', description: 'Build tests.',)
+diff --git a/src/HwmonTempMain.cpp b/src/HwmonTempMain.cpp
+index 79eab20..af474e2 100644
+--- a/src/HwmonTempMain.cpp
++++ b/src/HwmonTempMain.cpp
+@@ -40,7 +40,7 @@ static constexpr bool debug = false;
+ static constexpr float pollRateDefault = 0.5;
+ 
+ namespace fs = std::filesystem;
+-static constexpr std::array<const char*, 13> sensorTypes = {
++static constexpr std::array<const char*, 14> sensorTypes = {
+     "xyz.openbmc_project.Configuration.EMC1412",
+     "xyz.openbmc_project.Configuration.EMC1413",
+     "xyz.openbmc_project.Configuration.EMC1414",
+@@ -53,7 +53,8 @@ static constexpr std::array<const char*, 13> sensorTypes = {
+     "xyz.openbmc_project.Configuration.TMP175",
+     "xyz.openbmc_project.Configuration.TMP421",
+     "xyz.openbmc_project.Configuration.TMP441",
+-    "xyz.openbmc_project.Configuration.TMP75"};
++    "xyz.openbmc_project.Configuration.TMP75",
++    "xyz.openbmc_project.Configuration.NCT7802"};
+ 
+ void createSensors(
+     boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index e292863..613cee0 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -164,7 +164,7 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+     if ((err == boost::system::errc::bad_file_descriptor) ||
+         (err == boost::asio::error::misc_errors::not_found))
+     {
+-        std::cerr << "Bad file descriptor from\n";
++        //std::cerr << "Bad file descriptor from\n";
+         return;
+     }
+     std::istream responseStream(readBuf.get());

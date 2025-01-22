@@ -1,0 +1,2 @@
+Common targets are:
+     image-ext image-yandex

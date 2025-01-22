@@ -77,7 +77,7 @@ exec_prefix = "${STAGING_DIR_NATIVE}${prefix_native}"
 
 bindir = "${STAGING_BINDIR_NATIVE}"
 sbindir = "${STAGING_SBINDIR_NATIVE}"
-base_libdir = "${STAGING_BASE_LIBDIR_NATIVE}"
+base_libdir = "${STAGING_LIBDIR_NATIVE}"
 libdir = "${STAGING_LIBDIR_NATIVE}"
 includedir = "${STAGING_INCDIR_NATIVE}"
 sysconfdir = "${STAGING_ETCDIR_NATIVE}"
@@ -139,7 +139,7 @@ python native_virtclass_handler () {
     if "native" not in classextend:
         return
 
-    def map_dependencies(varname, d, suffix = "", selfref=True, regex=False):
+    def map_dependencies(varname, d, suffix = "", selfref=True):
         if suffix:
             varname = varname + ":" + suffix
         deps = d.getVar(varname)
@@ -148,9 +148,7 @@ python native_virtclass_handler () {
         deps = bb.utils.explode_deps(deps)
         newdeps = []
         for dep in deps:
-            if regex and dep.startswith("^") and dep.endswith("$"):
-                newdeps.append(dep[:-1].replace(pn, bpn) + "-native$")
-            elif dep == pn:
+            if dep == pn:
                 if not selfref:
                     continue
                 newdeps.append(dep)
@@ -163,7 +161,7 @@ python native_virtclass_handler () {
                 newdeps.append(dep.replace(pn, bpn) + "-native")
             else:
                 newdeps.append(dep)
-        d.setVar(varname, " ".join(newdeps))
+        d.setVar(varname, " ".join(newdeps), parsing=True)
 
     map_dependencies("DEPENDS", e.data, selfref=False)
     for pkg in e.data.getVar("PACKAGES", False).split():
@@ -173,7 +171,6 @@ python native_virtclass_handler () {
         map_dependencies("RPROVIDES", e.data, pkg)
         map_dependencies("RREPLACES", e.data, pkg)
     map_dependencies("PACKAGES", e.data)
-    map_dependencies("PACKAGES_DYNAMIC", e.data, regex=True)
 
     provides = e.data.getVar("PROVIDES")
     nprovides = []

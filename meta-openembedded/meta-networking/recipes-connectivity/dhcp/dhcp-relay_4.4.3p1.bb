@@ -34,14 +34,7 @@ SYSTEMD_AUTO_ENABLE:${PN} = "disable"
 CFLAGS += "-D_GNU_SOURCE -fcommon"
 LDFLAGS:append = " -pthread"
 
-BIND_EXTRA_CONFIG = "\
-        --build=${BUILD_SYS} \
-        --host=${HOST_SYS} \
-        --target=${TARGET_SYS} \
-"
-
-EXTRA_OECONF = "--with-bind-extra-config="${BIND_EXTRA_CONFIG}" \
-                --enable-paranoia \
+EXTRA_OECONF = "--enable-paranoia \
                 --disable-static \
                 --enable-libtool \
                 --with-randomdev=/dev/random \
@@ -67,6 +60,3 @@ do_install:append () {
 }
 
 PARALLEL_MAKE = ""
-
-# dhcp-relay contains a bundled "bind", thus their dev packages conflict each other
-RCONFLICTS:${PN}-dev = "bind-dev"

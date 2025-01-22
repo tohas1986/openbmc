@@ -1,0 +1,582 @@
+From eac383cbdd23222b4455b1510920dff6b7eaa69d Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 2 Apr 2021 08:04:34 +0000
+Subject: [PATCH] healthSensor-Introduce-BMC-health-sensors
+
+---
+ include/HealthSensor.hpp                           |  45 +++
+ meson_options.txt                                  |   1 +
+ service_files/meson.build                          |   1 +
+ .../xyz.openbmc_project.healthsensor.service       |  13 +
+ src/HealthSensor.cpp                               | 441 +++++++++++++++++++++
+ src/meson.build                                    |  19 +
+ 6 files changed, 520 insertions(+)
+ create mode 100644 include/HealthSensor.hpp
+ create mode 100644 service_files/xyz.openbmc_project.healthsensor.service
+ create mode 100644 src/HealthSensor.cpp
+
+diff --git a/include/HealthSensor.hpp b/include/HealthSensor.hpp
+new file mode 100644
+index 0000000..1fddc15
+--- /dev/null
++++ b/include/HealthSensor.hpp
+@@ -0,0 +1,45 @@
++#pragma once
++#include "sensor.hpp"
++
++#include <boost/asio/deadline_timer.hpp>
++#include <boost/container/flat_map.hpp>
++
++#include <chrono>
++#include <limits>
++#include <memory>
++#include <string>
++#include <vector>
++
++enum class SensorTypes
++{
++    cpu,
++    memory
++};
++
++struct HealthSensor : public Sensor
++{
++    HealthSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
++                  boost::asio::io_service& io, const std::string& name,
++                  const std::string& sensorConfiguration,
++                  sdbusplus::asio::object_server& objectServer,
++                  std::vector<thresholds::Threshold>&& thresholds,
++                  const PowerState powerState, std::string &sensorTypeName,
++                  uint16_t pollTime, uint16_t failTime, bool isReboot,
++                  std::string &rebootCmd);
++    ~HealthSensor();
++
++    void checkThresholds(void) override;
++    void readSensor(void);
++    void init(void);
++
++    SensorTypes type;
++
++  private:
++    sdbusplus::asio::object_server& objectServer;
++    boost::asio::deadline_timer waitTimer;
++    uint16_t failCount;
++    uint16_t pollTime;
++    uint16_t failTime;
++    bool isReboot;
++    std::string rebootCmd;
++};
+diff --git a/meson_options.txt b/meson_options.txt
+index 4d38729..385ad19 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -11,3 +11,4 @@ option('nvmelegacy', type: 'feature', value: 'enabled', description: 'Enable NVM
+ option('psu', type: 'feature', value: 'enabled', description: 'Enable PSU sensor.',)
+ option('external', type: 'feature', value: 'enabled', description: 'Enable External sensor.',)
+ option('tests', type: 'feature', description: 'Build tests.',)
++option('health', type: 'feature', value: 'enabled', description: 'BMC Health sensor',)
+diff --git a/service_files/meson.build b/service_files/meson.build
+index 0b74e4b..313ca57 100644
+--- a/service_files/meson.build
++++ b/service_files/meson.build
+@@ -11,6 +11,7 @@ unit_files = [
+     ['nvmelegacy', 'xyz.openbmc_project.nvmelegacysensor.service'],
+     ['psu', 'xyz.openbmc_project.psusensor.service'],
+     ['external', 'xyz.openbmc_project.externalsensor.service'],
++    ['health', 'xyz.openbmc_project.healthsensor.service'],
+ ]
+ 
+ foreach tuple : unit_files
+diff --git a/service_files/xyz.openbmc_project.healthsensor.service b/service_files/xyz.openbmc_project.healthsensor.service
+new file mode 100644
+index 0000000..66ccbea
+--- /dev/null
++++ b/service_files/xyz.openbmc_project.healthsensor.service
+@@ -0,0 +1,13 @@
++[Unit]
++Description=BMC health Sensor
++StopWhenUnneeded=false
++Requires=xyz.openbmc_project.EntityManager.service
++After=xyz.openbmc_project.EntityManager.service
++
++[Service]
++Restart=always
++RestartSec=5
++ExecStart=/usr/bin/healthsensor
++
++[Install]
++WantedBy=multi-user.target
+diff --git a/src/HealthSensor.cpp b/src/HealthSensor.cpp
+new file mode 100644
+index 0000000..cb25509
+--- /dev/null
++++ b/src/HealthSensor.cpp
+@@ -0,0 +1,441 @@
++/*
++// Copyright (c) 2019 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++#include "HealthSensor.hpp"
++
++#include "Utils.hpp"
++#include "VariantVisitors.hpp"
++
++#include <math.h>
++
++#include <CLI/CLI.hpp>
++#include <boost/algorithm/string.hpp>
++#include <boost/algorithm/string/predicate.hpp>
++#include <boost/algorithm/string/replace.hpp>
++#include <boost/container/flat_map.hpp>
++#include <sdbusplus/asio/connection.hpp>
++#include <sdbusplus/asio/object_server.hpp>
++#include <sdbusplus/bus/match.hpp>
++
++#include <chrono>
++#include <functional>
++#include <iostream>
++#include <limits>
++#include <memory>
++#include <numeric>
++#include <string>
++#include <vector>
++
++extern "C"
++{
++#include <sys/sysinfo.h>
++}
++
++enum CPUStatesTime
++{
++    USER_IDX = 0,
++    NICE_IDX,
++    SYSTEM_IDX,
++    IDLE_IDX,
++    IOWAIT_IDX,
++    IRQ_IDX,
++    SOFTIRQ_IDX,
++    STEAL_IDX,
++    GUEST_USER_IDX,
++    GUEST_NICE_IDX,
++    NUM_CPU_STATES_TIME
++};
++
++bool DEBUG = false;
++
++
++constexpr const char* configInterface =
++    "xyz.openbmc_project.Configuration.HealthSensor";
++
++static constexpr double maxReading = 100;
++static constexpr double minReading = 0;
++
++boost::container::flat_map<std::string, std::unique_ptr<HealthSensor>> sensors;
++
++HealthSensor::HealthSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
++                             boost::asio::io_service& io,
++                             const std::string& sensorName,
++                             const std::string& sensorConfiguration,
++                             sdbusplus::asio::object_server& objectServer,
++                             std::vector<thresholds::Threshold>&& thresholdData,
++                             const PowerState powerState, std::string& sensorTypeName,
++                             uint16_t _pollTime, uint16_t _failTime, bool _isReboot,
++                             std::string& _rebootCmd) :
++    Sensor(boost::replace_all_copy(sensorName, " ", "_"),
++           std::move(thresholdData), sensorConfiguration,
++           "xyz.openbmc_project.Configuration.HealthSensor", maxReading, minReading,
++           conn, powerState),
++    objectServer(objectServer), waitTimer(io), failCount(0), pollTime(_pollTime),
++    failTime(_failTime), isReboot(_isReboot), rebootCmd(_rebootCmd)
++{
++
++    if (DEBUG) {
++        std::cerr << "__FUNCTION__ Construct sensor sensorTypeName:" << sensorTypeName << "\n";
++    }
++
++    type = SensorTypes::cpu;
++    if (sensorTypeName == "Memory")
++        type = SensorTypes::memory;
++
++    std::string objPath = "/xyz/openbmc_project/sensors/utilization/";
++    objPath += name;
++
++    if (DEBUG)
++        std::cerr <<  "type=" << sensorTypeName << " objPath:" << objPath << "\n";
++
++    sensorInterface = objectServer.add_interface(
++        objPath, "xyz.openbmc_project.Sensor.Value");
++
++    if (thresholds::hasWarningInterface(thresholds))
++    {
++        thresholdInterfaceWarning = objectServer.add_interface(
++            objPath, "xyz.openbmc_project.Sensor.Threshold.Warning");
++    }
++    if (thresholds::hasCriticalInterface(thresholds))
++    {
++        thresholdInterfaceCritical = objectServer.add_interface(
++            objPath, "xyz.openbmc_project.Sensor.Threshold.Critical");
++    }
++    association = objectServer.add_interface(
++        objPath, association::interface);
++}
++
++HealthSensor::~HealthSensor()
++{
++    waitTimer.cancel();
++    objectServer.remove_interface(thresholdInterfaceWarning);
++    objectServer.remove_interface(thresholdInterfaceCritical);
++    objectServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(association);
++}
++
++void HealthSensor::init(void)
++{
++    setInitialProperties(dbusConnection);
++    readSensor();
++}
++
++void HealthSensor::checkThresholds(void)
++{
++    bool cross = thresholds::checkThresholds(this);
++    bool toReboot = false;
++    if (cross)
++    {
++        failCount = 0;
++    }
++    else
++    {
++        failCount ++;
++    }
++
++    if (isReboot && ( (failCount * pollTime) > failTime))
++    {
++       toReboot = true;
++    }
++
++    if (DEBUG)
++        std::cerr << this->name << " Threshold cross:" << cross
++                  << " failcount:" << failCount
++                  << " toReboot:" << toReboot
++                  << "\n";
++    if (toReboot)
++    {
++        system(rebootCmd.c_str());
++    }
++}
++
++double readMemoryUtilization()
++{
++    struct sysinfo s_info;
++
++    sysinfo(&s_info);
++    double usedRam = s_info.totalram - s_info.freeram;
++    double memUsePerc = usedRam / s_info.totalram * 100;
++
++    if (DEBUG)
++    {
++        std::cerr << "Memory Utilization:" << memUsePerc
++                  << " TotalRam: " << s_info.totalram
++                  << " FreeRam: " << s_info.freeram
++                  << " UseRam: " << usedRam << "\n";
++    }
++
++    return memUsePerc;
++}
++
++double readCPUUtilization()
++{
++    std::ifstream fileStat("/proc/stat");
++    if (!fileStat.is_open())
++    {
++        std::cerr << "/proc/state file not available\n";
++        return -1;
++    }
++
++    std::string firstLine, labelName;
++    std::size_t timeData[NUM_CPU_STATES_TIME];
++
++    std::getline(fileStat, firstLine);
++    std::stringstream ss(firstLine);
++    ss >> labelName;
++
++    if (DEBUG)
++        std::cerr << "CPU stats first Line is " << firstLine << "\n";
++
++    if (labelName.compare("cpu"))
++    {
++        if (DEBUG) std::cerr << "CPU data not available\n";
++        return -1;
++    }
++
++    int i;
++    for (i = 0; i < NUM_CPU_STATES_TIME; i++)
++    {
++        if (!(ss >> timeData[i]))
++            break;
++    }
++
++    if (i != NUM_CPU_STATES_TIME)
++    {
++        if (DEBUG) std::cerr << "CPU data not correcti\n";
++        return -1;
++    }
++
++    static double preActiveTime = 0, preIdleTime = 0;
++    double activeTime, activeTimeDiff, idleTime, idleTimeDiff, totalTime,
++        activePercValue;
++
++    idleTime = timeData[IDLE_IDX] + timeData[IOWAIT_IDX];
++    activeTime = timeData[USER_IDX] + timeData[NICE_IDX] +
++                 timeData[SYSTEM_IDX] + timeData[IRQ_IDX] +
++                 timeData[SOFTIRQ_IDX] + timeData[STEAL_IDX] +
++                 timeData[GUEST_USER_IDX] + timeData[GUEST_NICE_IDX];
++
++    idleTimeDiff = idleTime - preIdleTime;
++    activeTimeDiff = activeTime - preActiveTime;
++
++    /* Store current idle and active time for next calculation */
++    preIdleTime = idleTime;
++    preActiveTime = activeTime;
++
++    totalTime = idleTimeDiff + activeTimeDiff;
++
++    activePercValue = activeTimeDiff / totalTime * 100;
++
++    if (DEBUG)
++        std::cerr << "CPU Utilization:" << activePercValue << "\n";
++
++    return activePercValue;
++}
++
++void HealthSensor::readSensor(void)
++{
++    waitTimer.expires_from_now(boost::posix_time::seconds(pollTime));
++    waitTimer.async_wait([this](const boost::system::error_code& ec) {
++        if (ec == boost::asio::error::operation_aborted)
++        {
++            return; // we're being cancelled
++        }
++        // read timer error
++        else if (ec)
++        {
++            std::cerr << "timer error\n";
++            return;
++        }
++        double value;
++        int ret;
++
++        if (type == SensorTypes::cpu)
++        {
++            value = readCPUUtilization();
++        }
++        else if (type == SensorTypes::memory)
++        {
++            value = readMemoryUtilization();
++        }
++
++        if (ret >= 0)
++        {
++            updateValue(value);
++        }
++        else
++        {
++            updateValue(std::numeric_limits<double>::quiet_NaN());
++        }
++        readSensor();
++    });
++}
++
++void createSensors(
++    boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,
++    boost::container::flat_map<std::string, std::unique_ptr<HealthSensor>>&
++        sensors,
++    std::shared_ptr<sdbusplus::asio::connection>& dbusConnection)
++{
++    if (!dbusConnection)
++    {
++        std::cerr << "Connection not created\n";
++        exit(-1);
++    }
++
++    dbusConnection->async_method_call(
++        [&io, &objectServer, &dbusConnection, &sensors](
++            boost::system::error_code ec, const ManagedObjectType& resp) {
++            if (ec)
++            {
++                std::cerr << "Error contacting entity manager\n";
++                exit(-1);
++            }
++            for (const auto& pathPair : resp)
++            {
++                for (const auto& entry : pathPair.second)
++                {
++                    if (entry.first != configInterface)
++                    {
++                        continue;
++                    }
++                    std::string name =
++                        loadVariant<std::string>(entry.second, "Name");
++
++                    std::vector<thresholds::Threshold> sensorThresholds;
++                    if (!parseThresholdsFromConfig(pathPair.second,
++                                                   sensorThresholds))
++                    {
++                        std::cerr << "error populating thresholds for " << name
++                                  << "\n";
++                    }
++
++                    std::string sensorClass =
++                        loadVariant<std::string>(entry.second, "Class");
++
++                    uint16_t failTime = 300;
++                    uint16_t pollTime = 30;
++                    bool isReboot = true;
++                    std::string rebootCmd = "/sbin/reboot";
++
++                    try
++                    {
++                        failTime = loadVariant<uint16_t>(entry.second, "FailTime");
++                    }
++                    catch (...)
++                    {
++                        std::cerr << "Unable to get FailTime, setting to default\n";
++                    }
++
++                    try
++                    {
++                        pollTime = loadVariant<uint16_t>(entry.second, "PollTime");
++                    }
++                    catch (...)
++                    {
++                        std::cerr << "Unable to get PollTime, setting to default\n";
++                    }
++
++                    try
++                    {
++                        isReboot = loadVariant<bool>(entry.second, "IsReboot");
++                    }
++                    catch (...)
++                    {
++                        std::cerr << "Unable to get IsReboot, setting to default\n";
++                    }
++
++                    if (DEBUG)
++                    {
++                        std::cerr
++                            << "Configuration parsed for \n\t" << entry.first
++                            << "\n"
++                            << "with\n"
++                            << "\tName: " << name << "\n"
++                            << "\tClass: " << sensorClass
++                            << "\tPollTime: " << pollTime
++                            << "\tFailTime: " << failTime
++                            << "\tIsReboot: " << isReboot
++                            << "\tRebootCmd: " << rebootCmd
++                            << "\n";
++                    }
++
++                    auto& sensor = sensors[name];
++                    PowerState powerState = PowerState::always;
++
++                    sensor = std::make_unique<HealthSensor>(
++                        dbusConnection, io, name, pathPair.first, objectServer,
++                        std::move(sensorThresholds),
++                        powerState, sensorClass, pollTime, failTime, isReboot, rebootCmd);
++
++                    sensor->init();
++                }
++            }
++        },
++        entityManagerName, "/", "org.freedesktop.DBus.ObjectManager",
++        "GetManagedObjects");
++}
++
++int main(int argc, char* argv[])
++{
++
++    CLI::App app("BMC health sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
++    boost::asio::io_service io;
++    auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
++    systemBus->request_name("xyz.openbmc_project.HealthSensor");
++    sdbusplus::asio::object_server objectServer(systemBus);
++
++    io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
++
++    boost::asio::deadline_timer configTimer(io);
++
++    std::function<void(sdbusplus::message::message&)> eventHandler =
++        [&](sdbusplus::message::message&) {
++            configTimer.expires_from_now(boost::posix_time::seconds(1));
++            // create a timer because normally multiple properties change
++            configTimer.async_wait([&](const boost::system::error_code& ec) {
++                if (ec == boost::asio::error::operation_aborted)
++                {
++                    return; // we're being canceled
++                }
++                // config timer error
++                else if (ec)
++                {
++                    std::cerr << "timer error\n";
++                    return;
++                }
++                createSensors(io, objectServer, sensors, systemBus);
++                if (sensors.empty())
++                {
++                    std::cerr << "Configuration not detected\n";
++                }
++            });
++        };
++
++    sdbusplus::bus::match::match configMatch(
++        static_cast<sdbusplus::bus::bus&>(*systemBus),
++        "type='signal',member='PropertiesChanged',"
++        "path_namespace='" +
++            std::string(inventoryPath) +
++            "',"
++            "arg0namespace='" +
++            configInterface + "'",
++        eventHandler);
++
++    io.run();
++}
+diff --git a/src/meson.build b/src/meson.build
+index 540931f..6f89885 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -229,3 +229,22 @@ if get_option('external').enabled()
+         ],
+     )
+ endif
++
++if get_option('health').enabled()
++    executable(
++        'healthsensor',
++        'HealthSensor.cpp',
++        dependencies: [
++            i2c,
++            sdbusplus,
++            mctp,
++    ],
++        implicit_include_directories: false,
++        include_directories: '../include',
++        install: true,
++        link_with: [
++            utils_a,
++            thresholds_a,
++        ],
++    )
++endif

@@ -1,0 +1,48 @@
+From e9e929f326dc7fb5f3c58ff537e2176918124072 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 10:32:44 +0000
+Subject: [PATCH 1/1] Scan on muxed buses also
+
+---
+ src/FruDevice.cpp | 11 -----------
+ 1 file changed, 11 deletions(-)
+
+diff --git a/src/FruDevice.cpp b/src/FruDevice.cpp
+index 10525eb..3aa1528 100644
+--- a/src/FruDevice.cpp
++++ b/src/FruDevice.cpp
+@@ -175,10 +175,6 @@ static bool isMuxBus(size_t bus)
+ 
+ static void makeProbeInterface(size_t bus, size_t address)
+ {
+-    if (isMuxBus(bus))
+-    {
+-        return; // the mux buses are random, no need to publish
+-    }
+     auto [it, success] = foundDevices.emplace(
+         std::make_pair(bus, address),
+         objServer.add_interface(
+@@ -395,8 +391,6 @@ int getBusFRUs(int file, int first, int last, int bus,
+             // Set slave address
+             if (ioctl(file, I2C_SLAVE, ii) < 0)
+             {
+-                std::cerr << "device at bus " << bus << " address " << ii
+-                          << " busy\n";
+                 continue;
+             }
+             // probe
+@@ -461,11 +455,6 @@ int getBusFRUs(int file, int first, int last, int bus,
+         future.wait_for(std::chrono::seconds(busTimeoutSeconds));
+     if (status == std::future_status::timeout)
+     {
+-        std::cerr << "Error reading bus " << bus << "\n";
+-        if (powerIsOn)
+-        {
+-            busBlacklist.insert(bus);
+-        }
+         close(file);
+         return -1;
+     }
+-- 
+2.7.4
+

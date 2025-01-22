@@ -1,0 +1,26 @@
+From baf730b2ec4fa250f54b9d9d5aaa980e1b814e9c Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 30 Jan 2020 11:51:56 +0300
+Subject: [PATCH 1/1] Add debug of fw_setenv
+
+---
+ ethernet_interface.cpp | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/ethernet_interface.cpp b/ethernet_interface.cpp
+index 2375482..47647d7 100644
+--- a/ethernet_interface.cpp
++++ b/ethernet_interface.cpp
+@@ -796,6 +796,9 @@ std::string EthernetInterface::mACAddress(std::string value)
+         auto envVar = interfaceToUbootEthAddr(interface.c_str());
+         if (envVar)
+         {
++            log<level::INFO>("Saving to U-Boot environment"),
++                   entry("KEY=%s VALUE=%s", envVar->c_str(),
++                        value.c_str());
+             execute("/sbin/fw_setenv", "fw_setenv", envVar->c_str(),
+                     value.c_str());
+         }
+-- 
+1.9.1
+

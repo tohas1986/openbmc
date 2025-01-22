@@ -1,0 +1,25 @@
+From 5cfc36c29e0c80aa9bdebfe81c9873bed4ec6737 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 17 Apr 2020 12:52:47 +0300
+Subject: [PATCH] Reduce logging
+
+---
+ src/network_manager_main.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/network_manager_main.cpp b/src/network_manager_main.cpp
+index 8f8a89e..3dce30e 100644
+--- a/src/network_manager_main.cpp
++++ b/src/network_manager_main.cpp
+@@ -241,9 +241,9 @@ void refreshObjects()
+ {
+     if (manager)
+     {
+-        log<level::INFO>("Refreshing the objects.");
++        log<level::DEBUG>("Refreshing the objects.");
+         manager->createChildObjects();
+-        log<level::INFO>("Refreshing complete.");
++        log<level::DEBUG>("Refreshing complete.");
+     }
+ }
+ 

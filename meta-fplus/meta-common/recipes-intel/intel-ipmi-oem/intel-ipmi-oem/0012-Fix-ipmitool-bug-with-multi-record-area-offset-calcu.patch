@@ -1,0 +1,51 @@
+From 6bc4acf128e3fee68bfa06f02a799784e093af84 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 8 Apr 2021 06:30:10 +0000
+Subject: [PATCH] Fix ipmitool bug with multi record area offset calculation
+
+---
+ src/storagecommands.cpp | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index 3454d32..8b4183b 100644
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -500,6 +500,14 @@ ipmi::RspType<uint8_t>
+                             uint16_t fruInventoryOffset,
+                             std::vector<uint8_t>& dataToWrite)
+ {
++    std::cerr << __FUNCTION__ << " deviceID:" << +fruDeviceId << " offset:" << +fruInventoryOffset << " Size:" << dataToWrite.size() << "\n";
++    std::stringstream ss;
++    for (auto b: dataToWrite)
++    {
++        ss << std::hex << std::setfill('0') << std::setw(2) << +b;
++    }
++    std::cerr << __FUNCTION__ << " Data: " << ss.str() << "\n";
++
+     if (fruDeviceId == 0xFF)
+     {
+         return ipmi::responseInvalidFieldRequest();
+@@ -518,6 +526,22 @@ ipmi::RspType<uint8_t>
+         fruCache.resize(fruInventoryOffset + writeLen);
+     }
+ 
++    /* Fix big negative number in multirecord area offset */
++    if (fruInventoryOffset == 0 && dataToWrite[5] != 0  && (dataToWrite[5] * 8 > fruCache.size()))
++    {
++        std::cerr << __FUNCTION__ << " Detected multi record area offset bigger than whole FRU size:" << +dataToWrite[5] << ", resetting\n";
++        dataToWrite[5] = 0;
++        /* Recalculate CRC */
++        uint8_t crc = 0;
++        for(int i=0; i<7; i++)
++        {
++            crc += dataToWrite[i];
++        }
++        crc = ~crc;
++        crc++;
++        dataToWrite[7] = crc;
++    }
++
+     std::copy(dataToWrite.begin(), dataToWrite.begin() + writeLen,
+               fruCache.begin() + fruInventoryOffset);
+ 

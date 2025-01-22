@@ -1,0 +1,173 @@
+From 5fbb0b7aa11681bd07e19644fb7569795d3cd5f9 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 08:31:56 +0000
+Subject: [PATCH 1/1] Implement separate BIOS lock switch GPIO line
+
+---
+ power-control-x86/src/power_control.cpp | 85 ++++++++++++++++++++++++++++++++-
+ 1 file changed, 83 insertions(+), 2 deletions(-)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index 8400e8a..73ce3f2 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -50,8 +50,10 @@ static std::string postCompleteName;
+ static std::string powerButtonName;
+ static std::string resetButtonName;
+ static std::string idButtonName;
++static std::string lockSwitchName;
+ static std::string nmiButtonName;
+ static bool powerOutSteady;
++static bool lockSwitchInvert;
+ 
+ static std::shared_ptr<sdbusplus::asio::dbus_interface> hostIface;
+ static std::shared_ptr<sdbusplus::asio::dbus_interface> chassisIface;
+@@ -63,6 +65,7 @@ static std::shared_ptr<sdbusplus::asio::dbus_interface> resetButtonIface;
+ static std::shared_ptr<sdbusplus::asio::dbus_interface> nmiButtonIface;
+ static std::shared_ptr<sdbusplus::asio::dbus_interface> osIface;
+ static std::shared_ptr<sdbusplus::asio::dbus_interface> idButtonIface;
++static std::shared_ptr<sdbusplus::asio::dbus_interface> lockSwitchIface;
+ static std::shared_ptr<sdbusplus::asio::dbus_interface> nmiOutIface;
+ static std::shared_ptr<sdbusplus::asio::dbus_interface> restartCauseIface;
+ 
+@@ -123,6 +126,8 @@ static gpiod::line nmiButtonLine;
+ static boost::asio::posix::stream_descriptor nmiButtonEvent(io);
+ static gpiod::line idButtonLine;
+ static boost::asio::posix::stream_descriptor idButtonEvent(io);
++static gpiod::line lockSwitchLine;
++static boost::asio::posix::stream_descriptor lockSwitchEvent(io);
+ static gpiod::line postCompleteLine;
+ static boost::asio::posix::stream_descriptor postCompleteEvent(io);
+ static gpiod::line nmiOutLine;
+@@ -2186,15 +2191,24 @@ static void nmiButtonHandler()
+ 
+ static void idButtonHandler()
+ {
++    bool switchState;
+     gpiod::line_event gpioLineEvent = idButtonLine.event_read();
+ 
+     if (gpioLineEvent.event_type == gpiod::line_event::FALLING_EDGE)
+     {
+-        idButtonIface->set_property("ButtonPressed", true);
++        idButtonIface->set_property("ButtonPressed", !power_control::lockSwitchInvert); // true
++        if (power_control::lockSwitchName.empty())
++        {
++            lockSwitchIface->set_property("ButtonPressed", !power_control::lockSwitchInvert);
++        }
+     }
+     else if (gpioLineEvent.event_type == gpiod::line_event::RISING_EDGE)
+     {
+-        idButtonIface->set_property("ButtonPressed", false);
++        idButtonIface->set_property("ButtonPressed", power_control::lockSwitchInvert);
++        if (power_control::lockSwitchName.empty())
++        {
++            lockSwitchIface->set_property("ButtonPressed", power_control::lockSwitchInvert);
++        }
+     }
+     idButtonEvent.async_wait(
+         boost::asio::posix::stream_descriptor::wait_read,
+@@ -2262,6 +2276,30 @@ static void hostMiscHandler(sdbusplus::message::message& msg)
+     }
+ }
+ 
++static void lockSwitchHandler()
++{
++    gpiod::line_event gpioLineEvent = lockSwitchLine.event_read();
++
++    if (gpioLineEvent.event_type == gpiod::line_event::FALLING_EDGE)
++    {
++        lockSwitchIface->set_property("ButtonPressed", !power_control::lockSwitchInvert);
++    }
++    else if (gpioLineEvent.event_type == gpiod::line_event::RISING_EDGE)
++    {
++        lockSwitchIface->set_property("ButtonPressed", power_control::lockSwitchInvert);
++    }
++    lockSwitchEvent.async_wait(boost::asio::posix::stream_descriptor::wait_read,
++                             [](const boost::system::error_code& ec) {
++                                 if (ec)
++                                 {
++                                     std::cerr << "Lock switch handler error: "
++                                               << ec.message() << "\n";
++                                     return;
++                                 }
++                                 lockSwitchHandler();
++                             });
++}
++
+ static void postCompleteHandler()
+ {
+     gpiod::line_event gpioLineEvent = postCompleteLine.event_read();
+@@ -2319,6 +2357,11 @@ static int loadConfigValues()
+         idButtonName = data["IdButton"];
+     }
+ 
++    if (data.contains("LockSwitch"))
++    {
++        lockSwitchName = data["LockSwitch"];
++    }
++
+     if (data.contains("NMIButton"))
+     {
+         nmiButtonName = data["NMIButton"];
+@@ -2360,6 +2403,15 @@ static int loadConfigValues()
+         powerOutSteady = false;
+     }
+ 
++    if (data.contains("LockSwitchInvert"))
++    {
++        lockSwitchInvert = true;
++    }
++    else
++    {
++        lockSwitchInvert = false;
++    }
++
+     if (data.contains("RstButton"))
+     {
+         resetButtonName = data["RstButton"];
+@@ -2511,6 +2563,14 @@ int main(int argc, char* argv[])
+         hostMiscHandler);
+ #endif
+ 
++    // Request lock switch GPIO events
++    if (!lockSwitchName.empty())
++    {
++        requestGPIOEvents(
++            lockSwitchName, lockSwitchHandler,
++            lockSwitchLine, lockSwitchEvent);
++    }
++
+     // Request POST_COMPLETE GPIO events
+     if (!postCompleteName.empty())
+     {
+@@ -2867,6 +2927,27 @@ int main(int argc, char* argv[])
+         idButtonIface->initialize();
+     }
+ 
++    // Lock switch Interface
++    lockSwitchIface = buttonsServer.add_interface(
++            "/xyz/openbmc_project/chassis/buttons/lock",
++            "xyz.openbmc_project.Chassis.Buttons");
++    bool lockSwitchPressed;
++
++    // Check switch state on real switch GPIO if it's defined.
++    // Otherwise check ID button
++
++    if (lockSwitchLine)
++        lockSwitchPressed = lockSwitchLine.get_value() == 0;
++    else
++        lockSwitchPressed = idButtonLine.get_value() == 0;
++
++    if (lockSwitchInvert)
++    {
++        lockSwitchPressed = !lockSwitchPressed;
++    }
++    lockSwitchIface->register_property("ButtonPressed", lockSwitchPressed);
++    lockSwitchIface->initialize();
++
+     // OS State Service
+     sdbusplus::asio::object_server osServer =
+         sdbusplus::asio::object_server(conn);
+-- 
+2.7.4
+

@@ -1,0 +1,102 @@
+{
+  "gpio_configs":[
+    {
+        "Name" : "cpu1Mismatch",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu2Mismatch",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpuCatter",
+        "LineName" : "CPU_CATERR",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpuErr0",
+        "LineName" : "CPU_ERR0",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpuErr1",
+        "LineName" : "CPU_ERR1",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpuErr2",
+        "LineName" : "CPU_ERR2",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "smi",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu1FIVRfault",
+        "LineName" : "CPU1_FIVR_FAULT",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpu1ThermTrip",
+        "LineName" : "CPU1_THERMTRIP",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpu2FIVRfault",
+        "LineName" : "CPU2_FIVR_FAULT",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpu2ThermTrip",
+        "LineName" : "CPU2_THERMTRIP",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpu1VrHot",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu1MemEFGHVrHot",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu2VrHot",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu2MemABCDVrHot",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu2MemEFGHVrHot",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "pchBmcThermTrip",
+        "LineName" : "NONE",
+        "Type" : "NONE"
+    },
+    {
+        "Name" : "cpu1MemThermEvent",
+        "LineName" : "CPU1_MEM_THERM_EVENT",
+        "Type" : "GPIO"
+    },
+    {
+        "Name" : "cpu2MemThermEvent",
+        "LineName" : "CPU2_MEM_THERM_EVENT",
+        "Type" : "GPIO"
+    }
+],
+  "timing_configs":{
+        "DefaultTimeOut" : 10
+    }
+}

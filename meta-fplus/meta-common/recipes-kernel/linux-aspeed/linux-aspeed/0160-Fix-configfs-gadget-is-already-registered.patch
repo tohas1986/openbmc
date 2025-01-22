@@ -1,0 +1,59 @@
+From 01ad033cbf940a0434c706e10f64ddd8f94b9ff4 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Sun, 5 Mar 2023 12:23:57 +0000
+Subject: [PATCH 1/2] Fix 'configfs-gadget' is already registered
+
+Origin is here:
+https://lore.kernel.org/lkml/20220907112210.11949-1-linhaoguo86@gmail.com/
+Fix is backported from dev-6.1:
+https://github.com/openbmc/linux/commit/96abcf7230d7b860c445e2ea8645524c31d0106c#diff-e243d5553fe5dbf446eac6f2801ce02dc7d92ca55f3a02b15d995f033cbc7e66
+---
+ drivers/usb/gadget/configfs.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/usb/gadget/configfs.c b/drivers/usb/gadget/configfs.c
+index 3a6b4926193e..7bbc77618546 100644
+--- a/drivers/usb/gadget/configfs.c
++++ b/drivers/usb/gadget/configfs.c
+@@ -392,6 +392,7 @@ static void gadget_info_attr_release(struct config_item *item)
+ 	WARN_ON(!list_empty(&gi->string_list));
+ 	WARN_ON(!list_empty(&gi->available_func));
+ 	kfree(gi->composite.gadget_driver.function);
++	kfree(gi->composite.gadget_driver.driver.name);
+ 	kfree(gi);
+ }
+ 
+@@ -1571,7 +1572,6 @@ static const struct usb_gadget_driver configfs_driver_template = {
+ 	.max_speed	= USB_SPEED_SUPER_PLUS,
+ 	.driver = {
+ 		.owner          = THIS_MODULE,
+-		.name		= "configfs-gadget",
+ 	},
+ 	.match_existing_only = 1,
+ };
+@@ -1622,13 +1622,21 @@ static struct config_group *gadgets_make(
+ 
+ 	gi->composite.gadget_driver = configfs_driver_template;
+ 
++	gi->composite.gadget_driver.driver.name = kasprintf(GFP_KERNEL,
++							    "configfs-gadget.%s", name);
++	if (!gi->composite.gadget_driver.driver.name)
++		goto err;
++
+ 	gi->composite.gadget_driver.function = kstrdup(name, GFP_KERNEL);
+ 	gi->composite.name = gi->composite.gadget_driver.function;
+ 
+ 	if (!gi->composite.gadget_driver.function)
+-		goto err;
++		goto out_free_driver_name;
+ 
+ 	return &gi->group;
++
++out_free_driver_name:
++	kfree(gi->composite.gadget_driver.driver.name);
+ err:
+ 	kfree(gi);
+ 	return ERR_PTR(-ENOMEM);
+-- 
+2.34.1
+

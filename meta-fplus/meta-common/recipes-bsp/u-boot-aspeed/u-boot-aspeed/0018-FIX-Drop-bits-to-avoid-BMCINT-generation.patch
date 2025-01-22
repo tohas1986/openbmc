@@ -1,0 +1,25 @@
+From 30aea4fcf9731069360a91f34ef4d88caab0981b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 18 Apr 2023 16:15:48 +0000
+Subject: [PATCH] FIX: Drop bits to avoid BMCINT generation
+
+---
+ board/aspeed/ast-g5/ast-g5-yandex.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/board/aspeed/ast-g5/ast-g5-yandex.c b/board/aspeed/ast-g5/ast-g5-yandex.c
+index 0eb0e7a40d..c79174c031 100644
+--- a/board/aspeed/ast-g5/ast-g5-yandex.c
++++ b/board/aspeed/ast-g5/ast-g5-yandex.c
+@@ -233,6 +233,8 @@ void ast_g5_yandex_late_init(void)
+ {
+ 
+ 	printf("Yandex late init routine\n");
++	printf("Drop bits SCU08C[1] SCU08C[4]\n");
++	*(volatile ulong *)(0x1E6E208C) &= 0xffffffed;
+ 
+ 	printf("Initialize KCS\n");
+ 	kcs_init();
+-- 
+2.34.1
+

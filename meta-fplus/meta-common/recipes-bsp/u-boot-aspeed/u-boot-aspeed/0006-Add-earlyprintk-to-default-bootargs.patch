@@ -1,0 +1,22 @@
+From 72cab1e8bde42c9721ddd67aa8791ae4bca08084 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 31 Jan 2020 11:05:42 +0300
+Subject: [PATCH] Add earlyprintk to default bootargs
+
+---
+ include/configs/ast-common.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/configs/ast-common.h b/include/configs/ast-common.h
+index eff6d2b..1557ceb 100644
+--- a/include/configs/ast-common.h
++++ b/include/configs/ast-common.h
+@@ -96,7 +96,7 @@
+ #define CONFIG_CMD_MTDPARTS
+ #endif
+ 
+-#define CONFIG_BOOTARGS			"console=ttyS4,115200n8 root=/dev/ram rw"
++#define CONFIG_BOOTARGS			"console=ttyS4,115200n8 root=/dev/ram rw earlyprintk mem.devmem=1"
+ 
+ #define CONFIG_AST_SPI_NOR    /* AST SPI NOR Flash */
+ #define CONFIG_FMC_CS			1

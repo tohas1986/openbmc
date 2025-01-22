@@ -1,0 +1,61 @@
+From 91732860f4001cc20b42a251de1e0922b54e1a28 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 1 Apr 2021 07:11:35 +0000
+Subject: [PATCH] MZ81:MZB2:AMD-CPU-temperature-reading-changes [RNDEMBED-351]
+
+---
+ src/MCUTempSensor.cpp | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index f637932..454ea68 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -118,7 +118,8 @@ int MCUTempSensor::getMCURegsInfoWord(uint8_t regs, int16_t* pu16data)
+ 
+     if (ioctl(fd, I2C_SLAVE_FORCE, mcuAddress) < 0)
+     {
+-        std::cerr << " unable to set device address\n";
++        if constexpr (debug)
++            std::cerr << " unable to set device address\n";
+         close(fd);
+         return -1;
+     }
+@@ -138,13 +139,13 @@ int MCUTempSensor::getMCURegsInfoWord(uint8_t regs, int16_t* pu16data)
+         return -1;
+     }
+ 
+-    *pu16data = i2c_smbus_read_word_data(fd, regs);
++    *pu16data = i2c_smbus_read_byte_data(fd, regs);
+     close(fd);
+ 
+     if (*pu16data < 0)
+     {
+-        std::cerr << " read word data failed at " << static_cast<int>(regs)
+-                  << "\n";
++        if constexpr (debug)
++            std::cerr << " read word data failed at " << static_cast<int>(regs) << "\n";
+         return -1;
+     }
+ 
+@@ -171,7 +172,7 @@ void MCUTempSensor::read(void)
+         int ret = getMCURegsInfoWord(tempReg, &temp);
+         if (ret >= 0)
+         {
+-            double v = static_cast<double>(temp) / 1000;
++            double v = static_cast<double>(temp);
+             if constexpr (debug)
+             {
+                 std::cerr << "Value update to " << v << "raw reading "
+@@ -181,8 +182,9 @@ void MCUTempSensor::read(void)
+         }
+         else
+         {
+-            std::cerr << "Invalid read getMCURegsInfoWord\n";
+-            incrementError();
++            if constexpr (debug)
++                std::cerr << "Invalid read getMCURegsInfoWord\n";
++            updateValue(std::numeric_limits<double>::quiet_NaN());
+         }
+         read();
+     });

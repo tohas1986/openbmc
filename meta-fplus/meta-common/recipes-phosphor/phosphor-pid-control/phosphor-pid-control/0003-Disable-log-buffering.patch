@@ -1,0 +1,23 @@
+From e0b160b007682266c4f4bcc3f30727824851bd3f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 2 Mar 2021 06:58:22 +0000
+Subject: [PATCH] Disable log buffering
+
+---
+ pid/zone.hpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/pid/zone.hpp b/pid/zone.hpp
+index 0504a6d..945e18d 100644
+--- a/pid/zone.hpp
++++ b/pid/zone.hpp
+@@ -47,7 +47,9 @@ class DbusPidZone : public ZoneInterface, public ModeObject
+     {
+         if (loggingEnabled)
+         {
++            _log.rdbuf()->pubsetbuf(0, 0);
+             _log.open(loggingPath + "/zone_" + std::to_string(zone) + ".log");
++
+         }
+     }
+ 

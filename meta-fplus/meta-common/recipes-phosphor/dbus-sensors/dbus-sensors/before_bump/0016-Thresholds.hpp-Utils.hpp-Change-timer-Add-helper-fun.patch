@@ -1,0 +1,95 @@
+From edc070555ad64cedac6ffc7a8fc579f3113696bf Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 10:13:16 +0000
+Subject: [PATCH 16/16] Thresholds.hpp Utils.hpp: Change timer; Add helper
+ function
+
+---
+ include/Thresholds.hpp |  8 ++++----
+ include/Utils.hpp      | 18 ++++++++++++++++--
+ 2 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/include/Thresholds.hpp b/include/Thresholds.hpp
+index 559f4df..ea4f93d 100644
+--- a/include/Thresholds.hpp
++++ b/include/Thresholds.hpp
+@@ -1,6 +1,6 @@
+ #pragma once
+ #include <Utils.hpp>
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/asio/io_service.hpp>
+ #include <nlohmann/json.hpp>
+ 
+@@ -54,7 +54,7 @@ struct TimerUsed
+     bool assert;
+ };
+ 
+-using TimerPair = std::pair<struct TimerUsed, boost::asio::deadline_timer>;
++using TimerPair = std::pair<struct TimerUsed, boost::asio::steady_timer>;
+ 
+ struct ThresholdTimer
+ {
+@@ -115,14 +115,14 @@ struct ThresholdTimer
+         if (pair == nullptr)
+         {
+             pair = &timers.emplace_back(timerUsed,
+-                                        boost::asio::deadline_timer(io));
++                                        boost::asio::steady_timer(io));
+         }
+ 
+         pair->first.used = true;
+         pair->first.level = threshold.level;
+         pair->first.direction = threshold.direction;
+         pair->first.assert = assert;
+-        pair->second.expires_from_now(boost::posix_time::seconds(waitTime));
++        pair->second.expires_from_now(boost::asio::chrono::seconds(waitTime));
+         pair->second.async_wait([this, pair, threshold, assert,
+                                  assertValue](boost::system::error_code ec) {
+             pair->first.used = false;
+diff --git a/include/Utils.hpp b/include/Utils.hpp
+index d2ab5ca..abdf7f5 100644
+--- a/include/Utils.hpp
++++ b/include/Utils.hpp
+@@ -179,6 +179,20 @@ inline void setLed(const std::shared_ptr<sdbusplus::asio::connection>& conn,
+         std::variant<bool>(on));
+ }
+ 
++inline std::string getPowerState(PowerState val)
++{
++    std::string rc;
++    if (val == PowerState::on)
++        rc = "On";
++    else if (val == PowerState::biosPost)
++        rc = "BiosPost";
++    else if (val == PowerState::always)
++        rc = "Always";
++    else
++        rc = "Unknown";
++    return rc;
++}
++
+ void createInventoryAssoc(
+     const std::shared_ptr<sdbusplus::asio::connection>& conn,
+     const std::shared_ptr<sdbusplus::asio::dbus_interface>& association,
+@@ -238,7 +252,7 @@ struct GetSensorConfiguration :
+     }
+ 
+     void getConfiguration(const std::vector<std::string>& interfaces,
+-                          size_t retries = 0)
++                          size_t retries = 5)
+     {
+         if (retries > 5)
+         {
+@@ -251,7 +265,7 @@ struct GetSensorConfiguration :
+                                         const GetSubTreeType& ret) {
+                 if (ec)
+                 {
+-                    std::cerr << "Error calling mapper\n";
++                    std::cerr << "Error calling mapper, "<< retries << " tries left\n";
+                     if (!retries)
+                     {
+                         return;
+-- 
+2.7.4
+

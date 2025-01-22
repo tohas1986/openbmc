@@ -1,0 +1,326 @@
+From c630be0487648545e0fa7a6de1e0e87d0c9fd141 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 25 Aug 2020 15:07:19 +0000
+Subject: [PATCH] Add reset reason to cpuinfo and cmdline
+
+---
+ arch/arm/include/asm/arch-aspeed/platform.h |   2 +
+ arch/arm/mach-aspeed/ast-scu.c              |  82 ++++++++++++++--------
+ board/aspeed/ast-g5/ast-g5.c                | 102 +++++++++++++++++++++++++++-
+ 3 files changed, 156 insertions(+), 30 deletions(-)
+
+diff --git a/arch/arm/include/asm/arch-aspeed/platform.h b/arch/arm/include/asm/arch-aspeed/platform.h
+index 5d2a9d0..3730f24 100644
+--- a/arch/arm/include/asm/arch-aspeed/platform.h
++++ b/arch/arm/include/asm/arch-aspeed/platform.h
+@@ -23,6 +23,8 @@
+ #define AST_PLL_24MHZ			24000000
+ #define AST_PLL_12MHZ			12000000
+ #define CONFIG_BOARD_EARLY_INIT_F   1       /* Call board_early_init_f */
++#define CONFIG_BOARD_LATE_INIT      1
++#define CONFIG_DISPLAY_CPUINFO      1
+ 
+ #if defined(CONFIG_ARCH_AST2400)
+ #include <asm/arch/ast2400_platform.h>
+diff --git a/arch/arm/mach-aspeed/ast-scu.c b/arch/arm/mach-aspeed/ast-scu.c
+index 2ab9711..3384360 100644
+--- a/arch/arm/mach-aspeed/ast-scu.c
++++ b/arch/arm/mach-aspeed/ast-scu.c
+@@ -1,6 +1,6 @@
+ /*******************************************************************************
+  * File Name     : arch/arm/cpu/ast-common/ast-scu.c
+- * Author         : Ryan Chen
++ * Author	  : Ryan Chen
+  * Description   : AST SCU
+  *
+  * Copyright (C) 2012-2020 ASPEED Technology Inc.  This program is free
+@@ -122,11 +122,11 @@ void ast_scu_init_eth(u8 num)
+ 	if (ast_scu_read(AST_SCU_HW_STRAP1) &
+ 	   (SCU_HW_STRAP_MAC1_RGMII | SCU_HW_STRAP_MAC0_RGMII))
+ 		ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) &
+-			       ~SCU_CLK_MAC_MASK) | SCU_CLK_MAC_DIV(2),
++				~SCU_CLK_MAC_MASK) | SCU_CLK_MAC_DIV(2),
+ 			      AST_SCU_CLK_SEL);
+ 	else /* RMII --> H-PLL/10 */
+ 		ast_scu_write((ast_scu_read(AST_SCU_CLK_SEL) &
+-			       ~SCU_CLK_MAC_MASK) | SCU_CLK_MAC_DIV(4),
++				~SCU_CLK_MAC_MASK) | SCU_CLK_MAC_DIV(4),
+ 			      AST_SCU_CLK_SEL);
+ 
+ 	ast_scu_write(0x2255, AST_SCU_MAC_CLK);
+@@ -192,17 +192,17 @@ void ast_scu_spi_master(u8 mode)
+ 		break;
+ 	case 1:
+ 		ast_scu_write((ast_scu_read(AST_SCU_HW_STRAP1) &
+-			       ~SCU_HW_STRAP_SPI_MODE_MASK) |
++				~SCU_HW_STRAP_SPI_MODE_MASK) |
+ 			      SCU_HW_STRAP_SPI_MASTER, AST_SCU_HW_STRAP1);
+ 		break;
+ 	case 2:
+ 		ast_scu_write((ast_scu_read(AST_SCU_HW_STRAP1) &
+-			       ~SCU_HW_STRAP_SPI_MODE_MASK) |
++				~SCU_HW_STRAP_SPI_MODE_MASK) |
+ 			      SCU_HW_STRAP_SPI_MASTER, AST_SCU_HW_STRAP1);
+ 		break;
+ 	case 3:
+ 		ast_scu_write((ast_scu_read(AST_SCU_HW_STRAP1) &
+-			       ~SCU_HW_STRAP_SPI_MODE_MASK) |
++				~SCU_HW_STRAP_SPI_MODE_MASK) |
+ 			      SCU_HW_STRAP_SPI_PASS_THROUGH, AST_SCU_HW_STRAP1);
+ 		break;
+ 	}
+@@ -238,7 +238,7 @@ u32 ast_get_h_pll_clk(void)
+ 		 * hpll = 24MHz * [(M+1) /(N+1)] / (P+1)
+ 		 */
+ 		clk = ((clk * (SCU_H_PLL_GET_MNUM(h_pll_set) + 1)) /
+-		       (SCU_H_PLL_GET_NNUM(h_pll_set) + 1)) /
++			(SCU_H_PLL_GET_NNUM(h_pll_set) + 1)) /
+ 			(SCU_H_PLL_GET_PNUM(h_pll_set) + 1);
+ 	}
+ 	debug("h_pll = %d\n", clk);
+@@ -318,7 +318,7 @@ u32 ast_get_h_pll_clk(void)
+ 		 */
+ 			clk = ((clk * (2 - SCU_H_PLL_GET_DIV(h_pll_set)) *
+ 				(SCU_H_PLL_GET_NUM(h_pll_set) + 2)) /
+-			       (SCU_H_PLL_GET_DENUM(h_pll_set) + 1));
++				(SCU_H_PLL_GET_DENUM(h_pll_set) + 1));
+ 		}
+ 	} else {
+ 		/* HW Trap */
+@@ -374,9 +374,9 @@ void ast_scu_show_system_info(void)
+ 			   ast_scu_read(AST_SCU_HW_STRAP1)) + 1);
+ 
+ 	printf("CPU = %d MHz , AXI = %d MHz, AHB = %d MHz (%d:%d:1)\n",
+-	       h_pll / 1000000,
+-	       h_pll / axi_div / 1000000,
+-	       h_pll / axi_div / ahb_div / 1000000, axi_div, ahb_div);
++		h_pll / 1000000,
++		h_pll / axi_div / 1000000,
++		h_pll / axi_div / ahb_div / 1000000, axi_div, ahb_div);
+ 
+ #else
+ 	u32 h_pll, div;
+@@ -387,7 +387,7 @@ void ast_scu_show_system_info(void)
+ 	div += 1;
+ 
+ 	printf("CPU = %d MHz ,AHB = %d MHz (%d:1)\n", h_pll / 1000000,
+-	       h_pll / div / 1000000, div);
++		h_pll / div / 1000000, div);
+ #endif
+ 	return;
+ }
+@@ -485,19 +485,45 @@ void ast_scu_security_info(void)
+ void ast_scu_sys_rest_info(void)
+ {
+ 	u32 rest = ast_scu_read(AST_SCU_SYS_CTRL);
++	bool unknown_flag = true;
+ 
++	printf("RST : 0x%02x (", rest);
+ 	if (rest & SCU_SYS_EXT_RESET_FLAG) {
+-		printf("RST : External\n");
+-		ast_scu_write(SCU_SYS_EXT_RESET_FLAG, AST_SCU_SYS_CTRL);
+-	} else if (rest & SCU_SYS_WDT_RESET_FLAG) {
+-		printf("RST : Watchdog\n");
+-		ast_scu_write(SCU_SYS_WDT_RESET_FLAG, AST_SCU_SYS_CTRL);
+-	} else if (rest & SCU_SYS_PWR_RESET_FLAG) {
+-		printf("RST : Power On\n");
+-		ast_scu_write(SCU_SYS_PWR_RESET_FLAG, AST_SCU_SYS_CTRL);
+-	} else {
+-		printf("RST : CLK en\n");
++		 unknown_flag = false;
++		 printf("External");
++	}
++	if (rest & SCU_SYS_WDT_RESET_FLAG) {
++		 if (unknown_flag)
++			  printf("WDT1");
++		 else
++			  printf("|WDT1");
++		 unknown_flag = false;
++	}
++	if (rest & SCU_SYS_WDT2_RESET_FLAG) {
++		 if (unknown_flag)
++			  printf("WDT2");
++		 else
++			  printf("|WDT2");
++		 unknown_flag = false;
++	}
++	if (rest & SCU_SYS_WDT3_RESET_FLAG) {
++		 if (unknown_flag)
++			  printf("WDT3");
++		 else
++			  printf("|WDT3");
++		 unknown_flag = false;
++	}
++	if (rest & SCU_SYS_PWR_RESET_FLAG) {
++		 if (unknown_flag)
++			  printf("Power On");
++		 else
++			  printf("|Power On");
++		 unknown_flag = false;
++	}
++	if (unknown_flag) {
++		 printf("Unknown");
+ 	}
++	printf(")\n");
+ }
+ 
+ u32 ast_scu_get_vga_memsize(void)
+@@ -563,15 +589,15 @@ void ast_enable_pass_through(void)
+ void ast_enable_video_regs(void)
+ {
+ 	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL6) & (~0x00000002),
+-                AST_SCU_FUN_PIN_CTRL6);
++		  AST_SCU_FUN_PIN_CTRL6);
+ 	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL6) | (0x00000001),
+-                AST_SCU_FUN_PIN_CTRL6);
++		  AST_SCU_FUN_PIN_CTRL6);
+ 	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL4) | (0x000000ff),
+-                AST_SCU_FUN_PIN_CTRL4);
++		  AST_SCU_FUN_PIN_CTRL4);
+ 	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL8) | (0xffff0000),
+-                AST_SCU_FUN_PIN_CTRL8);
++		  AST_SCU_FUN_PIN_CTRL8);
+ 	ast_scu_write(ast_scu_read(AST_SCU_FUN_PIN_CTRL9) | (0x0000000f),
+-                AST_SCU_FUN_PIN_CTRL9);
++		  AST_SCU_FUN_PIN_CTRL9);
+ 	ast_scu_write(ast_scu_read(AST_SCU_RESET) & (0xfffffffb),
+-                AST_SCU_RESET);
++		  AST_SCU_RESET);
+ }
+diff --git a/board/aspeed/ast-g5/ast-g5.c b/board/aspeed/ast-g5/ast-g5.c
+index c712f32..966ab34 100644
+--- a/board/aspeed/ast-g5/ast-g5.c
++++ b/board/aspeed/ast-g5/ast-g5.c
+@@ -12,6 +12,7 @@
+ 
+ #include <asm/arch/ast_scu.h>
+ #include <asm/arch/ast-sdmc.h>
++#include <asm/arch-aspeed/regs-scu.h>
+ #include <asm/io.h>
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -36,14 +37,14 @@ int dram_init(void)
+ #ifdef CONFIG_FTGMAC100
+ int board_eth_init(bd_t *bd)
+ {
+-        return ftgmac100_initialize(bd);
++	return ftgmac100_initialize(bd);
+ }
+ #endif
+ 
+ #ifdef CONFIG_ASPEEDNIC
+ int board_eth_init(bd_t *bd)
+ {
+-        return aspeednic_initialize(bd);
++	return aspeednic_initialize(bd);
+ }
+ #endif
+ 
+@@ -56,6 +57,97 @@ void hw_watchdog_reset(void)
+ }
+ #endif /* CONFIG_WATCHDOG */
+ 
++static void update_bootargs_cmd(const char *key, const char *value)
++{
++	int buf_len;
++	char *buf;
++	char *cmdline;
++	char comp_key[128];
++
++	if (!key || (key[0] == '\0')) {
++		printf("%s - Empty key not allowed\n", __func__);
++		return;
++	}
++
++	cmdline = getenv("bootargs");
++
++	/* Allocate space for maximum possible new command line */
++	if (value)
++		buf_len = strlen(cmdline) + strlen(key) + 3 + strlen(value);
++	else
++		buf_len = strlen(cmdline) + strlen(key) + 3;
++
++	buf = malloc(buf_len);
++	if (!buf) {
++		printf("%s: out of memory\n", __func__);
++		return;
++	}
++	memset(buf, 0, buf_len);
++
++	if (!cmdline) {
++		/* lets add key-value, though bootargs are empty */
++		snprintf(buf, buf_len, "%s=%s", key, (value ? value : ""));
++		setenv("bootargs", buf);
++		free(buf);
++		return;
++	}
++
++	snprintf(comp_key, sizeof(comp_key), "%s=", key);
++	char *start = strstr(cmdline, comp_key);
++
++	/* Check for full word match. Match should be start of cmdline
++	* or there should be space before match */
++	if (start && ((start == cmdline) || (*(start-1) == ' '))) {
++		char *end = strchr(start, ' ');
++		strncpy(buf, cmdline, (start - cmdline));
++
++		if (end)
++			snprintf(buf, buf_len, "%s%s=%s %s", buf, key,
++				(value ? value : ""), end+1);
++		else
++			snprintf(buf, buf_len, "%s%s=%s", buf, key,
++				(value ? value : ""));
++	} else {
++		snprintf(buf, buf_len, "%s %s=%s", cmdline, key,
++			(value ? value : ""));
++	}
++
++	setenv("bootargs", buf);
++	free(buf);
++}
++
++static inline u32 ast_scu_read(u32 reg)
++{
++	u32 val = readl(AST_SCU_BASE + reg);
++
++	debug("ast_scu_read : reg = 0x%08x, val = 0x%08x\n", reg, val);
++	return val;
++}
++
++static inline void ast_scu_write(u32 val, u32 reg)
++{
++	debug("ast_scu_write : reg = 0x%08x, val = 0x%08x\n", reg, val);
++
++	writel(SCU_PROTECT_UNLOCK, AST_SCU_BASE);
++	writel(val, AST_SCU_BASE + reg);
++#ifdef CONFIG_AST_SCU_LOCK
++	writel(0xaa, AST_SCU_BASE);
++#endif
++}
++
++void ast_g5_intel_late_init(void)
++{
++	char value[32];
++	u32 reset_reason = 0;
++
++	/* save and clear reset status */
++	reset_reason = ast_scu_read(AST_SCU_SYS_CTRL);
++	snprintf(value, sizeof(value), "0x%x", reset_reason);
++	ast_scu_write(0, AST_SCU_SYS_CTRL);
++
++	update_bootargs_cmd("resetreason", value);
++}
++
+ int board_early_init_f(void)
+ {
+ 	/* make sure uart5 is using 24MHz clock */
+@@ -66,3 +158,9 @@ int board_early_init_f(void)
+ 
+ 	return 0;
+ }
++
++int board_late_init(void)
++{
++	ast_g5_intel_late_init();
++	return 0;
++}

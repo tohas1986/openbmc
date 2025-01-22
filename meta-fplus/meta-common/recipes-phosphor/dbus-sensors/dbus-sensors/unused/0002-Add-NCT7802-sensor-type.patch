@@ -1,0 +1,32 @@
+From a5aa9515272746ccd55ab4f413d99be6e7d823c6 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Mon, 24 Aug 2020 17:05:24 +0000
+Subject: [PATCH] Add-NCT7802-sensor-type
+
+---
+ src/HwmonTempMain.cpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/HwmonTempMain.cpp b/src/HwmonTempMain.cpp
+index be7be98..ef603f4 100644
+--- a/src/HwmonTempMain.cpp
++++ b/src/HwmonTempMain.cpp
+@@ -40,7 +40,7 @@
+ static constexpr bool DEBUG = false;
+ 
+ namespace fs = std::filesystem;
+-static constexpr std::array<const char*, 11> sensorTypes = {
++static constexpr std::array<const char*, 12> sensorTypes = {
+     "xyz.openbmc_project.Configuration.EMC1413",
+     "xyz.openbmc_project.Configuration.MAX31725",
+     "xyz.openbmc_project.Configuration.MAX31730",
+@@ -51,7 +51,8 @@ static constexpr std::array<const char*, 11> sensorTypes = {
+     "xyz.openbmc_project.Configuration.TMP175",
+     "xyz.openbmc_project.Configuration.TMP421",
+     "xyz.openbmc_project.Configuration.TMP441",
+-    "xyz.openbmc_project.Configuration.TMP75"};
++    "xyz.openbmc_project.Configuration.TMP75",
++    "xyz.openbmc_project.Configuration.NCT7802"};
+ 
+ void createSensors(
+     boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,

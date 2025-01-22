@@ -1,0 +1,304 @@
+From 16ac6aec472c27e763e96453114c7bdd7897aa2c Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 29 Apr 2021 15:19:04 +0000
+Subject: [PATCH] WIP-Add-RMT-redfish-support
+
+---
+ redfish-core/include/redfish.hpp                   |  2 +
+ redfish-core/include/utils/chassis_utils.hpp       | 59 ++++++++++++++++
+ redfish-core/lib/chassis.hpp                       |  4 +-
+ redfish-core/lib/rmt.hpp                           | 82 ++++++++++++++++++++++
+ scripts/update_schemas.py                          |  1 +
+ static/redfish/v1/$metadata/index.xml              | 14 ++++
+ .../redfish/v1/JsonSchemas/RmtService/index.json   | 21 ++++++
+ static/redfish/v1/JsonSchemas/index.json           |  7 +-
+ 8 files changed, 187 insertions(+), 3 deletions(-)
+ create mode 100644 redfish-core/include/utils/chassis_utils.hpp
+ create mode 100644 redfish-core/lib/rmt.hpp
+ create mode 100644 static/redfish/v1/JsonSchemas/RmtService/index.json
+
+diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
+index db58d60..5cc8269 100644
+--- a/redfish-core/include/redfish.hpp
++++ b/redfish-core/include/redfish.hpp
+@@ -41,6 +41,7 @@
+ #include "../lib/telemetry_service.hpp"
+ #include "../lib/thermal.hpp"
+ #include "../lib/update_service.hpp"
++#include "../lib/rmt.hpp"
+ #ifdef BMCWEB_ENABLE_VM_NBDPROXY
+ #include "../lib/virtual_media.hpp"
+ #endif // BMCWEB_ENABLE_VM_NBDPROXY
+@@ -89,6 +90,7 @@ class RedfishService
+         nodes.emplace_back(std::make_unique<StorageCollection>(app));
+         nodes.emplace_back(std::make_unique<Storage>(app));
+         nodes.emplace_back(std::make_unique<Drive>(app));
++        nodes.emplace_back(std::make_unique<RmtService>(app));
+ #ifdef BMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE
+         nodes.emplace_back(
+             std::make_unique<UpdateServiceActionsSimpleUpdate>(app));
+diff --git a/redfish-core/include/utils/chassis_utils.hpp b/redfish-core/include/utils/chassis_utils.hpp
+new file mode 100644
+index 0000000..088ba80
+--- /dev/null
++++ b/redfish-core/include/utils/chassis_utils.hpp
+@@ -0,0 +1,59 @@
++#pragma once
++#include <node.hpp>
++namespace redfish
++{
++namespace chassis_utils
++{
++/**
++ * @brief Retrieves valid chassis ID
++ * @param asyncResp   Pointer to object holding response data
++ * @param callback  Callback for next step to get valid chassis ID
++ */
++template <typename Callback>
++void getValidChassisID(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++                       const std::string& chassisID, Callback&& callback)
++{
++    BMCWEB_LOG_DEBUG << "checkChassisId enter";
++    const std::array<const char*, 2> interfaces = {
++        "xyz.openbmc_project.Inventory.Item.Board",
++        "xyz.openbmc_project.Inventory.Item.Chassis"};
++    auto respHandler = [callback{std::move(callback)}, asyncResp, chassisID](
++                           const boost::system::error_code ec,
++                           const std::vector<std::string>& chassisPaths) {
++        BMCWEB_LOG_DEBUG << "getValidChassisID respHandler enter";
++        if (ec)
++        {
++            BMCWEB_LOG_ERROR << "getValidChassisID respHandler DBUS error: "
++                             << ec;
++            messages::internalError(asyncResp->res);
++            return;
++        }
++        std::optional<std::string> validChassisID;
++        std::string chassisName;
++        for (const std::string& chassis : chassisPaths)
++        {
++            sdbusplus::message::object_path path(chassis);
++            chassisName = path.filename();
++            if (chassisName.empty())
++            {
++                BMCWEB_LOG_ERROR << "Failed to find chassisName in " << chassis;
++                continue;
++            }
++            if (chassisName == chassisID)
++            {
++                validChassisID = chassisID;
++                break;
++            }
++        }
++        callback(validChassisID);
++    };
++    // Get the Chassis Collection
++    crow::connections::systemBus->async_method_call(
++        respHandler, "xyz.openbmc_project.ObjectMapper",
++        "/xyz/openbmc_project/object_mapper",
++        "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths",
++        "/xyz/openbmc_project/inventory", 0, interfaces);
++    BMCWEB_LOG_DEBUG << "checkChassisId exit";
++}
++} // namespace chassis_utils
++} // namespace redfish
+diff --git a/redfish-core/lib/chassis.hpp b/redfish-core/lib/chassis.hpp
+index 88f9fd7..9605693 100644
+--- a/redfish-core/lib/chassis.hpp
++++ b/redfish-core/lib/chassis.hpp
+@@ -399,7 +399,9 @@ class Chassis : public Node
+                             asyncResp->res.jsonValue["Status"] = {
+                                 {"State", "Enabled"},
+                             };
+-
++                            asyncResp->res.jsonValue["RmtService"] = {
++                                {"@odata.id", "/redfish/v1/Chassis/" +
++                                                  chassisId + "/RmtService"}};
+                             asyncResp->res
+                                 .jsonValue["Links"]["ComputerSystems"] = {
+                                 {{"@odata.id", "/redfish/v1/Systems/system"}}};
+diff --git a/redfish-core/lib/rmt.hpp b/redfish-core/lib/rmt.hpp
+new file mode 100644
+index 0000000..351f74c
+--- /dev/null
++++ b/redfish-core/lib/rmt.hpp
+@@ -0,0 +1,82 @@
++#pragma once
++
++#include "node.hpp"
++#include <utils/chassis_utils.hpp>
++#include <utils/fw_utils.hpp>
++#include <iostream>
++#include <fstream>
++
++namespace redfish
++{
++/**
++ * RmtService class supports handle get method for rmt.
++ */
++inline void getRmtResults(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp)
++{
++    std::ifstream input("/var/log/rmt.json");
++    std::string line;
++    nlohmann::json j;
++    input >> j;
++    
++    asyncResp->res.jsonValue["Help"] = {{"Node", "0-1"}, {"Channel", "0-5"}, {"DIMM","0,1"}, {"Rank","0-3"}};
++    
++    asyncResp->res.jsonValue["N0.C0.D0.R0"] = j["N0.C0.D0.R0"];
++}
++
++class RmtService : public Node
++{
++  public:
++    /*
++     * Default Constructor
++     */
++    RmtService(App& app) :
++        Node(app, "/redfish/v1/Chassis/<str>/RmtService/", std::string())
++    {
++        entityPrivileges = {
++            {boost::beast::http::verb::get, {{"Login"}}},
++            {boost::beast::http::verb::head, {{"Login"}}},
++            {boost::beast::http::verb::patch, {{"ConfigureComponents"}}},
++            {boost::beast::http::verb::put, {{"ConfigureComponents"}}},
++            {boost::beast::http::verb::delete_, {{"ConfigureComponents"}}},
++            {boost::beast::http::verb::post, {{"ConfigureComponents"}}}};
++    }
++ private:
++    void doGet(const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, 
++               const crow::Request&, 
++               const std::vector<std::string>& params) override
++    {
++        if (params.size() != 1)
++        {
++            messages::internalError(asyncResp->res);
++            return;
++        }
++        const std::string& chassisId = params[0];
++
++        auto getChassisPath =
++            [asyncResp,
++             chassisId](const std::optional<std::string>& chassisPath) {
++                if (!chassisPath)
++                {
++                    BMCWEB_LOG_ERROR << "Not a valid chassis ID" << chassisId;
++                    messages::resourceNotFound(asyncResp->res, "Chassis",
++                                               chassisId);
++                    return;
++                }
++                asyncResp->res.jsonValue = {
++                    {"@odata.type",
++                     "#RmtService.v1_0_0.RmtService"},
++                    {"Name", "RMT Subsystem for Chassis"},
++                    {"Id", "RmtService"}};
++                asyncResp->res.jsonValue["@odata.id"] =
++                    "/redfish/v1/Chassis/" + chassisId + "/RmtService";
++
++                asyncResp->res.jsonValue["Status"] = {{"State", "Enabled"},
++                                                      {"Health", "OK"}};
++
++                getRmtResults(asyncResp);
++            };
++        redfish::chassis_utils::getValidChassisID(asyncResp, chassisId,
++                                                  std::move(getChassisPath));
++    }
++};
++} // namespace redfish
+diff --git a/scripts/update_schemas.py b/scripts/update_schemas.py
+index 6336153..2fb2caf 100755
+--- a/scripts/update_schemas.py
++++ b/scripts/update_schemas.py
+@@ -21,6 +21,7 @@ include_list = [
+     'Assembly',
+     'AttributeRegistry',
+     'Bios',
++    'RmtService',
+     'Certificate',
+     'CertificateCollection',
+     'CertificateLocations',
+diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
+index 9d9fd1f..270ea35 100644
+--- a/static/redfish/v1/$metadata/index.xml
++++ b/static/redfish/v1/$metadata/index.xml
+@@ -2131,6 +2131,20 @@
+         <edmx:Include Namespace="VLanNetworkInterface.v1_1_5"/>
+         <edmx:Include Namespace="VLanNetworkInterface.v1_2_0"/>
+     </edmx:Reference>
++    <edmx:Reference Uri="/redfish/v1/schema/RmtService_v1.xml">
++        <edmx:Include Namespace="RmtService"/>
++        <edmx:Include Namespace="RmtService.v1_0_0"/>
++        <edmx:Include Namespace="RmtService.v1_0_1"/>
++        <edmx:Include Namespace="RmtService.v1_0_2"/>
++        <edmx:Include Namespace="RmtService.v1_0_3"/>
++        <edmx:Include Namespace="RmtService.v1_1_0"/>
++        <edmx:Include Namespace="RmtService.v1_1_1"/>
++        <edmx:Include Namespace="RmtService.v1_1_2"/>
++        <edmx:Include Namespace="RmtService.v1_2_0"/>
++        <edmx:Include Namespace="RmtService.v1_3_0"/>
++        <edmx:Include Namespace="RmtService.v1_4_0"/>
++        <edmx:Include Namespace="RmtService.v1_4_1"/>
++    </edmx:Reference>
+     <edmx:Reference Uri="/redfish/v1/schema/VLanNetworkInterfaceCollection_v1.xml">
+         <edmx:Include Namespace="VLanNetworkInterfaceCollection"/>
+     </edmx:Reference>
+diff --git a/static/redfish/v1/JsonSchemas/RmtService/index.json b/static/redfish/v1/JsonSchemas/RmtService/index.json
+new file mode 100644
+index 0000000..f0855ca
+--- /dev/null
++++ b/static/redfish/v1/JsonSchemas/RmtService/index.json
+@@ -0,0 +1,21 @@
++{
++    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
++    "@odata.id": "/redfish/v1/JsonSchemas/RmtService",
++    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
++    "Name": "RmtService Schema File",
++    "Schema": "#RmtService.RmtService",
++    "Description": "RmtService Schema File Location",
++    "Id": "RmtService",
++    "Languages": [
++        "en"
++    ],
++    "Languages@odata.count": 1,
++    "Location": [
++        {
++            "Language": "en",
++            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/RmtService.json",
++            "Uri": "/redfish/v1/JsonSchemas/RmtService/RmtService.json"
++        }
++    ],
++    "Location@odata.count": 1
++}
+diff --git a/static/redfish/v1/JsonSchemas/index.json b/static/redfish/v1/JsonSchemas/index.json
+index 48ea318..3dc39f9 100644
+--- a/static/redfish/v1/JsonSchemas/index.json
++++ b/static/redfish/v1/JsonSchemas/index.json
+@@ -4,7 +4,7 @@
+   "@odata.type": "#JsonSchemaFileCollection.JsonSchemaFileCollection",
+   "Name": "JsonSchemaFile Collection",
+   "Description": "Collection of JsonSchemaFiles",
+-  "Members@odata.count": 56,
++  "Members@odata.count": 57,
+   "Members": [
+     {
+       "@odata.id": "/redfish/v1/JsonSchemas/AccountService"
+@@ -106,6 +106,9 @@
+       "@odata.id": "/redfish/v1/JsonSchemas/Power"
+     },
+     {
++      "@odata.id": "/redfish/v1/JsonSchemas/RmtService"
++    },
++    {
+       "@odata.id": "/redfish/v1/JsonSchemas/Processor"
+     },
+     {
+@@ -175,4 +178,4 @@
+       "@odata.id": "/redfish/v1/JsonSchemas/redfish-schema"
+     }
+   ]
+-}
+\ No newline at end of file
++}
+-- 
+2.7.4
+

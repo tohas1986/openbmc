@@ -1,0 +1,45 @@
+From fbc57db237fe810181c2adad305fe95bb35a501a Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 15 Dec 2022 18:20:14 +0000
+Subject: [PATCH] Fix stupid untested Google assumption change
+
+---
+ src/sensorcommands.cpp  | 3 +--
+ src/storagecommands.cpp | 1 +
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/sensorcommands.cpp b/src/sensorcommands.cpp
+index 0d57c34..54667b0 100644
+--- a/src/sensorcommands.cpp
++++ b/src/sensorcommands.cpp
+@@ -244,14 +244,13 @@ static bool getSensorMap(boost::asio::yield_context yield,
+         std::shared_ptr<sdbusplus::asio::connection> dbus = getSdBus();
+         boost::system::error_code ec;
+         auto managedObjects = dbus->yield_method_call<ManagedObjectType>(
+-            yield, ec, sensorConnection.c_str(), "/xyz/openbmc_project/sensors",
++            yield, ec, sensorConnection.c_str(), "/",
+             "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
+         if (ec)
+         {
+             phosphor::logging::log<phosphor::logging::level::ERR>(
+                 "GetMangagedObjects for getSensorMap failed",
+                 phosphor::logging::entry("ERROR=%s", ec.message().c_str()));
+-
+             return false;
+         }
+ 
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index 2dd363f..7a594d5 100644
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -702,6 +702,7 @@ ipmi_ret_t getFruSdrs(ipmi::Context::ptr ctx, size_t index,
+         return IPMI_CC_RESPONSE_ERROR;
+     }
+ 
++#undef USING_ENTITY_MANAGER_DECORATORS
+ #ifdef USING_ENTITY_MANAGER_DECORATORS
+ 
+     boost::container::flat_map<std::string, DbusVariant>* entityData = nullptr;
+-- 
+2.36.0
+

@@ -1,0 +1,62 @@
+From a3689fe8827e6dbefc041b8c684d38204fe9e207 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 28 Jul 2021 09:50:25 +0000
+Subject: [PATCH] Add sirq_polarity option
+
+---
+ conf/server.ttyVUART0.conf.in |  1 +
+ console-server.c              | 13 +++++++++++++
+ 2 files changed, 14 insertions(+)
+
+diff --git a/conf/server.ttyVUART0.conf.in b/conf/server.ttyVUART0.conf.in
+index 7d3f758..fc50ddc 100644
+--- a/conf/server.ttyVUART0.conf.in
++++ b/conf/server.ttyVUART0.conf.in
+@@ -1,5 +1,6 @@
+ lpc-address = 0x3f8
+ sirq = 4
++sirq_polarity = 1
+ upstream-tty = ttyVUART0
+ local-tty = ttyS0
+ local-tty-baud = 115200
+diff --git a/console-server.c b/console-server.c
+index e4a63af..8a6d27a 100644
+--- a/console-server.c
++++ b/console-server.c
+@@ -49,6 +49,7 @@ struct console {
+ 	char		*tty_sysfs_devnode;
+ 	char		*tty_dev;
+ 	int		tty_sirq;
++	int		tty_sirq_polarity;
+ 	int		tty_lpc_addr;
+ 	speed_t		tty_baud;
+ 	int		tty_fd;
+@@ -257,6 +258,8 @@ static int tty_init_io(struct console *console)
+ {
+ 	if (console->tty_sirq)
+ 		tty_set_sysfs_attr(console, "sirq", console->tty_sirq);
++	if (console->tty_sirq_polarity == 0 || console->tty_sirq_polarity == 1)
++		tty_set_sysfs_attr(console, "sirq_polarity", console->tty_sirq_polarity);
+ 	if (console->tty_lpc_addr)
+ 		tty_set_sysfs_attr(console, "lpc_address",
+ 				console->tty_lpc_addr);
+@@ -302,6 +305,16 @@ static int tty_init(struct console *console, struct config *config)
+ 			warn("Invalid sirq: '%s'", val);
+ 	}
+ 
++	console->tty_sirq_polarity = 1;
++	val = config_get_value(config, "sirq_polarity");
++	if (val) {
++		console->tty_sirq_polarity = strtoul(val, &endp, 0);
++		if (endp == optarg || console->tty_sirq_polarity < 0 || console->tty_sirq_polarity > 1) {
++			warn("Invalid sirq_polarity: '%s', setting to 1", val);
++			console->tty_sirq_polarity = 1;
++		}
++	}
++
+ 	val = config_get_value(config, "baud");
+ 	if (val) {
+ 		if (config_parse_baud(&console->tty_baud, val))
+-- 
+2.7.4
+

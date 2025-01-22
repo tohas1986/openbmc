@@ -1,5 +1,3 @@
-.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
-
 Migration notes for 3.4 (honister)
 ----------------------------------
 
@@ -45,7 +43,7 @@ would now become::
    BB_TASK_NICE_LEVEL:task-testimage = '0'
 
 This also applies to
-:ref:`variable queries to the datastore <bitbake-user-manual/bitbake-user-manual-metadata:functions for accessing datastore variables>`,
+:ref:`variable queries to the datastore <bitbake:bitbake-user-manual/bitbake-user-manual-metadata:functions for accessing datastore variables>`,
 for example using ``getVar`` and similar so ``d.getVar("RDEPENDS_${PN}")``
 becomes ``d.getVar("RDEPENDS:${PN}")``.
 
@@ -95,7 +93,7 @@ The ``lz4c``, ``pzstd`` and ``zstd`` commands are now required to be
 installed on the build host to support LZ4 and Zstandard compression
 functionality. These are typically provided by ``lz4`` and ``zstd``
 packages in most Linux distributions. Alternatively they are available
-as part of :term:`buildtools` tarball if your distribution does not provide
+as part of ``buildtools-tarball`` if your distribution does not provide
 them. For more information see
 :ref:`ref-manual/system-requirements:required packages for the build host`.
 
@@ -126,7 +124,7 @@ Removed classes
 - ``image-mklibs``: not actively tested and upstream mklibs still
   requires Python 2
 - ``meta``: no longer useful. Recipes that need to skip installing
-  packages should inherit :ref:`ref-classes-nopackages` instead.
+  packages should inherit ``nopackages`` instead.
 
 Prelinking disabled by default
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -197,7 +195,7 @@ Package/recipe splitting
   then you may now need to add it explicitly.
 
 - The ``rpm`` package no longer has ``rpm-build`` in its :term:`RRECOMMENDS`;
-  if by chance you still need rpm package building functionality in
+  if by chance  you still need rpm package building functionality in
   your image and you have not already done so then you should add
   ``rpm-build`` to your image explicitly.
 
@@ -255,11 +253,11 @@ Miscellaneous
 - The previously deprecated ``COMPRESS_CMD`` and
   ``CVE_CHECK_CVE_WHITELIST`` variables have been removed. Use
   :term:`CONVERSION_CMD` and ``CVE_CHECK_WHITELIST`` (replaced by
-  :term:`CVE_CHECK_IGNORE` in version 4.0) respectively
+  :term:`CVE_CHECK_IGNORE` in version 3.5) respectively
   instead.
 
 - The obsolete ``oe_machinstall`` function previously provided in the
-  :ref:`ref-classes-utils` class has been removed. For
+  :ref:`utils <ref-classes-utils>` class has been removed. For
   machine-specific installation it is recommended that you use the
   built-in override support in the fetcher or overrides in general
   instead.

@@ -1,0 +1,119 @@
+From 2221409ee3a909e5a3e0ce4bbc12ae11cfa91d94 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 10:03:03 +0000
+Subject: [PATCH 05/16] Add our services to meson
+
+---
+ meson.build               |  2 +-
+ meson_options.txt         |  3 +++
+ service_files/meson.build |  3 +++
+ src/meson.build           | 58 +++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 65 insertions(+), 1 deletion(-)
+
+diff --git a/meson.build b/meson.build
+index 13d9d51..aefba2a 100644
+--- a/meson.build
++++ b/meson.build
+@@ -3,7 +3,7 @@ project(
+     'cpp',
+     default_options: [
+         'warning_level=3',
+-        'werror=true',
++        'werror=false',
+         'cpp_std=c++17'
+     ],
+     license: 'Apache-2.0',
+diff --git a/meson_options.txt b/meson_options.txt
+index 918d206..a270bdf 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -10,3 +10,6 @@ option('nvme', type: 'feature', value: 'disabled', description: 'Enable NVMe sen
+ option('psu', type: 'feature', value: 'enabled', description: 'Enable PSU sensor.',)
+ option('external', type: 'feature', value: 'enabled', description: 'Enable External sensor.',)
+ option('tests', type: 'feature', description: 'Build tests.',)
++option('nvmelegacy', type: 'feature', value: 'enabled', description: 'Enable NVMe legacy sensor.',)
++option('health', type: 'feature', value: 'enabled', description: 'BMC Health sensor',)
++option('sysfs', type: 'feature', value: 'enabled', description: 'Enable sysfs generic sensor.',)
+diff --git a/service_files/meson.build b/service_files/meson.build
+index 37bb261..7e675b0 100644
+--- a/service_files/meson.build
++++ b/service_files/meson.build
+@@ -10,6 +10,9 @@ unit_files = [
+     ['nvme', 'xyz.openbmc_project.nvmesensor.service'],
+     ['psu', 'xyz.openbmc_project.psusensor.service'],
+     ['external', 'xyz.openbmc_project.externalsensor.service'],
++    ['nvmelegacy', 'xyz.openbmc_project.nvmelegacysensor.service'],
++    ['health', 'xyz.openbmc_project.healthsensor.service'],
++    ['sysfs', 'xyz.openbmc_project.sysfssensor.service'],
+ ]
+ 
+ foreach tuple : unit_files
+diff --git a/src/meson.build b/src/meson.build
+index dc11177..0402928 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -209,3 +209,61 @@ if get_option('external').enabled()
+         ],
+     )
+ endif
++
++if get_option('nvmelegacy').enabled()
++    executable(
++        'nvmelegacysensor',
++        'NVMELegacySensor.cpp',
++        dependencies: [
++            i2c,
++            sdbusplus,
++            mctp,
++    ],
++        implicit_include_directories: false,
++        include_directories: '../include',
++        install: true,
++        link_with: [
++            utils_a,
++            thresholds_a,
++        ],
++    )
++endif
++
++if get_option('health').enabled()
++    executable(
++        'healthsensor',
++        'HealthSensor.cpp',
++        dependencies: [
++            i2c,
++            sdbusplus,
++            mctp,
++    ],
++        implicit_include_directories: false,
++        include_directories: '../include',
++        install: true,
++        link_with: [
++            utils_a,
++            thresholds_a,
++        ],
++    )
++endif
++
++if get_option('sysfs').enabled()
++    executable(
++        'sysfssensor',
++        'SysfsSensor.cpp',
++        'SysfsSensorMain.cpp',
++        dependencies: [
++            sdbusplus,
++            gpiodcxx,
++        ],
++        implicit_include_directories: false,
++        include_directories: '../include',
++        install: true,
++        link_with: [
++            pwmsensor_a,
++            thresholds_a,
++            utils_a,
++        ],
++    )
++endif
+-- 
+2.7.4
+

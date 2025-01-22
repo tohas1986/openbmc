@@ -9,9 +9,9 @@ DEPENDS = "udev libusb1 libplist libimobiledevice-glue"
 inherit autotools pkgconfig gitpkgv systemd
 
 PKGV = "${GITPKGVTAG}"
-PV = "1.1.2+git"
+PV = "1.1.2+git${SRCPV}"
 
-SRCREV = "01c94c77f59404924f1c46d99c4e5e0c7817281b"
+SRCREV = "f50e52f3393a9149ac65fdda8f0d425109efc7fe"
 SRC_URI = "git://github.com/libimobiledevice/usbmuxd;protocol=https;branch=master"
 
 S = "${WORKDIR}/git"

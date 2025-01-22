@@ -49,6 +49,7 @@ RDEPENDS:${PN}-system = " \
 
 SUMMARY:${PN}-interface = "Interfaces"
 RDEPENDS:${PN}-interface = " \
+    webui-vue \
     phosphor-ipmi-ipmb \
 "
 

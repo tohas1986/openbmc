@@ -1,0 +1,23 @@
+From 44008cccaec7732101516894c9b9f5480266d756 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 1 Jun 2020 14:59:00 +0000
+Subject: [PATCH] intel-ipmi-oem: Stop spamming with non-critical Failed to
+ GetObject
+
+---
+ include/sdrutils.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/sdrutils.hpp b/include/sdrutils.hpp
+index f63e52b..11ba94d 100644
+--- a/include/sdrutils.hpp
++++ b/include/sdrutils.hpp
+@@ -281,7 +281,7 @@ static inline std::map<std::string, std::vector<std::string>>
+     }
+     catch (const std::exception& e)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
++        phosphor::logging::log<phosphor::logging::level::DEBUG>(
+             "Failed to GetObject", phosphor::logging::entry("PATH=%s", path),
+             phosphor::logging::entry("WHAT=%s", e.what()));
+     }

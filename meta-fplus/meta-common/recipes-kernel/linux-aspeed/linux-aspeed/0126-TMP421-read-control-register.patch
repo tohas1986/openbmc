@@ -1,0 +1,53 @@
+From 7e5a9523a1357d186bbab94629536afa94250e69 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Wed, 16 Dec 2020 12:34:27 +0000
+Subject: [PATCH] TMP421 read control register
+
+---
+ drivers/hwmon/tmp421.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/drivers/hwmon/tmp421.c b/drivers/hwmon/tmp421.c
+index 1fd8d41d90c8..139d33656a34 100644
+--- a/drivers/hwmon/tmp421.c
++++ b/drivers/hwmon/tmp421.c
+@@ -174,8 +174,7 @@ static int tmp421_enable_channels(struct tmp421_data *data)
+ 	int new, i;
+ 
+ 	if (old < 0) {
+-		dev_err(dev, "error reading register, can't disable channels\n");
+-		return old;
++		dev_err(dev, "error reading register, can't disable channels, but who cares...\n");
+ 	}
+ 
+ 	new = old & ~TMP421_CONFIG_REG_REN_MASK;
+@@ -187,8 +186,10 @@ static int tmp421_enable_channels(struct tmp421_data *data)
+ 		return 0;
+ 
+ 	err = i2c_smbus_write_byte_data(client, TMP421_CONFIG_REG_2, new);
+-	if (err < 0)
++	if (err < 0) {
+ 		dev_err(dev, "error writing register, can't disable channels\n");
++		err = 0;
++	}
+ 
+ 	return err;
+ }
+@@ -284,10 +285,12 @@ static int tmp421_init_client(struct tmp421_data *data)
+ 	config = i2c_smbus_read_byte_data(client, TMP421_CONFIG_REG_1);
+ 	if (config < 0) {
+ 		dev_err(&client->dev,
+-			"Could not read configuration register (%d)\n", config);
+-		return config;
++			"Could not read configuration register (%d), setting to zero\n", config);
++		config = 0x00;
+ 	}
+ 
++	dev_err(&client->dev,
++			"Configuration register (%d)\n", config);
+ 	config_orig = config;
+ 	config &= ~TMP421_CONFIG_SHUTDOWN;
+ 
+-- 
+2.36.1
+

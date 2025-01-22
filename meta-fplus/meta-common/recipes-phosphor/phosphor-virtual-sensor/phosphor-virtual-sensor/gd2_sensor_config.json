@@ -1,0 +1,162 @@
+[
+    {
+        "Desc" :
+        {
+            "Name" : "SYS_PWR",
+            "SensorType" : "power",
+            "MaxValue" : 350,
+            "MinValue" : 0
+        },
+        "Params":
+        {
+            "DbusParam" :
+            [
+                {
+                    "ParamName" : "PWR1",
+                    "Desc" :
+                    {
+                        "Name" : "BPB1_HDD_5V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR2",
+                    "Desc" :
+                    {
+                        "Name" : "BPB1_HDD_12V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR3",
+                    "Desc" :
+                    {
+                        "Name" : "BPB2_HDD_5V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR4",
+                    "Desc" :
+                    {
+                        "Name" : "BPB2_HDD_12V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR5",
+                    "Desc" :
+                    {
+                        "Name" : "BPB3_HDD_5V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR6",
+                    "Desc" :
+                    {
+                        "Name" : "BPB3_HDD_12V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR7",
+                    "Desc" :
+                    {
+                        "Name" : "BPB4_HDD_5V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR8",
+                    "Desc" :
+                    {
+                        "Name" : "BPB4_HDD_12V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR9",
+                    "Desc" :
+                    {
+                        "Name" : "BPB5_HDD_5V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR10",
+                    "Desc" :
+                    {
+                        "Name" : "BPB5_HDD_12V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR11",
+                    "Desc" :
+                    {
+                        "Name" : "BPB6_HDD_5V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR12",
+                    "Desc" :
+                    {
+                        "Name" : "BPB6_HDD_12V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR13",
+                    "Desc" :
+                    {
+                        "Name" : "BPB7_HDD_5V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR14",
+                    "Desc" :
+                    {
+                        "Name" : "BPB7_HDD_12V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR15",
+                    "Desc" :
+                    {
+                        "Name" : "BPB8_HDD_5V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR16",
+                    "Desc" :
+                    {
+                        "Name" : "BPB8_HDD_12V_PWR",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR17",
+                    "Desc" :
+                    {
+                        "Name" : "IO_BRD_POUT_3V3",
+                        "SensorType" : "power"
+                    }
+                },
+                {
+                    "ParamName" : "PWR18",
+                    "Desc" :
+                    {
+                        "Name" : "SYS_FAN_PWR",
+                        "SensorType" : "power"
+                    }
+                }
+            ]
+        },
+        "Expression" : "PWR1 + PWR2 + PWR3 + PWR4 + PWR5 + PWR6 + PWR7 + PWR8 + PWR9 + PWR10 + PWR11 + PWR12 + PWR13 + PWR14 + PWR15 + PWR16 + PWR17 + PWR18"
+    }
+]

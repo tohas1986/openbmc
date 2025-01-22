@@ -17,4 +17,4 @@ Type=oneshot
 RemainAfterExit=yes
 
 [Install]
-RequiredBy=obmc-host-startmin@%i.target
+WantedBy=obmc-host-start@%i.target

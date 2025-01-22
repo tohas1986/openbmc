@@ -1,0 +1,31 @@
+From c7e1f7df59641d5272411fdc7764ef40959a632b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 28 Oct 2022 08:40:40 +0000
+Subject: [PATCH] Reduce spamming
+
+---
+ dbus-sdr/sensorcommands.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/dbus-sdr/sensorcommands.cpp b/dbus-sdr/sensorcommands.cpp
+index b356f93..19cdb5a 100644
+--- a/dbus-sdr/sensorcommands.cpp
++++ b/dbus-sdr/sensorcommands.cpp
+@@ -165,7 +165,7 @@ static sdbusplus::bus::match_t thresholdChanged(
+             }
+             if (*ptr)
+             {
+-                phosphor::logging::log<phosphor::logging::level::INFO>(
++                phosphor::logging::log<phosphor::logging::level::DEBUG>(
+                     "thresholdChanged: Assert",
+                     phosphor::logging::entry("SENSOR=%s", m.get_path()));
+                 thresholdDeassertMap[m.get_path()][findAssert->first] = *ptr;
+@@ -176,7 +176,7 @@ static sdbusplus::bus::match_t thresholdChanged(
+                     thresholdDeassertMap[m.get_path()][findAssert->first];
+                 if (value)
+                 {
+-                    phosphor::logging::log<phosphor::logging::level::INFO>(
++                    phosphor::logging::log<phosphor::logging::level::DEBUG>(
+                         "thresholdChanged: deassert",
+                         phosphor::logging::entry("SENSOR=%s", m.get_path()));
+                     value = *ptr;

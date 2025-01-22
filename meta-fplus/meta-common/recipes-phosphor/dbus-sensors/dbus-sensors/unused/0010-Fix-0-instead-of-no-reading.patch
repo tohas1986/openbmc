@@ -1,0 +1,134 @@
+From db739e7b4a77747f7e88acd4bea85e81ebe514a1 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 17 Jun 2020 12:56:53 +0000
+Subject: [PATCH 1/1] Fix 0 instead of no reading
+
+---
+ src/ADCSensor.cpp       | 2 +-
+ src/CPUSensor.cpp       | 2 +-
+ src/HwmonTempSensor.cpp | 2 +-
+ src/IpmbSensor.cpp      | 8 ++++----
+ src/PSUEvent.cpp        | 2 +-
+ src/PSUSensor.cpp       | 2 +-
+ src/TachSensor.cpp      | 2 +-
+ 7 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index d22afd8..84c8193 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -198,7 +198,7 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+ 
+     if (errCount >= warnAfterErrorCount)
+     {
+-        updateValue(0);
++        updateValue(std::numeric_limits<double>::quiet_NaN());
+     }
+ 
+     responseStream.clear();
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index 241b14f..6550cce 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -198,7 +198,7 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+             }
+             if (show)
+             {
+-                updateValue(0);
++                updateValue(std::numeric_limits<double>::quiet_NaN());
+             }
+             else
+             {
+diff --git a/src/HwmonTempSensor.cpp b/src/HwmonTempSensor.cpp
+index 9f9448a..04ea7ca 100644
+--- a/src/HwmonTempSensor.cpp
++++ b/src/HwmonTempSensor.cpp
+@@ -144,7 +144,7 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+ 
+     if (errCount >= warnAfterErrorCount)
+     {
+-        updateValue(0);
++        updateValue(std::numeric_limits<double>::quiet_NaN());
+     }
+     responseStream.clear();
+     inputDev.close();
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 9f591ac..c2f89d6 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -228,7 +228,7 @@ void IpmbSensor::processError(void)
+     }
+     else if (errorCount > errorFilter)
+     {
+-        updateValue(0);
++        updateValue(std::numeric_limits<double>::quiet_NaN());
+     }
+     if (errorCount < std::numeric_limits<uint8_t>::max())
+     {
+@@ -248,7 +248,7 @@ void IpmbSensor::read(void)
+         }
+         if (!isPowerOn() && readState != PowerState::always)
+         {
+-            updateValue(0);
++            updateValue(std::numeric_limits<double>::quiet_NaN());
+             read();
+             return;
+         }
+@@ -259,13 +259,13 @@ void IpmbSensor::read(void)
+                 if (ec || status)
+                 {
+                     processError();
+-                    updateValue(0);
++                    updateValue(std::numeric_limits<double>::quiet_NaN());
+                     read();
+                     return;
+                 }
+                 if (!isPowerOn() && readState != PowerState::always)
+                 {
+-                    updateValue(0);
++                    updateValue(std::numeric_limits<double>::quiet_NaN());
+                     read();
+                     return;
+                 }
+diff --git a/src/PSUEvent.cpp b/src/PSUEvent.cpp
+index c8107bd..8fb550f 100644
+--- a/src/PSUEvent.cpp
++++ b/src/PSUEvent.cpp
+@@ -239,7 +239,7 @@ void PSUSubEvent::handleResponse(const boost::system::error_code& err)
+         {
+             std::cerr << "Failure to read event at " << path << "\n";
+         }
+-        updateValue(0);
++        updateValue(std::numeric_limits<double>::quiet_NaN());
+         errCount++;
+     }
+     lseek(fd, 0, SEEK_SET);
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index 954fb2a..22a1652 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -205,7 +205,7 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+         {
+             std::cerr << "Failure to read sensor " << name << "\n";
+         }
+-        updateValue(0);
++        updateValue(std::numeric_limits<double>::quiet_NaN());
+         errCount++;
+     }
+ 
+diff --git a/src/TachSensor.cpp b/src/TachSensor.cpp
+index bea79d8..8bc0733 100644
+--- a/src/TachSensor.cpp
++++ b/src/TachSensor.cpp
+@@ -178,7 +178,7 @@ void TachSensor::handleResponse(const boost::system::error_code& err)
+                 std::cerr << "Failure to read sensor " << name << " at " << path
+                           << " ec:" << err << "\n";
+             }
+-            updateValue(0);
++            updateValue(std::numeric_limits<double>::quiet_NaN());
+         }
+     }
+     responseStream.clear();
+-- 
+2.7.4
+

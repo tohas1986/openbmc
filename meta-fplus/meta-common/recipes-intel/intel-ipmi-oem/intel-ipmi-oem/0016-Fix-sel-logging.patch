@@ -1,0 +1,63 @@
+From 644e20c55388984c04aec4c831d92ef53fabff53 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Tue, 13 Apr 2021 10:41:26 +0000
+Subject: [PATCH] Fix sel logging
+
+---
+ src/storagecommands.cpp | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index 23fe31b..2ddf355 100644
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -1131,7 +1131,8 @@ ipmi::RspType<uint16_t, // Next Record ID
+         return ipmi::responseUnspecifiedError();
+     }
+ 
+-    if (recordType == intel_oem::ipmi::sel::systemEvent)
++    if (recordType == intel_oem::ipmi::sel::systemEvent &&
++        targetEntryFields.size() > 4)
+     {
+         // Get the timestamp
+         std::tm timeStruct = {};
+@@ -1198,8 +1199,10 @@ ipmi::RspType<uint16_t, // Next Record ID
+             systemEventType{timestamp, generatorID, evmRev, sensorType,
+                             sensorNum, eventType, eventDir, eventData});
+     }
+-    else if (recordType >= intel_oem::ipmi::sel::oemTsEventFirst &&
+-             recordType <= intel_oem::ipmi::sel::oemTsEventLast)
++    else if ((recordType == intel_oem::ipmi::sel::systemEvent &&
++              targetEntryFields.size() == 4) ||
++             (recordType >= intel_oem::ipmi::sel::oemTsEventFirst &&
++              recordType <= intel_oem::ipmi::sel::oemTsEventLast))
+     {
+         // Get the timestamp
+         std::tm timeStruct = {};
+@@ -1257,9 +1260,6 @@ ipmi::RspType<uint16_t> ipmiStorageAddSELEntry(
+         recordID, recordType, timestamp, generatorID, evmRev, sensorType,
+         sensorNum, eventType, eventData1, eventData2, eventData3);
+ 
+-    uint16_t responseID = 0xFFFF;
+-
+-    //log SEL
+     std::vector<uint8_t> eventData(9, 0xFF);
+     eventData[0] = generatorID;
+     eventData[1] = generatorID >> 8;
+@@ -1276,6 +1276,7 @@ ipmi::RspType<uint16_t> ipmiStorageAddSELEntry(
+         ipmiSELService, ipmiSELPath, ipmiSELAddInterface, "IpmiSelAddOem");
+     writeSEL.append(ipmiSELAddMessage,  eventData, recordType);
+ 
++     uint16_t responseID = 0xFFFF;
+     try
+     {
+         auto ret = bus->call(writeSEL);
+@@ -1283,7 +1284,7 @@ ipmi::RspType<uint16_t> ipmiStorageAddSELEntry(
+     }
+     catch (sdbusplus::exception_t& e)
+     {
+-        std::cerr << "call IpmiSelAdd failed\n";
++        std::cerr << "failed to call IpmiSelAdd method\n";
+     }
+ 
+     return ipmi::responseSuccess(responseID);

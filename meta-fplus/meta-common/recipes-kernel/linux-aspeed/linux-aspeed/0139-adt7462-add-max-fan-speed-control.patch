@@ -1,0 +1,61 @@
+From 979c763a21f93370787aec684f06857213db65be Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Wed, 30 Jun 2021 09:39:19 +0000
+Subject: [PATCH] adt7462-add-max-fan-speed-control
+
+---
+ drivers/hwmon/adt7462.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/hwmon/adt7462.c b/drivers/hwmon/adt7462.c
+index d9faa12..46e9c00 100644
+--- a/drivers/hwmon/adt7462.c
++++ b/drivers/hwmon/adt7462.c
+@@ -43,7 +43,7 @@ static const unsigned short normal_i2c[] = { 0x58, 0x5C, I2C_CLIENT_END };
+ #define		ADT7462_SETUP_COMPLETE_MASK	0x20
+ 
+ #define ADT7462_REG_CFG2			0x02
+-#define		ADT7462_FSPD_MASK		0x20
++#define		ADT7462_FSPD_MASK		0x24
+ #define		ADT7462_PWM_FREQ_MODE_MASK      0x04
+ 
+ #define ADT7462_REG_PWM_BASE_ADDR		0xAA
+@@ -60,6 +60,12 @@ static const unsigned short normal_i2c[] = { 0x58, 0x5C, I2C_CLIENT_END };
+ #define		ADT7462_PWM_RANGE_SHIFT		4
+ #define ADT7462_REG_PWM_CFG_BASE_ADDR		0x21
+ #define ADT7462_REG_PWM_CFG_MAX_ADDR		0x24
++
++#define ADT7462_REG_PWM1_CFG                0x21
++#define ADT7462_REG_PWM2_CFG                0x22
++#define ADT7462_REG_PWM3_CFG                0x23
++#define ADT7462_REG_PWM4_CFG                0x24
++
+ #define		ADT7462_PWM_CHANNEL_MASK	0xE0
+ #define		ADT7462_PWM_CHANNEL_SHIFT	5
+ #define		ADT7462_SPINUP_TIMEOUT_MASK     0x07
+@@ -1195,6 +1201,7 @@ static ssize_t force_pwm_max_store(struct device *dev,
+ 	struct i2c_client *client = data->client;
+ 	long temp;
+ 	u8 reg;
++    u8 set = 0xf0;
+ 
+ 	if (kstrtol(buf, 10, &temp))
+ 		return -EINVAL;
+@@ -1207,7 +1214,13 @@ static ssize_t force_pwm_max_store(struct device *dev,
+ 		reg &= ~ADT7462_FSPD_MASK;
+ 	data->cfg2 = reg;
+ 	i2c_smbus_write_byte_data(client, ADT7462_REG_CFG2, reg);
+-	mutex_unlock(&data->lock);
++	
++    i2c_smbus_write_byte_data(client, ADT7462_REG_PWM1_CFG, set);
++    i2c_smbus_write_byte_data(client, ADT7462_REG_PWM2_CFG, set);
++    i2c_smbus_write_byte_data(client, ADT7462_REG_PWM3_CFG, set);
++    i2c_smbus_write_byte_data(client, ADT7462_REG_PWM4_CFG, set);
++
++    mutex_unlock(&data->lock);
+ 
+ 	return count;
+ }
+-- 
+2.7.4
+

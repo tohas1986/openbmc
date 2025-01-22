@@ -12,6 +12,6 @@ PYPI_PACKAGE = "Flask-PyMongo"
 
 inherit pypi setuptools3
 
-DEPENDS = "python3-vcversioner python3-vcversioner-native"
+DEPENDS = "${PYTHON_PN}-vcversioner ${PYTHON_PN}-vcversioner-native"
 
-RDEPENDS:${PN} = "python3-pymongo python3-flask"
+RDEPENDS:${PN} = "${PYTHON_PN}-pymongo ${PYTHON_PN}-flask"

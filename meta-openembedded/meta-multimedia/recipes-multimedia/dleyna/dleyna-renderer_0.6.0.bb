@@ -22,6 +22,4 @@ inherit autotools pkgconfig
 CFLAGS += " -I${S}"
 
 FILES:${PN} += "${datadir}/dbus-1"
-FILES:${PN}-dev += "${libdir}/${BPN}/*.so"
-
-SKIP_RECIPE[dleyna-renderer] ?= "Upstream is dead moreover needs porting to work with latest gupnp >= 1.2"
+FILES:${PN}-dev += "${libdir}/${PN}/*.so"

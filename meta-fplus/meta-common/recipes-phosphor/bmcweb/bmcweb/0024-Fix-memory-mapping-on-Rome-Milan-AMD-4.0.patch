@@ -1,0 +1,101 @@
+From 05dc38a8428bcf2815e0a9564a9f8b4c13e0a749 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Wed, 1 Mar 2023 17:16:49 +0000
+Subject: [PATCH] Fix-memory-mapping-on-Rome-Milan-AMD-4.0
+
+---
+ redfish-core/include/logutils.hpp | 65 +++++++++++++++++--------------
+ 1 file changed, 35 insertions(+), 30 deletions(-)
+
+diff --git a/redfish-core/include/logutils.hpp b/redfish-core/include/logutils.hpp
+index 69b16819..61b263b6 100644
+--- a/redfish-core/include/logutils.hpp
++++ b/redfish-core/include/logutils.hpp
+@@ -1086,40 +1086,42 @@ std::string getErrorNameSensorNumber(uint8_t sensorNum, uint8_t eventData1, uint
+     return sensorMap[sensorNum];
+ }
+ 
+-std::string getDIMMnameBySensorNumber(uint8_t sensorNum, uint8_t eventData2, uint8_t eventData3)
++std::string getDIMMnameBySensorNumber(uint8_t sensorNum, uint8_t eventData1, uint8_t eventData2, uint8_t eventData3)
+ {
+     std::string defaultName = "None";
+-    std::map<uint8_t, std::string> sensorMapPOne;
+-    std::map<uint8_t, std::string> sensorMapPTwo;
+-
+-    sensorMapPOne = {{0x00, "DIMM_P0_A0"},
+-                {0x10, "DIMM_P0_B0"},
+-                {0x20, "DIMM_P0_D0"},
+-                {0x30, "DIMM_P0_C0"},
+-                {0x40, "DIMM_P0_H0"},
+-                {0x50, "DIMM_P0_G0"},
+-                {0x60, "DIMM_P0_E0"},
+-                {0x70, "DIMM_P0_F0"},};
+-
+-    sensorMapPTwo = {{0x00, "DIMM_P1_I0"},
+-                {0x10, "DIMM_P1_J0"},
+-                {0x20, "DIMM_P1_L0"},
+-                {0x30, "DIMM_P1_K0"},
+-                {0x40, "DIMM_P1_P0"},
+-                {0x50, "DIMM_P1_O0"},
+-                {0x60, "DIMM_P1_M0"},
+-                {0x70, "DIMM_P1_N0"},};
+-
+-    if(eventData3 == 0x00)
+-    {
+-        return sensorMapPOne[eventData2];
+-    }
+-    else
++    std::map<uint8_t, std::string> sensorMap;
++
++	std::string model = getModelName();
++
++    if(model.empty())
+     {
+-        return sensorMapPTwo[eventData2];
++        model = "default";
++        std::cerr << "Model name empty, setting default model name!" << "\n";
+     }
+ 
+-    return defaultName;
++
++	if((model == "mzb2") && ((eventData1 == 0xA1) || (eventData1 == 0xA2) || (eventData1 == 0xA0)))
++	{
++		sensorMap = {{0x00, "DIMM_P0_A0"},
++					{0x10, "DIMM_P0_B0"},
++					{0x20, "DIMM_P0_C0"},
++					{0x30, "DIMM_P0_D0"},
++					{0x40, "DIMM_P0_E0"},
++					{0x50, "DIMM_P0_F0"},
++					{0x60, "DIMM_P0_G0"},
++					{0x70, "DIMM_P0_H0"},
++					{0x80, "DIMM_P0_I0"},
++					{0x90, "DIMM_P1_J0"},
++					{0xa0, "DIMM_P1_L0"},
++					{0xb0, "DIMM_P1_K0"},
++					{0xc0, "DIMM_P1_M0"},
++					{0xd0, "DIMM_P1_N0"},
++					{0xe0, "DIMM_P1_O0"},
++					{0xf0, "DIMM_P1_P0"},};
++
++		return sensorMap[eventData3];
++	}
++	return defaultName;
+ }
+ 
+ std::string getDIMMnameByEventData(uint8_t eventData)
+@@ -1230,8 +1232,11 @@ void SELEntryHandler(std::vector<std::string>& logEntryFields, MessageID message
+     switch(sensorNum)
+     {
+         case 0x13:
+-            sensorStr = getDIMMnameBySensorNumber(sensorNum, eventData2, eventData3);
++            sensorStr = getDIMMnameBySensorNumber(sensorNum, eventData1, eventData2, eventData3);
+             break;
++		case 0x00:
++            sensorStr = getDIMMnameBySensorNumber(sensorNum, eventData1, eventData2, eventData3);
++			break;
+         case 0x09:
+             sensorStr = getErrorNameSensorNumber(sensorNum, eventData1, eventData2, eventData3);
+             break;
+-- 
+2.34.1
+

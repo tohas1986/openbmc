@@ -1,5 +1,3 @@
-.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
-
 Release 4.0 (kirkstone)
 =======================
 
@@ -68,7 +66,7 @@ changes and you need to review them before committing. An example warning
 looks like::
 
     poky/scripts/lib/devtool/upgrade.py needs further work at line 275 since it contains abort
-
+    
 Fetching changes
 ~~~~~~~~~~~~~~~~
 
@@ -111,7 +109,7 @@ License changes
   If they do not, by default a warning will be shown. A
   :oe_git:`convert-spdx-licenses.py </openembedded-core/tree/scripts/contrib/convert-spdx-licenses.py>`
   script can be used to update your recipes.
-
+  
 - :term:`INCOMPATIBLE_LICENSE` should now use `SPDX identifiers <https://spdx.org/licenses/>`__.
   Additionally, wildcarding is now limited to specifically supported values -
   see the :term:`INCOMPATIBLE_LICENSE` documentation for further information.
@@ -119,9 +117,9 @@ License changes
 - The ``AVAILABLE_LICENSES`` variable has been removed. This variable was a performance
   liability and is highly dependent on which layers are added to the configuration,
   which can cause signature issues for users. In addition the ``available_licenses()``
-  function has been removed from the :ref:`ref-classes-license` class as
+  function has been removed from the :ref:`license <ref-classes-license>` class as
   it is no longer needed.
-
+  
 Removed recipes
 ~~~~~~~~~~~~~~~
 
@@ -136,21 +134,22 @@ The following recipes have been removed in this release:
 
 Python changes
 ~~~~~~~~~~~~~~
-
+     
 - ``distutils`` has been deprecated upstream in Python 3.10 and thus the ``distutils*``
   classes have been moved to ``meta-python``. Recipes that inherit the ``distutils*``
   classes should be updated to inherit ``setuptools*`` equivalents instead.
-
+  
 - The Python package build process is now based on `wheels <https://pythonwheels.com/>`__.
-  The new Python packaging classes that should be used are
-  :ref:`ref-classes-python_flit_core`, :ref:`ref-classes-python_setuptools_build_meta`
-  and :ref:`ref-classes-python_poetry_core`.
+  Here are the new Python packaging classes that should be used:
+  :ref:`python_flit_core <ref-classes-python_flit_core>`,
+  :ref:`python_setuptools_build_meta <ref-classes-python_setuptools_build_meta>`
+  and :ref:`python_poetry_core <ref-classes-python_poetry_core>`.  
 
-- The :ref:`ref-classes-setuptools3` class :ref:`ref-tasks-install` task now
+- The :ref:`setuptools3 <ref-classes-setuptools3>` class :ref:`ref-tasks-install` task now
   installs the ``wheel`` binary archive. In current versions of ``setuptools`` the
   legacy ``setup.py install`` method is deprecated. If the ``setup.py`` cannot be used
   with wheels, for example it creates files outside of the Python module or standard
-  entry points, then :ref:`ref-classes-setuptools3_legacy` should
+  entry points, then :ref:`setuptools3_legacy <ref-classes-setuptools3_legacy>` should
   be used instead.
 
 Prelink removed
@@ -159,7 +158,7 @@ Prelink removed
 Prelink has been dropped by ``glibc`` upstream in 2.36. It already caused issues with
 binary corruption, has a number of open bugs and is of questionable benefit
 without disabling load address randomization and PIE executables.
-
+    
 We disabled prelinking by default in the honister (3.4) release, but left it able
 to be enabled if desired. However, without glibc support it cannot be maintained
 any further, so all of the prelinking functionality has been removed in this release.
@@ -170,9 +169,9 @@ reference(s).
 Reproducible as standard
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Reproducibility is now considered as standard functionality, thus the
+Reproducibility is now considered as standard functionality, thus the 
 ``reproducible`` class has been removed and its previous contents merged into the
-:ref:`ref-classes-base` class. If you have references in your configuration to
+:ref:`base <ref-classes-base>` class. If you have references in your configuration to
 ``reproducible`` in :term:`INHERIT`, :term:`USER_CLASSES` etc. then they should be
 removed.
 
@@ -190,7 +189,7 @@ Supported host distribution changes
 
 - ``gcc`` version 7.5 is now required at minimum on the build host. For older
   host distributions where this is not available, you can use the
-  :term:`buildtools-extended` tarball (easily installable using
+  ``buildtools-extended-tarball`` (easily installable using
   ``scripts/install-buildtools``).
 
 :append/:prepend in combination with other operators
@@ -207,22 +206,22 @@ For the ``append`` plus ``+=`` (and ``prepend`` plus ``=+``) combinations,
 the content should be prefixed (respectively suffixed) by a space to maintain
 the same behavior.  You can learn more about override style syntax operators
 (``append``, ``prepend`` and ``remove``) in the BitBake documentation:
-:ref:`bitbake-user-manual/bitbake-user-manual-metadata:appending and prepending (override style syntax)`
-and :ref:`bitbake-user-manual/bitbake-user-manual-metadata:removal (override style syntax)`.
+:ref:`bitbake:bitbake-user-manual/bitbake-user-manual-metadata:appending and prepending (override style syntax)`
+and :ref:`bitbake:bitbake-user-manual/bitbake-user-manual-metadata:removal (override style syntax)`.
 
 Miscellaneous changes
 ~~~~~~~~~~~~~~~~~~~~~
-
+  
 - ``blacklist.bbclass`` is removed and the functionality moved to the
-  :ref:`ref-classes-base` class with a more descriptive
+  :ref:`base <ref-classes-base>` class with a more descriptive
   ``varflag`` variable named :term:`SKIP_RECIPE` which will use the `bb.parse.SkipRecipe()`
   function. The usage remains the same, for example::
 
      SKIP_RECIPE[my-recipe] = "Reason for skipping recipe"
 
-- :ref:`ref-classes-allarch` packagegroups can no longer depend on packages
+- :ref:`allarch <ref-classes-allarch>` packagegroups can no longer depend on packages
   which use :term:`PKG` renaming such as :ref:`ref-classes-debian`. Such packagegroups
-  recipes should be changed to avoid inheriting :ref:`ref-classes-allarch`.
+  recipes should be changed to avoid inheriting :ref:`allarch <ref-classes-allarch>`.
 
 - The ``lnr`` script has been removed. ``lnr`` implemented the same behaviour as `ln --relative --symbolic`,
   since at the time of creation `--relative` was only available in coreutils 8.16
@@ -231,7 +230,7 @@ Miscellaneous changes
   any calls to ``lnr`` in your recipes or classes, they should be replaced with
   `ln --relative --symbolic` or `ln -rs` if you prefer the short version.
 
-- The ``package_qa_handle_error()`` function formerly in the :ref:`ref-classes-insane`
+- The ``package_qa_handle_error()`` function formerly in the :ref:`insane <ref-classes-insane>`
   class has been moved and renamed - if you have any references in your own custom
   classes they should be changed to ``oe.qa.handle_error()``.
 
@@ -252,7 +251,7 @@ Miscellaneous changes
 - The ``cortexa72-crc`` and ``cortexa72-crc-crypto`` tunes have been removed since
   the crc extension is now enabled by default for cortexa72. Replace any references to
   these with ``cortexa72`` and ``cortexa72-crypto`` respectively.
-
+  
 - The Python development shell (previously known as ``devpyshell``) feature has been
   renamed to ``pydevshell``. To start it you should now run::
 
@@ -261,11 +260,8 @@ Miscellaneous changes
 - The ``packagegroups-core-full-cmdline-libs`` packagegroup is no longer produced, as
   libraries should normally be brought in via dependencies. If you have any references
   to this then remove them.
-
+  
 - The :term:`TOPDIR` variable and the current working directory are no longer modified
   when parsing recipes. Any code depending on the previous behaviour will no longer
   work - change any such code to explicitly use appropriate path variables instead.
 
-- In order to exclude the kernel image from the image rootfs,
-  :term:`RRECOMMENDS`\ ``:${KERNEL_PACKAGE_NAME}-base`` should be set instead of
-  :term:`RDEPENDS`\ ``:${KERNEL_PACKAGE_NAME}-base``.

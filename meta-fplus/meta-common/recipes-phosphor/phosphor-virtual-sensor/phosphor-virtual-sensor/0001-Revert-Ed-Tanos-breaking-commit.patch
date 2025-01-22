@@ -1,0 +1,35 @@
+From 724f2bc1f1f4e3bd7928ae444159bf439b51d54c Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 14 Apr 2023 12:07:49 +0000
+Subject: [PATCH] Revert-Ed-Tanos-breaking-commit
+
+---
+ virtualSensor.cpp | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/virtualSensor.cpp b/virtualSensor.cpp
+index d130200..b4bfde5 100644
+--- a/virtualSensor.cpp
++++ b/virtualSensor.cpp
+@@ -732,8 +732,7 @@ ManagedObjectType VirtualSensors::getObjectsFromDBus()
+
+     try
+     {
+-        auto method = bus.new_method_call("xyz.openbmc_project.EntityManager",
+-                                          "/xyz/openbmc_project/inventory",
++        auto method = bus.new_method_call(entityManagerBusName, "/",
+                                           "org.freedesktop.DBus.ObjectManager",
+                                           "GetManagedObjects");
+         auto reply = bus.call(method);
+@@ -1053,8 +1052,7 @@ int main()
+     auto bus = sdbusplus::bus::new_default();
+ 
+     // Add the ObjectManager interface
+-    sdbusplus::server::manager_t objManager(bus,
+-                                            "/xyz/openbmc_project/sensors");
++    sdbusplus::server::manager_t objManager(bus, "/");
+ 
+     // Create an virtual sensors object
+     phosphor::virtualSensor::VirtualSensors virtualSensors(bus);
+--
+2.34.1

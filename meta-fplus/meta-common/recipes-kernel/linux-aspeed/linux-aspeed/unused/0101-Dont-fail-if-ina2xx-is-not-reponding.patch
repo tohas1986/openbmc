@@ -1,0 +1,133 @@
+From df0a217c8806267592aebe9dde6176fc2aa6d72f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 20 Feb 2020 17:03:27 +0300
+Subject: [PATCH 1/1] Don't fail if ina2xx is not reponding
+
+debug
+---
+ drivers/hwmon/ina2xx.c          |  7 +++++--
+ drivers/i2c/busses/i2c-aspeed.c | 20 ++++++++++----------
+ 2 files changed, 15 insertions(+), 12 deletions(-)
+
+diff --git a/drivers/hwmon/ina2xx.c b/drivers/hwmon/ina2xx.c
+index 838fb6c..6c853d1 100644
+--- a/drivers/hwmon/ina2xx.c
++++ b/drivers/hwmon/ina2xx.c
+@@ -249,6 +249,10 @@ static int ina2xx_init(struct ina2xx_data *data)
+ {
+ 	int ret = regmap_write(data->regmap, INA2XX_CONFIG,
+ 			       data->config->config_default);
++        printk("ina2xx_init: first regmap ret: %d", ret);
++	ret = regmap_write(data->regmap, INA2XX_CONFIG,
++			       data->config->config_default);
++        printk("ina2xx_init: second regmap ret: %d", ret);
+ 	if (ret < 0)
+ 		return ret;
+ 
+@@ -674,8 +678,7 @@ static int ina2xx_probe(struct i2c_client *client,
+ 
+ 	ret = ina2xx_init(data);
+ 	if (ret < 0) {
+-		dev_err(dev, "error configuring the device: %d\n", ret);
+-		return -ENODEV;
++		dev_err(dev, "error configuring the device: %d, postpone init\n", ret);
+ 	}
+ 
+ 	data->groups[group++] = &ina2xx_group;
+diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
+index 4dd6566..26a4de8 100644
+--- a/drivers/i2c/busses/i2c-aspeed.c
++++ b/drivers/i2c/busses/i2c-aspeed.c
+@@ -258,7 +258,7 @@ static int aspeed_i2c_recover_bus(struct aspeed_i2c_bus *bus)
+ 		/* Bus is idle: no recovery needed. */
+ 		if (command & ASPEED_I2CD_SCL_LINE_STS)
+ 			goto out;
+-		dev_dbg(bus->dev, "SCL hung (state %x), attempting recovery\n",
++		dev_info(bus->dev, "SCL hung (state %x), attempting recovery\n",
+ 			command);
+ 
+ 		reinit_completion(&bus->cmd_complete);
+@@ -279,7 +279,7 @@ static int aspeed_i2c_recover_bus(struct aspeed_i2c_bus *bus)
+ 			goto reset_out;
+ 	/* Bus error. */
+ 	} else {
+-		dev_dbg(bus->dev, "SDA hung (state %x), attempting recovery\n",
++		dev_info(bus->dev, "SDA hung (state %x), attempting recovery\n",
+ 			command);
+ 
+ 		reinit_completion(&bus->cmd_complete);
+@@ -333,7 +333,7 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+ 		return 0;
+ 
+ 	if (aspeed_i2c_check_slave_error(irq_status)) {
+-		dev_dbg(bus->dev, "received slave error interrupt: 0x%08x\n",
++		dev_info(bus->dev, "received slave error interrupt: 0x%08x\n",
+ 			irq_status);
+ 		irq_handled |= (irq_status & ASPEED_I2CD_INTR_SLAVE_ERRORS);
+ 		bus->slave_state = ASPEED_I2C_SLAVE_INACTIVE;
+@@ -358,7 +358,7 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+ 	if (bus->slave_state == ASPEED_I2C_SLAVE_INACTIVE)
+ 		return irq_handled;
+ 
+-	dev_dbg(bus->dev, "slave irq status 0x%08x, cmd 0x%08x\n",
++	dev_info(bus->dev, "slave irq status 0x%08x, cmd 0x%08x\n",
+ 		irq_status, command);
+ 
+ 	/*
+@@ -369,7 +369,7 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+ 	 */
+ 	if (unlikely(irq_status &
+ 		     ASPEED_I2CD_INTR_SLAVE_ADDR_RECEIVED_PENDING)) {
+-		dev_dbg(bus->dev, "A slave addr match interrupt is pending.\n");
++		dev_info(bus->dev, "A slave addr match interrupt is pending.\n");
+ 		irq_handled |= ASPEED_I2CD_INTR_SLAVE_ADDR_RECEIVED_PENDING;
+ 	}
+ 
+@@ -727,7 +727,7 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+ 	 */
+ 	ret = aspeed_i2c_check_master_error(irq_status);
+ 	if (ret) {
+-		dev_dbg(bus->dev, "received master error interrupt: 0x%08x\n",
++		dev_info(bus->dev, "received master error interrupt: 0x%08x\n",
+ 			irq_status);
+ 		irq_handled |= (irq_status & ASPEED_I2CD_INTR_MASTER_ERRORS);
+ 		if (bus->master_state != ASPEED_I2C_MASTER_INACTIVE) {
+@@ -773,7 +773,7 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+ 				~ASPEED_I2CD_MASTER_CMDS_MASK,
+ 			       bus->base + ASPEED_I2C_CMD_REG);
+ 			bus->master_state = ASPEED_I2C_MASTER_PENDING;
+-			dev_dbg(bus->dev,
++			dev_info(bus->dev,
+ 				"master goes pending due to a slave start\n");
+ 			goto out_no_complete;
+ 		}
+@@ -784,7 +784,7 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+ 				bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
+ 				goto out_complete;
+ 			}
+-			pr_devel("no slave present at %02x\n", msg->addr);
++			dev_info(bus->dev, "no slave present at %02x\n", msg->addr);
+ 			irq_handled |= ASPEED_I2CD_INTR_TX_NAK;
+ 			bus->cmd_err = -ENXIO;
+ 			aspeed_i2c_do_stop(bus);
+@@ -804,7 +804,7 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
+ 	switch (bus->master_state) {
+ 	case ASPEED_I2C_MASTER_TX:
+ 		if (unlikely(irq_status & ASPEED_I2CD_INTR_TX_NAK)) {
+-			dev_dbg(bus->dev, "slave NACKed TX\n");
++			dev_info(bus->dev, "slave NACKed TX\n");
+ 			irq_handled |= ASPEED_I2CD_INTR_TX_NAK;
+ 			goto error_and_stop;
+ 		} else if (unlikely(!(irq_status & ASPEED_I2CD_INTR_TX_ACK))) {
+@@ -1069,7 +1069,7 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
+ 
+ 	irq_remaining &= ~irq_handled;
+ 	if (irq_remaining)
+-		dev_dbg(bus->dev,
++		dev_info(bus->dev,
+ 			"irq handled != irq. expected 0x%08x, but was 0x%08x\n",
+ 			irq_received, irq_handled);
+ 
+-- 
+1.9.1
+

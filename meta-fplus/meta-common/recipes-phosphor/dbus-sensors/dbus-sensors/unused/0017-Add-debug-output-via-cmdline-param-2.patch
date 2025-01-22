@@ -1,0 +1,47 @@
+From d32e70b1d9d9429ddbcdb04e2672c15959f93196 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 2 Apr 2021 09:19:02 +0000
+Subject: [PATCH] Add-debug-output-via-cmdline-param-2
+
+---
+ src/PSUSensor.cpp | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index 8094802..ed4a3b4 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -31,9 +31,11 @@
+ #include <string>
+ #include <vector>
+ 
++#include <CLI/CLI.hpp>
++
+ static constexpr const char* sensorPathPrefix = "/xyz/openbmc_project/sensors/";
+ 
+-static constexpr bool debug = false;
++//static constexpr bool debug = false;
+ 
+ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+                      sdbusplus::asio::object_server& objectServer,
+@@ -53,7 +55,7 @@ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+     sensorFactor(factor), minMaxReadCounter(0), bridgeGpio(std::move(bridgeGpio))
+ {
+     _sensorName = sensorName;
+-    if constexpr (debug)
++    if (DEBUG)
+     {
+         std::cerr << "Constructed sensor: path " << path << " type "
+                   << objectType << " config " << sensorConfiguration
+@@ -111,7 +113,7 @@ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+             pathRatedMin = boost::replace_all_copy(path, item, "rated_min");
+         }
+     }
+-    if constexpr (debug)
++    if (DEBUG)
+     {
+         std::cerr << "File: " << pathRatedMax
+                   << " will be used to update MaxValue\n";
+-- 
+2.7.4
+

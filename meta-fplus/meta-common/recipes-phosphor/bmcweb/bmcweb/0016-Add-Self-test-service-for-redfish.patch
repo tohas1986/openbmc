@@ -1,0 +1,280 @@
+From 825839ab4c423a1780acab8817e2ccf93db47469 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 31 Oct 2022 11:22:56 +0000
+Subject: [PATCH] Add Self test service for redfish
+
+---
+ redfish-core/include/redfish.hpp              |   2 +
+ .../include/registries/privilege_registry.hpp |   8 +
+ redfish-core/lib/chassis.hpp                  |   4 +
+ redfish-core/lib/st.hpp                       | 138 ++++++++++++++++++
+ scripts/update_schemas.py                     |   1 +
+ static/redfish/v1/$metadata/index.xml         |  15 ++
+ .../v1/JsonSchemas/STService/index.json       |  21 +++
+ 7 files changed, 189 insertions(+)
+ create mode 100644 redfish-core/lib/st.hpp
+ create mode 100644 static/redfish/v1/JsonSchemas/STService/index.json
+
+diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
+index fa313a84..b04488b9 100644
+--- a/redfish-core/include/redfish.hpp
++++ b/redfish-core/include/redfish.hpp
+@@ -52,6 +52,7 @@
+ #include "virtual_media.hpp"
+ #include "rmt.hpp"
+ #include "bw.hpp"
++#include "st.hpp"
+ 
+ namespace redfish
+ {
+@@ -105,6 +106,7 @@ class RedfishService
+         requestRoutesDrive(app);
+         requestRoutesRmtService(app);
+         requestRoutesBWService(app);
++        requestRoutesSTService(app);
+         requestRoutesCable(app);
+         requestRoutesCableCollection(app);
+ #ifdef BMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE
+diff --git a/redfish-core/include/registries/privilege_registry.hpp b/redfish-core/include/registries/privilege_registry.hpp
+index 7fc972cf..6fc5ec8f 100644
+--- a/redfish-core/include/registries/privilege_registry.hpp
++++ b/redfish-core/include/registries/privilege_registry.hpp
+@@ -278,6 +278,14 @@ const static auto& putBw = privilegeSetConfigureComponents;
+ const static auto& deleteBw = privilegeSetConfigureComponents;
+ const static auto& postBw = privilegeSetConfigureComponents;
+ 
++// St
++const static auto& getSt = privilegeSetLogin;
++const static auto& headSt = privilegeSetLogin;
++const static auto& patchSt = privilegeSetConfigureComponents;
++const static auto& putSt = privilegeSetConfigureComponents;
++const static auto& deleteSt = privilegeSetConfigureComponents;
++const static auto& postSt = privilegeSetConfigureComponents;
++
+ // ChassisCollection
+ const static auto& getChassisCollection = privilegeSetLogin;
+ const static auto& headChassisCollection = privilegeSetLogin;
+diff --git a/redfish-core/lib/chassis.hpp b/redfish-core/lib/chassis.hpp
+index c2bc4492..235b8320 100644
+--- a/redfish-core/lib/chassis.hpp
++++ b/redfish-core/lib/chassis.hpp
+@@ -422,6 +422,10 @@ inline void
+                 asyncResp->res.jsonValue["BWService"] = {
+                           {"@odata.id", "/redfish/v1/Chassis/" +
+                           chassisId + "/BWService"}};
++                asyncResp->res.jsonValue["STService"] = {
++                          {"@odata.id", "/redfish/v1/Chassis/" +
++                          chassisId + "/STService"}};
++
+                 nlohmann::json::array_t computerSystems;
+                 nlohmann::json::object_t system;
+                 system["@odata.id"] = "/redfish/v1/Systems/system";
+diff --git a/redfish-core/lib/st.hpp b/redfish-core/lib/st.hpp
+new file mode 100644
+index 00000000..38d51df7
+--- /dev/null
++++ b/redfish-core/lib/st.hpp
+@@ -0,0 +1,138 @@
++/*
++ *  redfish-core/lib/st.hpp
++ *
++ *  Created on: Mar 18, 2022
++ *  Author: Stanislav Khromyshev
++ *
++ */
++
++#pragma once
++
++#include <utils/sw_utils.hpp>
++#include <iostream>
++#include <fstream>
++#include <string>
++#include <boost/lexical_cast.hpp>
++#include <sdbusplus/asio/property.hpp>
++#include <sdbusplus/bus.hpp>
++
++namespace redfish
++{
++
++std::string chassisId;
++
++inline int getStResults(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
++{
++    boost::algorithm::to_lower(chassisId);
++    std::string path = "/usr/share/bmc-self-test/bmc-self-test_";
++    std::string exp = ".json";
++    std::string file = path + chassisId + exp;
++    std::ifstream input(file, std::ifstream::binary);
++    nlohmann::json j;
++
++    aResp->res.jsonValue["Description"] = { "This service provide SelfTest result."};
++
++    std::cerr << "Looking for ST json file..." << "\n";
++
++    if(!fileExist(file))
++    {
++        std::cerr << "File not found!" << "\n";
++        input.close();
++        return -1;
++    }
++
++    if(isEmpty(input))
++    {
++        std::cerr << "File Empty, no ST results found!" << "\n";
++        input.close();
++        return -1;
++    }
++
++    try
++    {
++	if(!(nlohmann::json::accept(input)))
++        {
++            std::cerr << "Invalid JSON file!" << "\n";
++            input.close();
++            return -1;
++        }
++        else
++        {
++            input.clear();
++            input.seekg(0);
++            input >> j;
++        }
++    }
++    catch(nlohmann::json::exception &e)
++    {
++	std::cerr << "Error in JSON object caught!" << "\n";
++        return -1;
++    }
++
++    aResp->res.jsonValue["Result"] = { j };
++
++    input.close();
++    return 0;
++}
++
++inline void requestRoutesSTService(App& app)
++{
++    BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/STService/")
++        .privileges(redfish::privileges::getSt)
++        .methods(boost::beast::http::verb::get)(
++            [](const crow::Request&,
++               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const std::string& param) {
++                BMCWEB_LOG_DEBUG << "Get ST method called";
++
++                if (param.empty())
++                {
++                    return;
++                }
++
++                chassisId = param;
++
++                asyncResp->res.jsonValue = {
++                    {"@odata.type",
++                     "#STService.v1_0_0.STService"},
++                    {"Name", "ST Subsystem for Chassis"},
++                    {"Id", "STService"}};
++                asyncResp->res.jsonValue["@odata.id"] =
++                    "/redfish/v1/Chassis/" + chassisId + "/STService";
++		asyncResp->res.jsonValue["Start Service"]["@odata.id"] =
++                    "/redfish/v1/Chassis/" + chassisId + "/STService/start";
++
++		int res = getStResults(asyncResp);
++
++		if ( res < 0 )
++		{
++		    asyncResp->res.jsonValue["Error"] = "File not found, or emprty, or no valide JSON. For detailed information, please, read journalctl -f";
++                    return;
++		}
++            });
++
++    BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/STService/start")
++        .privileges(redfish::privileges::getSt)
++        .methods(boost::beast::http::verb::get)(
++            [](const crow::Request&,
++               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const std::string& param) {
++                BMCWEB_LOG_DEBUG << "Start self test server";
++
++		using namespace sdbusplus;
++                auto b = bus::new_default_system();
++    		auto m = b.new_method_call("org.freedesktop.systemd1", "/org/freedesktop/systemd1", "org.freedesktop.systemd1.Manager", "StartUnit");
++		m.append("bmc-self-test.service");
++		m.append("replace");
++		try
++		{
++		    b.call_noreply(m);
++		}
++		catch (const sdbusplus::exception::exception& e)
++		{
++		    std::cerr << "Error start systemd service!" << "\n";
++		    return;
++		}
++            });
++}
++}
+diff --git a/scripts/update_schemas.py b/scripts/update_schemas.py
+index add164b3..81973361 100755
+--- a/scripts/update_schemas.py
++++ b/scripts/update_schemas.py
+@@ -31,6 +31,7 @@ include_list = [
+     "Bios",
+     "RmtService",
+     "BWService",
++    "STService",
+     "Cable",
+     "CableCollection",
+     "Certificate",
+diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
+index bb1d9767..bae6a63a 100644
+--- a/static/redfish/v1/$metadata/index.xml
++++ b/static/redfish/v1/$metadata/index.xml
+@@ -2836,6 +2836,21 @@
+         <edmx:Include Namespace="BWService.v1_4_0"/>
+         <edmx:Include Namespace="BWService.v1_4_1"/>
+     </edmx:Reference>
++    <edmx:Reference Uri="/redfish/v1/schema/STService_v1.xml">
++        <edmx:Include Namespace="STService"/>
++        <edmx:Include Namespace="STService.v1_0_0"/>
++        <edmx:Include Namespace="STService.v1_0_1"/>
++        <edmx:Include Namespace="STService.v1_0_2"/>
++        <edmx:Include Namespace="STService.v1_0_3"/>
++        <edmx:Include Namespace="STService.v1_1_0"/>
++        <edmx:Include Namespace="STService.v1_1_1"/>
++        <edmx:Include Namespace="STService.v1_1_2"/>
++        <edmx:Include Namespace="STService.v1_2_0"/>
++        <edmx:Include Namespace="STService.v1_3_0"/>
++        <edmx:Include Namespace="STService.v1_4_0"/>
++        <edmx:Include Namespace="STService.v1_4_1"/>
++    </edmx:Reference>
++
+     <edmx:Reference Uri="/redfish/v1/schema/VLanNetworkInterfaceCollection_v1.xml">
+         <edmx:Include Namespace="VLanNetworkInterfaceCollection"/>
+     </edmx:Reference>
+diff --git a/static/redfish/v1/JsonSchemas/STService/index.json b/static/redfish/v1/JsonSchemas/STService/index.json
+new file mode 100644
+index 00000000..80c9ec19
+--- /dev/null
++++ b/static/redfish/v1/JsonSchemas/STService/index.json
+@@ -0,0 +1,21 @@
++{
++    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
++    "@odata.id": "/redfish/v1/JsonSchemas/STService",
++    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
++    "Name": "STService Schema File",
++    "Schema": "#STService.STService",
++    "Description": "STService Schema File Location",
++    "Id": "STService",
++    "Languages": [
++        "en"
++    ],
++    "Languages@odata.count": 1,
++    "Location": [
++        {
++            "Language": "en",
++            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/STService.json",
++            "Uri": "/redfish/v1/JsonSchemas/STService/STService.json"
++        }
++    ],
++    "Location@odata.count": 1
++}

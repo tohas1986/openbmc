@@ -81,18 +81,11 @@ remove_rcsd_link=1
 if $pm_installed; then
 	case $pm in
 		"ipk")
-			if ! `fcntl-lock --wait 30 /run/opkg.lock true`; then
-				eval echo "Unable to obtain the opkg lock, deadlock?" $append_log
-			fi
-			if ! eval "opkg configure $append_log"; then
-			    exit 1
-			fi
+			eval opkg configure $append_log
 			;;
 
 		"deb")
-			if ! eval "eval dpkg --configure -a $append_log"; then
-			    exit 1
-			fi
+			eval dpkg --configure -a $append_log
 			;;
 	esac
 else

@@ -1,0 +1,42 @@
+From e273a27578b67106ca69e2430f968a9da7aa3aca Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Mon, 13 Jul 2020 19:47:48 +0000
+Subject: [PATCH] Desable set sel time, it's already in ipmi-host
+
+---
+ src/storagecommands.cpp | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index cb00c23..38e243a 100644
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -1142,11 +1142,11 @@ ipmi::RspType<uint32_t> ipmiStorageGetSELTime()
+     return ipmi::responseSuccess(selTime.tv_sec);
+ }
+ 
+-ipmi::RspType<> ipmiStorageSetSELTime(uint32_t selTime)
+-{
++//ipmi::RspType<> ipmiStorageSetSELTime(uint32_t selTime)
++//{
+     // Set SEL Time is not supported
+-    return ipmi::responseInvalidCommand();
+-}
++//    return ipmi::responseInvalidCommand();
++//}
+ 
+ std::vector<uint8_t> getType12SDRs(uint16_t index, uint16_t recordId)
+ {
+@@ -1282,9 +1282,9 @@ void registerStorageFunctions()
+                           ipmiStorageGetSELTime);
+ 
+     // <Set SEL Time>
+-    ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnStorage,
+-                          ipmi::storage::cmdSetSelTime,
+-                          ipmi::Privilege::Operator, ipmiStorageSetSELTime);
++//    ipmi::registerHandler(ipmi::prioOpenBmcBase, ipmi::netFnStorage,
++//                          ipmi::storage::cmdSetSelTime,
++//                          ipmi::Privilege::Operator, ipmiStorageSetSELTime);
+ }
+ } // namespace storage
+ } // namespace ipmi

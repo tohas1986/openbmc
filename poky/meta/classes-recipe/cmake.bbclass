@@ -51,16 +51,17 @@ OECMAKE_CXX_COMPILER ?= "${@oecmake_map_compiler('CXX', d)[0]}"
 OECMAKE_CXX_COMPILER_LAUNCHER ?= "${@oecmake_map_compiler('CXX', d)[1]}"
 
 # clear compiler vars for allarch to avoid sig hash difference
-OECMAKE_C_COMPILER:allarch = ""
-OECMAKE_C_COMPILER_LAUNCHER:allarch = ""
-OECMAKE_CXX_COMPILER:allarch = ""
-OECMAKE_CXX_COMPILER_LAUNCHER:allarch = ""
+OECMAKE_C_COMPILER_allarch = ""
+OECMAKE_C_COMPILER_LAUNCHER_allarch = ""
+OECMAKE_CXX_COMPILER_allarch = ""
+OECMAKE_CXX_COMPILER_LAUNCHER_allarch = ""
 
 OECMAKE_RPATH ?= ""
 OECMAKE_PERLNATIVE_DIR ??= ""
 OECMAKE_EXTRA_ROOT_PATH ?= ""
 
 OECMAKE_FIND_ROOT_PATH_MODE_PROGRAM = "ONLY"
+OECMAKE_FIND_ROOT_PATH_MODE_PROGRAM:class-native = "BOTH"
 
 EXTRA_OECMAKE:append = " ${PACKAGECONFIG_CONFARGS}"
 
@@ -72,8 +73,6 @@ OECMAKE_TARGET_COMPILE ?= "all"
 OECMAKE_TARGET_INSTALL ?= "install"
 
 def map_host_os_to_system_name(host_os):
-    if host_os.startswith('darwin'):
-        return 'Darwin'
     if host_os.startswith('mingw'):
         return 'Windows'
     if host_os.startswith('linux'):
@@ -92,14 +91,10 @@ def map_host_arch_to_uname_arch(host_arch):
         return "ppc64"
     return host_arch
 
-
 cmake_do_generate_toolchain_file() {
 	if [ "${BUILD_SYS}" = "${HOST_SYS}" ]; then
 		cmake_crosscompiling="set( CMAKE_CROSSCOMPILING FALSE )"
-	else
-		cmake_sysroot="set( CMAKE_SYSROOT \"${RECIPE_SYSROOT}\" )"
 	fi
-
 	cat > ${WORKDIR}/toolchain.cmake <<EOF
 # CMake system name must be something like "Linux".
 # This is important for cross-compiling.
@@ -131,8 +126,6 @@ set( CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY )
 set( CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY )
 set( CMAKE_PROGRAM_PATH "/" )
 
-$cmake_sysroot
-
 # Use qt.conf settings
 set( ENV{QT_CONF_PATH} ${WORKDIR}/qt.conf )
 
@@ -158,32 +151,9 @@ EOF
 
 addtask generate_toolchain_file after do_patch before do_configure
 
-CONFIGURE_FILES = "CMakeLists.txt *.cmake"
+CONFIGURE_FILES = "CMakeLists.txt"
 
 do_configure[cleandirs] = "${@d.getVar('B') if d.getVar('S') != d.getVar('B') else ''}"
-
-OECMAKE_ARGS = "\
-    -DCMAKE_INSTALL_PREFIX:PATH=${prefix} \
-    -DCMAKE_INSTALL_BINDIR:PATH=${@os.path.relpath(d.getVar('bindir'), d.getVar('prefix') + '/')} \
-    -DCMAKE_INSTALL_SBINDIR:PATH=${@os.path.relpath(d.getVar('sbindir'), d.getVar('prefix') + '/')} \
-    -DCMAKE_INSTALL_LIBEXECDIR:PATH=${@os.path.relpath(d.getVar('libexecdir'), d.getVar('prefix') + '/')} \
-    -DCMAKE_INSTALL_SYSCONFDIR:PATH=${sysconfdir} \
-    -DCMAKE_INSTALL_SHAREDSTATEDIR:PATH=${@os.path.relpath(d.getVar('sharedstatedir'), d.  getVar('prefix') + '/')} \
-    -DCMAKE_INSTALL_LOCALSTATEDIR:PATH=${localstatedir} \
-    -DCMAKE_INSTALL_LIBDIR:PATH=${@os.path.relpath(d.getVar('libdir'), d.getVar('prefix') + '/')} \
-    -DCMAKE_INSTALL_INCLUDEDIR:PATH=${@os.path.relpath(d.getVar('includedir'), d.getVar('prefix') + '/')} \
-    -DCMAKE_INSTALL_DATAROOTDIR:PATH=${@os.path.relpath(d.getVar('datadir'), d.getVar('prefix') + '/')} \
-    -DPYTHON_EXECUTABLE:PATH=${PYTHON} \
-    -DPython_EXECUTABLE:PATH=${PYTHON} \
-    -DPython3_EXECUTABLE:PATH=${PYTHON} \
-    -DLIB_SUFFIX=${@d.getVar('baselib').replace('lib', '')} \
-    -DCMAKE_INSTALL_SO_NO_EXE=0 \
-    -DCMAKE_TOOLCHAIN_FILE:FILEPATH=${WORKDIR}/toolchain.cmake \
-    -DCMAKE_NO_SYSTEM_FROM_IMPORTED=1 \
-    -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON \
-    -DFETCHCONTENT_FULLY_DISCONNECTED=ON \
-    -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=ON \
-"
 
 cmake_do_configure() {
 	if [ "${OECMAKE_BUILDPATH}" ]; then
@@ -205,7 +175,25 @@ cmake_do_configure() {
 	  ${OECMAKE_GENERATOR_ARGS} \
 	  $oecmake_sitefile \
 	  ${OECMAKE_SOURCEPATH} \
-	  ${OECMAKE_ARGS} \
+	  -DCMAKE_INSTALL_PREFIX:PATH=${prefix} \
+	  -DCMAKE_INSTALL_BINDIR:PATH=${@os.path.relpath(d.getVar('bindir'), d.getVar('prefix') + '/')} \
+	  -DCMAKE_INSTALL_SBINDIR:PATH=${@os.path.relpath(d.getVar('sbindir'), d.getVar('prefix') + '/')} \
+	  -DCMAKE_INSTALL_LIBEXECDIR:PATH=${@os.path.relpath(d.getVar('libexecdir'), d.getVar('prefix') + '/')} \
+	  -DCMAKE_INSTALL_SYSCONFDIR:PATH=${sysconfdir} \
+	  -DCMAKE_INSTALL_SHAREDSTATEDIR:PATH=${@os.path.relpath(d.getVar('sharedstatedir'), d.  getVar('prefix') + '/')} \
+	  -DCMAKE_INSTALL_LOCALSTATEDIR:PATH=${localstatedir} \
+	  -DCMAKE_INSTALL_LIBDIR:PATH=${@os.path.relpath(d.getVar('libdir'), d.getVar('prefix') + '/')} \
+	  -DCMAKE_INSTALL_INCLUDEDIR:PATH=${@os.path.relpath(d.getVar('includedir'), d.getVar('prefix') + '/')} \
+	  -DCMAKE_INSTALL_DATAROOTDIR:PATH=${@os.path.relpath(d.getVar('datadir'), d.getVar('prefix') + '/')} \
+	  -DPYTHON_EXECUTABLE:PATH=${PYTHON} \
+	  -DPython_EXECUTABLE:PATH=${PYTHON} \
+	  -DPython3_EXECUTABLE:PATH=${PYTHON} \
+	  -DLIB_SUFFIX=${@d.getVar('baselib').replace('lib', '')} \
+	  -DCMAKE_INSTALL_SO_NO_EXE=0 \
+	  -DCMAKE_TOOLCHAIN_FILE=${WORKDIR}/toolchain.cmake \
+	  -DCMAKE_NO_SYSTEM_FROM_IMPORTED=1 \
+	  -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON \
+	  -DFETCHCONTENT_FULLY_DISCONNECTED=ON \
 	  ${EXTRA_OECMAKE} \
 	  -Wno-dev
 }
@@ -224,24 +212,12 @@ cmake_runcmake_build() {
 	eval ${DESTDIR:+DESTDIR=${DESTDIR} }${CMAKE_VERBOSE} cmake --build '${B}' "$@" -- ${EXTRA_OECMAKE_BUILD}
 }
 
-# Install an already-generated project binary tree. Not checking the compile
-# dependencies again is particularly important for SDK use cases.
-cmake_runcmake_install() {
-	bbnote ${DESTDIR:+DESTDIR=${DESTDIR} }${CMAKE_VERBOSE} cmake --install '${B}'
-	eval ${DESTDIR:+DESTDIR=${DESTDIR} }${CMAKE_VERBOSE} cmake --install '${B}'
-}
-
 cmake_do_compile()  {
 	cmake_runcmake_build --target ${OECMAKE_TARGET_COMPILE}
 }
 
 cmake_do_install() {
-	if [ "${OECMAKE_TARGET_INSTALL}" = "install" ]; then
-		DESTDIR='${D}' cmake_runcmake_install
-	else
-		# Legacy path which supports also custom install targets
-		DESTDIR='${D}' cmake_runcmake_build --target ${OECMAKE_TARGET_INSTALL}
-	fi
+	DESTDIR='${D}' cmake_runcmake_build --target ${OECMAKE_TARGET_INSTALL}
 }
 
 EXPORT_FUNCTIONS do_configure do_compile do_install do_generate_toolchain_file

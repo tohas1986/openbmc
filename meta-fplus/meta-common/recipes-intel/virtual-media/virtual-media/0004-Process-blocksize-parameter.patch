@@ -1,0 +1,36 @@
+From ba82b5d470a1aa890b44272879b2b1e562380ea0 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 3 Mar 2023 19:22:25 +0000
+Subject: [PATCH] Process blocksize parameter
+
+---
+ src/configuration.hpp | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/configuration.hpp b/src/configuration.hpp
+index c29e133..02e521c 100644
+--- a/src/configuration.hpp
++++ b/src/configuration.hpp
+@@ -34,6 +34,7 @@ class Configuration
+     struct MountPoint
+     {
+         static constexpr int defaultTimeout = 30;
++        static constexpr int defaultBlocksize = 512;
+ 
+         NBDDevice nbdDevice;
+         std::string unixSocket;
+@@ -47,8 +48,11 @@ class Configuration
+         {
+             const auto timeout =
+                 std::to_string(mp.timeout.value_or(defaultTimeout));
++            const auto blocksize =
++                std::to_string(mp.blocksize.value_or(defaultBlocksize));
+             std::vector<std::string> args = {
+                 "-t", timeout, "-u", mp.unixSocket, mp.nbdDevice.to_path(),
++                "-b", blocksize,
+                 "-n"};
+             return args;
+         }
+-- 
+2.34.1
+

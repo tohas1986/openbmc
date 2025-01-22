@@ -1,0 +1,322 @@
+From b1b36760447c969643d3665e44c92c4924799433 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 16 Dec 2021 09:28:44 +0000
+Subject: [PATCH] Implement chassis bootparams according to 28.12, 28.13 of
+ specification
+
+---
+ chassishandler.cpp          | 187 ++++++++++++++++++++++++------------
+ chassishandler.hpp          |   6 +-
+ include/ipmid/api-types.hpp |   5 +
+ 3 files changed, 133 insertions(+), 65 deletions(-)
+
+diff --git a/chassishandler.cpp b/chassishandler.cpp
+index c2ed807..cb2f568 100644
+--- a/chassishandler.cpp
++++ b/chassishandler.cpp
+@@ -1501,6 +1501,17 @@ constexpr auto ipmiDefault = 0;
+ std::map<IpmiValue, Type::Types> typeIpmiToDbus = {{0x00, Type::Types::Legacy},
+                                                    {0x01, Type::Types::EFI}};
+ 
++static constexpr uint8_t setComplete = 0x0;
++static constexpr uint8_t setInProgress = 0x1;
++static uint8_t transferStatus = setComplete;
++static uint8_t bootFlagClearing = 0x00;
++static uint8_t servicePartitionSelector = 0x00;
++static uint8_t servicePartitionScan = 0x00;
++static uint8_t biiChannelNumber = 0;
++static std::vector<uint8_t> biiSessionId(4, 0);// = {0, 0, 0, 0};
++static std::vector<uint8_t> biiTimestamp(4, 0);// = {0, 0, 0, 0};
++static std::vector<std::vector<uint8_t> > mailBox(256 , std::vector<uint8_t> (16, 0));
++
+ std::map<IpmiValue, Source::Sources> sourceIpmiToDbus = {
+     {0x01, Source::Sources::Network},
+     {0x02, Source::Sources::Disk},
+@@ -1805,10 +1816,6 @@ static ipmi::Cc setBootOneTime(ipmi::Context::ptr& ctx, const bool& onetime)
+     return ipmi::ccUnspecifiedError;
+ }
+ 
+-static constexpr uint8_t setComplete = 0x0;
+-static constexpr uint8_t setInProgress = 0x1;
+-static uint8_t transferStatus = setComplete;
+-static uint8_t bootFlagValidBitClr = 0;
+ static uint5_t bootInitiatorAckData = 0x0;
+ static bool cmosClear = false;
+ 
+@@ -1849,13 +1856,6 @@ ipmi::RspType<ipmi::message::Payload>
+ 
+     IpmiValue bootOption = ipmiDefault;
+ 
+-    if (types::enum_cast<BootOptionParameter>(bootOptionParameter) ==
+-        BootOptionParameter::setInProgress)
+-    {
+-        response.pack(bootOptionParameter, reserved1, transferStatus);
+-        return ipmi::responseSuccess(std::move(response));
+-    }
+-
+     if (types::enum_cast<BootOptionParameter>(bootOptionParameter) ==
+         BootOptionParameter::bootInfo)
+     {
+@@ -1864,20 +1864,55 @@ ipmi::RspType<ipmi::message::Payload>
+                       bootInitiatorAckData);
+         return ipmi::responseSuccess(std::move(response));
+     }
+-
+-    if (types::enum_cast<BootOptionParameter>(bootOptionParameter) ==
+-        BootOptionParameter::bootFlagValidClr)
++    else if (types::enum_cast<BootOptionParameter>(bootOptionParameter) ==
++        BootOptionParameter::setInProgress)
+     {
+-        response.pack(bootOptionParameter, reserved1,
+-                      uint5_t{bootFlagValidBitClr}, uint3_t{});
++        response.pack(static_cast<uint8_t>(bootOptionParameter));
++        response.pack(transferStatus);
+         return ipmi::responseSuccess(std::move(response));
+     }
+-
+-    /*
+-     * Parameter #5 means boot flags. Please refer to 28.13 of ipmi doc.
+-     * This is the only parameter used by petitboot.
+-     */
+-    if (types::enum_cast<BootOptionParameter>(bootOptionParameter) ==
++    else if (types::enum_cast<BootOptionParameter>(bootOptionParameter) ==
++        BootOptionParameter::servicePartitionSelector)
++    {
++        response.pack(static_cast<uint8_t>(bootOptionParameter));
++        response.pack(servicePartitionSelector);
++        return ipmi::responseSuccess(std::move(response));
++    }
++    else if (types::enum_cast<BootOptionParameter>(bootOptionParameter) ==
++        BootOptionParameter::servicePartitionScan)
++    {
++        response.pack(static_cast<uint8_t>(bootOptionParameter));
++        response.pack(servicePartitionScan);
++        return ipmi::responseSuccess(std::move(response));
++    }
++    else if (types::enum_cast<BootOptionParameter>(bootOptionParameter) ==
++        BootOptionParameter::bootFlagClearing)
++    {
++        response.pack(static_cast<uint8_t>(bootOptionParameter));
++        response.pack(bootFlagClearing);
++        return ipmi::responseSuccess(std::move(response));
++    }
++    else if (types::enum_cast<BootOptionParameter>(bootOptionParameter) ==
++        BootOptionParameter::bootInitiatorInfo)
++    {
++        response.pack(static_cast<uint8_t>(bootOptionParameter));
++        response.pack(biiChannelNumber, biiSessionId, biiTimestamp);
++        return ipmi::responseSuccess(std::move(response));
++    }
++    else if (types::enum_cast<BootOptionParameter>(bootOptionParameter) ==
++        BootOptionParameter::bootInitiatorMailbox)
++    {
++        std::vector<uint8_t> tmpVector(16,0);
++        for(int i = 0; i < 16; i++)
++        {
++            tmpVector[i] = mailBox[setSelector][i];
++        }
++        response.pack(static_cast<uint8_t>(bootOptionParameter));
++        response.pack(setSelector);
++        response.pack(tmpVector);
++        return ipmi::responseSuccess(std::move(response));
++    }
++    else if (types::enum_cast<BootOptionParameter>(bootOptionParameter) ==
+         BootOptionParameter::bootFlags)
+     {
+         using namespace chassis::internal;
+@@ -2003,33 +2038,78 @@ ipmi::RspType<> ipmiChassisSetSysBootOptions(ipmi::Context::ptr ctx,
+     if (types::enum_cast<BootOptionParameter>(parameterSelector) ==
+         BootOptionParameter::setInProgress)
+     {
+-        uint2_t setInProgressFlag;
+-        uint6_t rsvd;
+-        if (data.unpack(setInProgressFlag, rsvd) != 0 || !data.fullyUnpacked())
++        uint8_t data0;
++        if (data.unpack(data0) != 0 || !data.fullyUnpacked())
+         {
+             return ipmi::responseReqDataLenInvalid();
+         }
+-        if (rsvd)
++
++        if ((types::enum_cast<BootOptionParameter>(transferStatus) ==
++            BootOptionParameter::setInProgress) &&
++            (data0 != setComplete))
+         {
+-            return ipmi::responseInvalidFieldRequest();
++            return ipmi::responseFailSetInProgress();
+         }
+-        if ((transferStatus == setInProgress) &&
+-            (static_cast<uint8_t>(setInProgressFlag) != setComplete))
++        transferStatus = data0;
++        return ipmi::responseSuccess();
++    }
++    else if (types::enum_cast<BootOptionParameter>(parameterSelector) ==
++        BootOptionParameter::servicePartitionSelector)
++    {
++        if (data.unpack(servicePartitionSelector) != 0 || !data.fullyUnpacked())
+         {
+-            return ipmi::response(IPMI_CC_FAIL_SET_IN_PROGRESS);
++            return ipmi::responseReqDataLenInvalid();
+         }
+-        transferStatus = static_cast<uint8_t>(setInProgressFlag);
+         return ipmi::responseSuccess();
+     }
+-
+-    /*  000101
+-     * Parameter #5 means boot flags. Please refer to 28.13 of ipmi doc.
+-     * This is the only parameter used by petitboot.
+-     */
+-
+-    if (types::enum_cast<BootOptionParameter>(parameterSelector) ==
++    else if (types::enum_cast<BootOptionParameter>(parameterSelector) ==
++        BootOptionParameter::servicePartitionScan)
++    {
++        if (data.unpack(servicePartitionScan) != 0 || !data.fullyUnpacked())
++        {
++            return ipmi::responseReqDataLenInvalid();
++        }
++        return ipmi::responseSuccess();
++    }
++    else if (types::enum_cast<BootOptionParameter>(parameterSelector) ==
++        BootOptionParameter::bootFlagClearing)
++    {
++        if (data.unpack(bootFlagClearing) != 0 || !data.fullyUnpacked())
++        {
++            return ipmi::responseReqDataLenInvalid();
++        }
++        return ipmi::responseSuccess();
++    }
++    else if (types::enum_cast<BootOptionParameter>(parameterSelector) ==
++        BootOptionParameter::bootInitiatorInfo)
++    {
++        if (data.unpack(biiChannelNumber, biiSessionId, biiTimestamp) != 0 || !data.fullyUnpacked())
++        {
++            return ipmi::responseReqDataLenInvalid();
++        }
++        return ipmi::responseSuccess();
++    }
++    else if (types::enum_cast<BootOptionParameter>(parameterSelector) ==
++        BootOptionParameter::bootInitiatorMailbox)
++    {
++        std::vector<uint8_t> tmpVector(16);
++        uint8_t tmpSelector;
++        if (data.unpack(tmpSelector, tmpVector) != 0 || !data.fullyUnpacked())
++        {
++            return ipmi::responseReqDataLenInvalid();
++        }
++        for(unsigned int i = 0; i < 16 && i < tmpVector.size(); i++)
++        {
++            mailBox[tmpSelector][i] = tmpVector[i];
++        }
++        return ipmi::responseSuccess();
++    } else if (types::enum_cast<BootOptionParameter>(parameterSelector) ==
+         BootOptionParameter::bootFlags)
+     {
++        /*  000101
++         * Parameter #5 means boot flags. Please refer to 28.13 of ipmi doc.
++         * This is the only parameter used by petitboot.
++         */
+         uint5_t rsvd;
+         bool validFlag;
+         bool permanent;
+@@ -2139,6 +2219,7 @@ ipmi::RspType<> ipmiChassisSetSysBootOptions(ipmi::Context::ptr ctx,
+                     "ipmiChassisSetSysBootOptions: Boot option not supported");
+                 return ipmi::responseInvalidFieldRequest();
+             }
++            bootInitiatorAckData |= 0x01;
+         }
+         catch (const sdbusplus::exception_t& e)
+         {
+@@ -2153,11 +2234,11 @@ ipmi::RspType<> ipmiChassisSetSysBootOptions(ipmi::Context::ptr ctx,
+     else if (types::enum_cast<BootOptionParameter>(parameterSelector) ==
+              BootOptionParameter::bootInfo)
+     {
+-        uint8_t writeMak;
++        uint8_t writeMask;
+         uint5_t bootInfoAck;
+         uint3_t rsvd;
+ 
+-        if (data.unpack(writeMak, bootInfoAck, rsvd) != 0 ||
++        if (data.unpack(writeMask, bootInfoAck, rsvd) != 0 ||
+             !data.fullyUnpacked())
+         {
+             return ipmi::responseReqDataLenInvalid();
+@@ -2166,35 +2247,13 @@ ipmi::RspType<> ipmiChassisSetSysBootOptions(ipmi::Context::ptr ctx,
+         {
+             return ipmi::responseInvalidFieldRequest();
+         }
+-        bootInitiatorAckData &= ~writeMak;
+-        bootInitiatorAckData |= (writeMak & bootInfoAck);
++        bootInitiatorAckData &= ~writeMask;
++        bootInitiatorAckData |= (writeMask & bootInfoAck);
+         log<level::INFO>("ipmiChassisSetSysBootOptions: bootInfo parameter set "
+                          "successfully");
+         data.trailingOk = true;
+         return ipmi::responseSuccess();
+     }
+-    else if (types::enum_cast<BootOptionParameter>(parameterSelector) ==
+-             BootOptionParameter::bootFlagValidClr)
+-    {
+-        uint5_t bootFlagValidClr;
+-        uint3_t rsvd;
+-
+-        if (data.unpack(bootFlagValidClr, rsvd) != 0 || !data.fullyUnpacked())
+-        {
+-            return ipmi::responseReqDataLenInvalid();
+-        }
+-        if (rsvd)
+-        {
+-            return ipmi::responseInvalidFieldRequest();
+-        }
+-        // store boot flag valid bits clear value
+-        bootFlagValidBitClr = static_cast<uint8_t>(bootFlagValidClr);
+-        log<level::INFO>(
+-            "ipmiChassisSetSysBootOptions: bootFlagValidBits parameter set "
+-            "successfully",
+-            entry("value=0x%x", bootFlagValidBitClr));
+-        return ipmi::responseSuccess();
+-    }
+     else
+     {
+         if ((parameterSelector >= static_cast<uint7_t>(oemParmStart)) &&
+diff --git a/chassishandler.hpp b/chassishandler.hpp
+index 2957127..211efc0 100644
+--- a/chassishandler.hpp
++++ b/chassishandler.hpp
+@@ -48,9 +48,13 @@ enum ipmi_chassis_control_cmds : uint8_t
+ enum class BootOptionParameter : size_t
+ {
+     setInProgress = 0x0,
+-    bootFlagValidClr = 0x3,
++    servicePartitionSelector = 0x1,
++    servicePartitionScan = 0x2,
++    bootFlagClearing = 0x3,
+     bootInfo = 0x4,
+     bootFlags = 0x5,
++    bootInitiatorInfo = 0x6,
++    bootInitiatorMailbox = 0x7,
+     opalNetworkSettings = 0x61
+ };
+ 
+diff --git a/include/ipmid/api-types.hpp b/include/ipmid/api-types.hpp
+index 518db03..dfa3325 100644
+--- a/include/ipmid/api-types.hpp
++++ b/include/ipmid/api-types.hpp
+@@ -365,6 +365,7 @@ constexpr Cmd cmdWildcard = 0xFF;
+ //
+ // Alternately, OEM completion codes are in the 0x01-0x7E range
+ constexpr Cc ccSuccess = 0x00;
++constexpr Cc ccFailSetInProgress = 0x81;
+ constexpr Cc ccBusy = 0xC0;
+ constexpr Cc ccInvalidCommand = 0xC1;
+ constexpr Cc ccInvalidCommandOnLun = 0xC2;
+@@ -549,5 +550,9 @@ static inline auto responseUnspecifiedError()
+ {
+     return response(ccUnspecifiedError);
+ }
++static inline auto responseFailSetInProgress()
++{
++    return response(ccFailSetInProgress);
++}
+ 
+ } // namespace ipmi

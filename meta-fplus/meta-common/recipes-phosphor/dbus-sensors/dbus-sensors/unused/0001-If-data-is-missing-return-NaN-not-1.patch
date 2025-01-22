@@ -1,0 +1,22 @@
+From 00e19a1a72885990ba80c39e143b7af3b2f540f5 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Mon, 24 Aug 2020 17:00:32 +0000
+Subject: [PATCH] If-data-is-missing-return-NaN-not-1
+
+---
+ src/MCUTempSensor.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index c8f388b..afc6f49 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -190,7 +190,7 @@ void MCUTempSensor::read(void)
+             std::cerr << "Invalid read getMCURegsInfoWord\n";
+             if constexpr (debug)
+                 std::cerr << "Invalid read getMCURegsInfoWord\n";
+-            incrementError();
++            updateValue(std::numeric_limits<double>::quiet_NaN());
+         }
+         read();
+     });

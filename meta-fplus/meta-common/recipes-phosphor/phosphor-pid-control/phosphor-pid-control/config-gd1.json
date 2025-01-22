@@ -1,0 +1,99 @@
+{
+    "sensors" : [
+        {
+            "name": "fan1", "type": "fan", "min": 0, "max": 255,
+            "readPath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/fan1_input",
+            "writePath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/pwm1"
+        },
+        {
+            "name": "fan2", "type": "fan", "min": 0, "max": 255,
+            "readPath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/fan2_input",
+            "writePath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/pwm2"
+        },
+        {
+            "name": "fan3", "type": "fan", "min": 0, "max": 255,
+            "readPath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/fan3_input",
+            "writePath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/pwm3"
+        },
+        {
+            "name": "fan4", "type": "fan", "min": 0, "max": 255,
+            "readPath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/fan4_input",
+            "writePath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/pwm4"
+        },
+
+        {    "name": "BPB1_HDD_TEMP1", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/BPB1_HDD_TEMP1", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "BPB1_HDD_TEMP2", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/BPB1_HDD_TEMP2", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "BPB1_HDD_TEMP3", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/BPB1_HDD_TEMP3", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "BPB1_HDD_TEMP4", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/BPB1_HDD_TEMP4", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "BPB1_HDD_TEMP5", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/BPB1_HDD_TEMP5", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "BPB2_HDD_TEMP1", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/BPB2_HDD_TEMP1", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "BPB2_HDD_TEMP2", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/BPB2_HDD_TEMP2", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "BPB2_HDD_TEMP3", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/BPB2_HDD_TEMP3", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "BPB2_HDD_TEMP4", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/BPB2_HDD_TEMP4", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "BPB2_HDD_TEMP5", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/BPB2_HDD_TEMP5", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+
+        {    "name": "SYS_TEMP1", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SYS_TEMP1", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SYS_TEMP2", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SYS_TEMP2", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SYS_TEMP3", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SYS_TEMP3", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SYS_TEMP4", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SYS_TEMP4", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" }
+    ],
+    "zones" : [
+        {
+            "id": 0,
+            "minThermalOutput": 20.0,
+            "failsafePercent": 100.0,
+            "pids": [
+                {
+                    "name": "FAN",
+                    "type": "fan",
+                    "setpoint": 65.0,
+                    "inputs": ["fan1", "fan2", "fan3", "fan4"],
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "proportionalCoeff": 0.0,
+                        "integralCoeff": 0.0,
+                        "feedFwdOffsetCoeff": 0.0,
+                        "feedFwdGainCoeff": 1.0,
+                        "integralLimit_min": 0.0,
+                        "integralLimit_max": 0.0,
+                        "outLim_min": 0.0,
+                        "outLim_max": 100.0,
+                        "slewNeg": 0.0,
+                        "slewPos": 0.0
+                    }
+                },
+                {
+                    "name": "SATA",
+                    "type": "stepwise",
+                    "inputs": [
+                                "BPB1_HDD_TEMP1", "BPB1_HDD_TEMP2", "BPB1_HDD_TEMP3", "BPB1_HDD_TEMP4", "BPB1_HDD_TEMP5",
+                                "BPB2_HDD_TEMP1", "BPB2_HDD_TEMP2", "BPB2_HDD_TEMP3", "BPB2_HDD_TEMP4", "BPB2_HDD_TEMP5"
+                              ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 10.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 35, "1": 55 },
+                        "output":  { "0":  0, "1": 50 }
+                    }
+                },
+                {
+                    "name": "SYSTEMP",
+                    "type": "stepwise",
+                    "inputs": [ "SYS_TEMP1", "SYS_TEMP2", "SYS_TEMP3", "SYS_TEMP4" ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 65, "1": 85 },
+                        "output":  { "0":  0, "1": 70 }
+                    }
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,10 @@
+[Unit]
+Description=Power cycle the host at Power on startup
+Requires=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/host-reboot.sh
+
+[Install]
+WantedBy=multi-user.target

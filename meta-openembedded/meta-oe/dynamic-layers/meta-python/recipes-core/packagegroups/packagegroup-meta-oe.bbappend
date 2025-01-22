@@ -1,6 +1,8 @@
 RDEPENDS:packagegroup-meta-oe-devtools += "\
     python3-distutils-extra \
     rwmem \
+    speedtest-cli \
+    mongodb \
 "
 
 RDEPENDS:packagegroup-meta-oe-connectivity += "\
@@ -9,6 +11,7 @@ RDEPENDS:packagegroup-meta-oe-connectivity += "\
 
 RDEPENDS:packagegroup-meta-oe-extended += "\
     lcdproc \
+    mozjs \
 "
 RDEPENDS:packagegroup-meta-oe-support += "\
     nvmetcli \

@@ -1,0 +1,26 @@
+From d0e019cfebe81d3360a42d8134b89f402f67985d Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 15 Feb 2022 16:21:37 +0000
+Subject: [PATCH] Fix compile error
+
+---
+ configure | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/configure b/configure
+index 48c21775f..473ce89d0 100755
+--- a/configure
++++ b/configure
+@@ -1609,9 +1609,9 @@ cat > $TMPC << EOF
+ #endif
+ int main (void) { return 0; }
+ EOF
+-if ! compile_prog "" "" ; then
+-    error_exit "You need at least GCC v7.4 or Clang v6.0 (or XCode Clang v10.0)"
+-fi
++#if ! compile_prog "" "" ; then
++#    error_exit "You need at least GCC v7.4 or Clang v6.0 (or XCode Clang v10.0)"
++#fi
+ 
+ # Accumulate -Wfoo and -Wno-bar separately.
+ # We will list all of the enable flags first, and the disable flags second.

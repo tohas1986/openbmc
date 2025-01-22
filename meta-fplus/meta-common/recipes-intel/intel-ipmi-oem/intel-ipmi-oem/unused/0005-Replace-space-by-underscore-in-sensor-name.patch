@@ -1,0 +1,22 @@
+From a58f318cfeae2a1de4374f578fd000632f8e65a1 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 27 Apr 2020 17:07:17 +0300
+Subject: [PATCH] Replace space by underscore in sensor name
+
+---
+ src/sensorcommands.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sensorcommands.cpp b/src/sensorcommands.cpp
+index 0c1840c..e9eb290 100644
+--- a/src/sensorcommands.cpp
++++ b/src/sensorcommands.cpp
+@@ -1395,7 +1395,7 @@ ipmi::RspType<uint16_t,            // next record ID
+         name = path.substr(nameStart + 1, std::string::npos - nameStart);
+     }
+ 
+-    std::replace(name.begin(), name.end(), '_', ' ');
++    std::replace(name.begin(), name.end(), ' ', '_');
+     if (name.size() > FULL_RECORD_ID_STR_MAX_LENGTH)
+     {
+         // try to not truncate by replacing common words

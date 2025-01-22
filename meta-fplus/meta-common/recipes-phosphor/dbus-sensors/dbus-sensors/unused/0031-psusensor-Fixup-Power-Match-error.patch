@@ -1,0 +1,190 @@
+From d57e3a30b7dbc5994e842d40d1e7df981a82455e Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Mon, 23 Nov 2020 14:15:06 +0000
+Subject: [PATCH] psusensor-Fixup-Power-Match-error
+
+---
+ include/ADCSensor.hpp |  2 +-
+ include/Utils.hpp     | 15 +++++++++++++++
+ src/ADCSensor.cpp     |  4 ++--
+ src/ADCSensorMain.cpp | 17 +++++------------
+ src/PSUSensor.cpp     | 15 +++++++++------
+ src/PSUSensorMain.cpp |  6 ++----
+ 6 files changed, 34 insertions(+), 25 deletions(-)
+
+diff --git a/include/ADCSensor.hpp b/include/ADCSensor.hpp
+index 243e732..1161533 100644
+--- a/include/ADCSensor.hpp
++++ b/include/ADCSensor.hpp
+@@ -68,7 +68,7 @@ class ADCSensor : public Sensor, public std::enable_shared_from_this<ADCSensor>
+               boost::asio::io_service& io, const std::string& sensorName,
+               std::vector<thresholds::Threshold>&& thresholds,
+               const double scaleFactor, double max, double min,
+-              PowerState readState,
++              PowerState powerState,
+               const std::string& sensorConfiguration,
+               std::optional<BridgeGpio>&& bridgeGpio);
+     ~ADCSensor();
+diff --git a/include/Utils.hpp b/include/Utils.hpp
+index c1b80fa..6c04123 100644
+--- a/include/Utils.hpp
++++ b/include/Utils.hpp
+@@ -169,6 +169,21 @@ inline void setLed(std::shared_ptr<sdbusplus::asio::connection> conn,
+         std::variant<bool>(on));
+ }
+ 
++inline std::string getPowerState(PowerState val)
++{
++    std::string rc;
++    if (val == PowerState::on)
++        rc = "On";
++    else if (val == PowerState::biosPost)
++        rc = "BiosPost";
++    else if (val == PowerState::always)
++        rc = "Always";
++    else
++        rc = "Unknown";
++    return rc;
++}
++
++
+ void createInventoryAssoc(
+     std::shared_ptr<sdbusplus::asio::connection> conn,
+     std::shared_ptr<sdbusplus::asio::dbus_interface> association,
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index ce95d4d..2ef2058 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -49,13 +49,13 @@ ADCSensor::ADCSensor(const std::string& path,
+                      boost::asio::io_service& io, const std::string& sensorName,
+                      std::vector<thresholds::Threshold>&& _thresholds,
+                      const double scaleFactor, double max, double min,
+-                     PowerState readState,
++                     PowerState powerState,
+                      const std::string& sensorConfiguration,
+                      std::optional<BridgeGpio>&& bridgeGpio) :
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(_thresholds), sensorConfiguration,
+            "xyz.openbmc_project.Configuration.ADC", max, min,
+-           conn, readState),
++           conn, powerState),
+     std::enable_shared_from_this<ADCSensor>(), objServer(objectServer),
+     inputDev(io, open(path.c_str(), O_RDONLY)), waitTimer(io), path(path),
+     scaleFactor(scaleFactor), bridgeGpio(std::move(bridgeGpio)),
+diff --git a/src/ADCSensorMain.cpp b/src/ADCSensorMain.cpp
+index 9712f1f..1b937ee 100644
+--- a/src/ADCSensorMain.cpp
++++ b/src/ADCSensorMain.cpp
+@@ -237,12 +237,12 @@ void createSensors(
+                 }
+ 
+                 auto findPowerOn = baseConfiguration->second.find("PowerState");
+-                PowerState readState = PowerState::always;
++                PowerState powerState = PowerState::always;
+                 if (findPowerOn != baseConfiguration->second.end())
+                 {
+-                    std::string powerState = std::visit(
++                    std::string strPowerState = std::visit(
+                         VariantToStringVisitor(), findPowerOn->second);
+-                    setReadState(powerState, readState);
++                    setReadState(strPowerState, powerState);
+                 }
+ 
+                 auto findCPU = baseConfiguration->second.find("CPURequired");
+@@ -298,14 +298,7 @@ void createSensors(
+                 if (DEBUG)
+                 {
+                     std::cerr << "Creating sensor " << sensorName;
+-                    std::cerr << " PowerState:";
+-                    if (readState == PowerState::always)
+-                        std::cerr << "Always";
+-                    if (readState == PowerState::on)
+-                        std::cerr << "On";
+-                    if (readState == PowerState::biosPost)
+-                        std::cerr << "biosPost";
+-
++                    std::cerr << " PowerState:" << getPowerState(powerState);
+                     std::cerr << " Scale factor:" << scaleFactor;
+                     std::cerr << " MinReading:" << minReading << " MaxReading:" << maxReading;
+                     std::cerr << "\n";
+@@ -313,7 +306,7 @@ void createSensors(
+                 sensor = std::make_shared<ADCSensor>(
+                     path.string(), objectServer, dbusConnection, io, sensorName,
+                     std::move(sensorThresholds), scaleFactor, maxReading, minReading,
+-                    readState, *interfacePath, std::move(bridgeGpio));
++                    powerState, *interfacePath, std::move(bridgeGpio));
+                 sensor->setupRead();
+             }
+         }));
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index f97edcd..ee19f8e 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -34,7 +34,7 @@
+ 
+ static constexpr const char* sensorPathPrefix = "/xyz/openbmc_project/sensors/";
+ 
+-static constexpr bool DEBUG = false;
++extern bool DEBUG;
+ 
+ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+                      sdbusplus::asio::object_server& objectServer,
+@@ -45,22 +45,23 @@ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+                      std::string& sensorTypeName, unsigned int factor,
+                      double max, double min, const std::string& label,
+                      size_t tSize, std::optional<BridgeGpio>&& bridgeGpio,
+-                     const PowerState powerState) :
++                     const PowerState readState) :
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(_thresholds), sensorConfiguration, objectType, max, min,
+-           conn, powerState),
++           conn, readState),
+     std::enable_shared_from_this<PSUSensor>(), objServer(objectServer),
+     inputDev(io), waitTimer(io), path(path), pathRatedMax(""), pathRatedMin(""),
+     sensorFactor(factor), minMaxReadCounter(0), bridgeGpio(std::move(bridgeGpio))
+ {
+     _sensorName = sensorName;
+-    if constexpr (DEBUG)
++    if (DEBUG)
+     {
+         std::cerr << "Constructed sensor: path " << path << " type "
+                   << objectType << " config " << sensorConfiguration
+                   << " typename " << sensorTypeName << " factor " << factor
+                   << " min " << min << " max " << max << " name \""
+-                  << sensorName << "\"\n";
++                  << sensorName << " PowerState " << getPowerState(readState)
++                  << "\n";
+     }
+ 
+     fd = open(path.c_str(), O_RDONLY);
+@@ -111,7 +112,9 @@ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+             pathRatedMin = boost::replace_all_copy(path, item, "rated_min");
+         }
+     }
+-    if constexpr (DEBUG)
++
++    setupPowerMatch(conn);
++    if (DEBUG)
+     {
+         std::cerr << "File: " << pathRatedMax
+                   << " will be used to update MaxValue\n";
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index ffaa0a8..85440fd 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -825,13 +825,11 @@ void createSensors(boost::asio::io_service& io,
+ 
+             if (findPowerOn != baseConfig->second.end())
+             {
+-                std::string powerState = std::visit(
++                std::string strPowerState = std::visit(
+                     VariantToStringVisitor(), findPowerOn->second);
+-                setReadState(powerState, readState);
++                setReadState(strPowerState, readState);
+             }
+ 
+-            std::optional<PowerState> powerState = PowerState::always;
+-
+             sensors[sensorName] = std::make_shared<PSUSensor>(
+                 sensorPathStr, sensorType, objectServer, dbusConnection, io,
+                 sensorName, std::move(sensorThresholds), *interfacePath,

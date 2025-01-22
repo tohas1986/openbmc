@@ -1,0 +1,18 @@
+From 241c3cd446fe09a92d744aa1ab7372eb43a729b3 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 17 Jun 2022 08:52:08 +0000
+Subject: [PATCH] Force NCSI disable in config file
+
+---
+ configs/yandex_ast2600_defconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/configs/yandex_ast2600_defconfig b/configs/yandex_ast2600_defconfig
+index 20dca07752..29e6af1ea1 100644
+--- a/configs/yandex_ast2600_defconfig
++++ b/configs/yandex_ast2600_defconfig
+@@ -139,3 +139,4 @@ CONFIG_USB_GADGET=y
+ CONFIG_USB_DEVICE=y
+ CONFIG_DM_USB=y
+ CONFIG_ASPEED_DP=y
++CONFIG_PHY_NCSI=n

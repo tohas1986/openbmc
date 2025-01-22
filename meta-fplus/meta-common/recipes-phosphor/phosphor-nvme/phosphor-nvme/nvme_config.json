@@ -1,0 +1,30 @@
+{
+    "config": [
+        {
+            "NVMeDriveIndex": 10,
+            "NVMeDriveBusID": 17
+        },
+        {
+            "NVMeDriveIndex": 11,
+            "NVMeDriveBusID": 18
+        },
+        {
+            "NVMeDriveIndex": 12,
+            "NVMeDriveBusID": 19
+        },
+        {
+            "NVMeDriveIndex": 13,
+            "NVMeDriveBusID": 20
+        }
+    ],
+    "threshold": [
+        {
+            "criticalHigh": 80,
+            "criticalLow": 0,
+            "warningHigh": 70,
+            "warningLow": 5,
+            "maxValue": 127,
+            "minValue": -128
+        }
+    ]
+}

@@ -29,12 +29,12 @@ class QueryPlugin(LayerPlugin):
 
     def do_show_layers(self, args):
         """show current configured layers."""
-        logger.plain("%s  %s  %s" % ("layer".ljust(20), "path".ljust(70), "priority"))
-        logger.plain('=' * 104)
+        logger.plain("%s  %s  %s" % ("layer".ljust(20), "path".ljust(40), "priority"))
+        logger.plain('=' * 74)
         for layer, _, regex, pri in self.tinfoil.cooker.bbfile_config_priorities:
             layerdir = self.bbfile_collections.get(layer, None)
-            layername = layer
-            logger.plain("%s  %s  %s" % (layername.ljust(20), layerdir.ljust(70), pri))
+            layername = self.get_layer_name(layerdir)
+            logger.plain("%s  %s  %d" % (layername.ljust(20), layerdir.ljust(40), pri))
 
     def version_str(self, pe, pv, pr = None):
         verstr = "%s" % pv
@@ -282,10 +282,7 @@ Lists recipes with the bbappends that apply to them as subitems.
         else:
             logger.plain('=== Appended recipes ===')
 
-
-        cooker_data = self.tinfoil.cooker.recipecaches[args.mc]
-
-        pnlist = list(cooker_data.pkg_pn.keys())
+        pnlist = list(self.tinfoil.cooker_data.pkg_pn.keys())
         pnlist.sort()
         appends = False
         for pn in pnlist:
@@ -298,7 +295,7 @@ Lists recipes with the bbappends that apply to them as subitems.
                 if not found:
                     continue
 
-            if self.show_appends_for_pn(pn, cooker_data, args.mc):
+            if self.show_appends_for_pn(pn):
                 appends = True
 
         if not args.pnspec and self.show_appends_for_skipped():
@@ -307,10 +304,8 @@ Lists recipes with the bbappends that apply to them as subitems.
         if not appends:
             logger.plain('No append files found')
 
-    def show_appends_for_pn(self, pn, cooker_data, mc):
-        filenames = cooker_data.pkg_pn[pn]
-        if mc:
-            pn = "mc:%s:%s" % (mc, pn)
+    def show_appends_for_pn(self, pn):
+        filenames = self.tinfoil.cooker_data.pkg_pn[pn]
 
         best = self.tinfoil.find_best_provider(pn)
         best_filename = os.path.basename(best[3])
@@ -535,7 +530,6 @@ NOTE: .bbappend files can impact the dependencies.
 
         parser_show_appends = self.add_command(sp, 'show-appends', self.do_show_appends)
         parser_show_appends.add_argument('pnspec', nargs='*', help='optional recipe name specification (wildcards allowed, enclose in quotes to avoid shell expansion)')
-        parser_show_appends.add_argument('--mc', help='use specified multiconfig', default='')
 
         parser_show_cross_depends = self.add_command(sp, 'show-cross-depends', self.do_show_cross_depends)
         parser_show_cross_depends.add_argument('-f', '--filenames', help='show full file path', action='store_true')

@@ -1,0 +1,115 @@
+From 6d3164e76086a6c589ba77d720fa5f196ca8e57a Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 25 Feb 2021 08:54:17 +0000
+Subject: [PATCH] Add setPwm command (subcommand 3)
+
+---
+ ipmi/manual_messages.hpp |  1 +
+ ipmi/manualcmds.cpp      | 53 ++++++++++++++++++++++++++++++++++++++++
+ ipmi/manualcmds.hpp      |  3 +++
+ 3 files changed, 57 insertions(+)
+
+diff --git a/ipmi/manual_messages.hpp b/ipmi/manual_messages.hpp
+index 5418d60..eb3778c 100644
+--- a/ipmi/manual_messages.hpp
++++ b/ipmi/manual_messages.hpp
+@@ -12,6 +12,7 @@ enum ManualSubCmd
+     getControlState = 0,
+     setControlState = 1,
+     getFailsafeState = 2,
++    setFanPwm = 3
+ };
+ 
+ struct FanCtrlRequest
+diff --git a/ipmi/manualcmds.cpp b/ipmi/manualcmds.cpp
+index 0967539..0a9d647 100644
+--- a/ipmi/manualcmds.cpp
++++ b/ipmi/manualcmds.cpp
+@@ -30,6 +30,8 @@
+ #include <string>
+ #include <tuple>
+ #include <variant>
++#include <iostream>
++#include <sstream>
+ 
+ namespace pid_control
+ {
+@@ -122,6 +124,55 @@ ipmi_ret_t ZoneControlIpmiHandler::setManualModeState(
+     return rc;
+ }
+ 
++/*
++ * <method name="Set Fan PWM"> </method>
++ */
++ipmi_ret_t ZoneControlIpmiHandler::setFanPwm(const uint8_t* reqBuf,
++                                                      uint8_t* replyBuf,
++                                                      size_t* dataLen)
++{
++    if (*dataLen < sizeof(struct FanCtrlRequestSet))
++    {
++        return IPMI_CC_INVALID;
++    }
++
++    const auto request =
++        reinterpret_cast<const struct FanCtrlRequestSet*>(&reqBuf[0]);
++
++    /* Value between 0 and 100 */
++    uint8_t target_pwm = static_cast<uint8_t>(request->value);
++    if (target_pwm > 100)
++        return IPMI_CC_INVALID;
++
++    ipmi_ret_t rc = IPMI_CC_OK;
++    /* Uncomment to join set to manual control and fan set */
++    /*
++    ipmi_ret_t rc = _control->setFanCtrlProperty(
++        request->zone, true, manualProperty);
++
++    if (rc != IPMI_CC_OK)
++        return IPMI_CC_INVALID; */
++
++    int systemRet;
++    std::stringstream cmd;
++    std::string cmd_str;
++    char command[255];
++
++    cmd << "/bin/sh -c 'source /usr/share/openrack/functions; setfans " << +target_pwm << "'";
++    cmd_str = cmd.str();
++    std::cerr << __FUNCTION__ << " Setting fans: " << cmd_str << "\n";
++
++    memset(command,0,sizeof(command));
++    std::copy(cmd_str.begin(), cmd_str.end(), command);
++    systemRet = system(command);
++
++    rc = IPMI_CC_OK;
++    if(systemRet != 0)
++        rc = IPMI_CC_INVALID;
++
++    return rc;
++}
++
+ /* Three command packages: get, set true, set false */
+ ipmi_ret_t manualModeControl(ZoneControlIpmiHandler* handler,
+                              [[maybe_unused]] ipmi_cmd_t cmd,
+@@ -147,6 +198,8 @@ ipmi_ret_t manualModeControl(ZoneControlIpmiHandler* handler,
+             return handler->setManualModeState(reqBuf, replyCmdBuf, dataLen);
+         case getFailsafeState:
+             return handler->getFailsafeModeState(reqBuf, replyCmdBuf, dataLen);
++        case setFanPwm:
++            return handler->setFanPwm(reqBuf, replyCmdBuf, dataLen);
+         default:
+             rc = IPMI_CC_INVALID;
+     }
+diff --git a/ipmi/manualcmds.hpp b/ipmi/manualcmds.hpp
+index 057ffc9..74eabed 100644
+--- a/ipmi/manualcmds.hpp
++++ b/ipmi/manualcmds.hpp
+@@ -31,6 +31,9 @@ class ZoneControlIpmiHandler
+     ipmi_ret_t setManualModeState(const uint8_t* reqBuf, uint8_t* replyBuf,
+                                   const size_t* dataLen);
+ 
++    ipmi_ret_t setFanPwm(const uint8_t* reqBuf, uint8_t* replyBuf,
++                                  size_t* dataLen);
++
+   private:
+     std::unique_ptr<ZoneControlInterface> _control;
+ };

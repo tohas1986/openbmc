@@ -1,4 +1,4 @@
-SUMMARY = "Middleware framework for smart card terminals"
+Summanry = "Middleware framework for smart card terminals"
 HOMEPAGE = "https://github.com/OpenSC/openct/wiki"
 DESCRIPTION = " \
 OpenCT implements drivers for several smart card readers. \
@@ -14,7 +14,6 @@ SRC_URI = " \
     https://downloads.sourceforge.net/project/opensc/${BPN}/${BPN}-${PV}.tar.gz \
     file://etc-openct.udev.in-disablePROGRAM.patch \
     file://etc-openct_usb.in-modify-UDEVINFO.patch \
-    file://0001-m4-Just-emit-the-first-line-of-compiler-version.patch \
     file://openct.init \
     file://openct.sysconfig \
     file://openct.service \

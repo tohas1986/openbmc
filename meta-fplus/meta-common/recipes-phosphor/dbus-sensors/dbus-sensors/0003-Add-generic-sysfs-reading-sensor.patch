@@ -1,0 +1,1199 @@
+From 92e1110a529d9e99ec45b7f93215b9e9b25cf3fb Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 09:57:36 +0000
+Subject: [PATCH] Add generic sysfs reading sensor
+
+---
+ include/SysfsSensor.hpp                       |  64 ++
+ .../xyz.openbmc_project.sysfssensor.service   |  13 +
+ src/SysfsSensor.cpp                           | 236 +++++
+ src/SysfsSensorMain.cpp                       | 846 ++++++++++++++++++
+ 4 files changed, 1159 insertions(+)
+ create mode 100644 include/SysfsSensor.hpp
+ create mode 100644 service_files/xyz.openbmc_project.sysfssensor.service
+ create mode 100644 src/SysfsSensor.cpp
+ create mode 100644 src/SysfsSensorMain.cpp
+
+diff --git a/include/SysfsSensor.hpp b/include/SysfsSensor.hpp
+new file mode 100644
+index 0000000..a606ed2
+--- /dev/null
++++ b/include/SysfsSensor.hpp
+@@ -0,0 +1,64 @@
++#pragma once
++
++#include <Thresholds.hpp>
++#include <boost/asio/streambuf.hpp>
++#include <sdbusplus/asio/object_server.hpp>
++#include <sensor.hpp>
++#include <boost/asio/steady_timer.hpp>
++
++#include <memory>
++#include <string>
++#include <utility>
++
++#include <gpiod.hpp>
++#include <map>
++
++class SysfsSensor : public Sensor, public std::enable_shared_from_this<SysfsSensor>
++{
++  public:
++    SysfsSensor(const std::string& path, const std::string& objectType,
++              sdbusplus::asio::object_server& objectServer,
++              std::shared_ptr<sdbusplus::asio::connection>& conn,
++              boost::asio::io_service& io, const std::string& sensorName,
++              std::vector<thresholds::Threshold>&& thresholds,
++              const std::string& sensorConfiguration,
++              const std::string& sensorUnits, unsigned int factor, double max,
++              double min, const std::string& label, size_t tSize,
++              PowerState powerState);
++    ~SysfsSensor() override;
++    void setupRead(void);
++
++  private:
++    sdbusplus::asio::object_server& objServer;
++    boost::asio::posix::stream_descriptor inputDev;
++    boost::asio::steady_timer waitTimer;
++    std::string path;
++    std::string pathRatedMax;
++    std::string pathRatedMin;
++    size_t errCount;
++    unsigned int sensorFactor;
++    uint8_t minMaxReadCounter;
++    void checkThresholds(void) override;
++    void updateMinMaxValues(void);
++    std::string sensorName;
++    PowerState powerState;
++
++    static constexpr unsigned int sensorPollMs = 1000;
++    static constexpr unsigned int sensorPollPowerOffMs = 5000;
++    static constexpr size_t warnAfterErrorCount = 10;
++};
++
++class SysfsProperty
++{
++  public:
++    SysfsProperty(std::string name, double max, double min, unsigned int factor) :
++        labelTypeName(std::move(name)), maxReading(max), minReading(min),
++        sensorScaleFactor(factor)
++    {}
++    ~SysfsProperty() = default;
++
++    std::string labelTypeName;
++    double maxReading;
++    double minReading;
++    unsigned int sensorScaleFactor;
++};
+diff --git a/service_files/xyz.openbmc_project.sysfssensor.service b/service_files/xyz.openbmc_project.sysfssensor.service
+new file mode 100644
+index 0000000..4465d0e
+--- /dev/null
++++ b/service_files/xyz.openbmc_project.sysfssensor.service
+@@ -0,0 +1,13 @@
++[Unit]
++Description=sysfs generic Sensor
++StopWhenUnneeded=false
++Requires=xyz.openbmc_project.EntityManager.service
++After=xyz.openbmc_project.EntityManager.service
++
++[Service]
++Restart=always
++RestartSec=5
++ExecStart=/usr/bin/sysfssensor
++
++[Install]
++WantedBy=multi-user.target
+diff --git a/src/SysfsSensor.cpp b/src/SysfsSensor.cpp
+new file mode 100644
+index 0000000..858a85f
+--- /dev/null
++++ b/src/SysfsSensor.cpp
+@@ -0,0 +1,236 @@
++/*
++// Copyright (c) 2019 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#include <unistd.h>
++
++#include <SysfsSensor.hpp>
++#include <boost/algorithm/string/predicate.hpp>
++#include <boost/algorithm/string/replace.hpp>
++#include <boost/asio/read_until.hpp>
++#include <boost/asio/read.hpp>
++#include <boost/asio/steady_timer.hpp>
++#include <sdbusplus/asio/connection.hpp>
++#include <sdbusplus/asio/object_server.hpp>
++#include <boost/serialization/optional.hpp>
++
++#include <iostream>
++#include <istream>
++#include <limits>
++#include <memory>
++#include <string>
++#include <vector>
++
++static constexpr const char* sensorPathPrefix = "/xyz/openbmc_project/sensors/";
++
++extern bool DEBUG;
++
++SysfsSensor::SysfsSensor(const std::string& path, const std::string& objectType,
++                     sdbusplus::asio::object_server& objectServer,
++                     std::shared_ptr<sdbusplus::asio::connection>& conn,
++                     boost::asio::io_service& io, const std::string& sensorName,
++                     std::vector<thresholds::Threshold>&& thresholdsIn,
++                     const std::string& sensorConfiguration,
++                     const std::string& sensorUnits, unsigned int factor,
++                     double max, double min, const std::string& label,
++                     size_t tSize, PowerState powerState) :
++    Sensor(boost::replace_all_copy(sensorName, " ", "_"),
++           std::move(thresholdsIn), sensorConfiguration, objectType, false, false, max, min,
++           conn, powerState),
++    std::enable_shared_from_this<SysfsSensor>(), objServer(objectServer),
++    inputDev(io), waitTimer(io), path(path), pathRatedMax(""), pathRatedMin(""),
++    sensorFactor(factor), minMaxReadCounter(0), sensorName(sensorName), powerState(powerState)
++{
++    setupPowerMatch(conn);
++    std::string unitPath = sensor_paths::getPathForUnits(sensorUnits);
++
++    if (DEBUG)
++    {
++        std::cerr << "Constructed sensor: path " << path << " type "
++                  << objectType << " config " << sensorConfiguration
++                  << " typename " << unitPath << " factor " << factor
++                  << " min " << min << " max " << max << " name \""
++                  << sensorName << "\"";
++        std::cerr << " PowerState:" << getPowerState(powerState) << "\n";
++    }
++
++    std::string dbusPath = sensorPathPrefix + unitPath + "/" + name;
++
++    sensorInterface = objectServer.add_interface(
++        dbusPath, "xyz.openbmc_project.Sensor.Value");
++
++    if (thresholds::hasWarningInterface(thresholds))
++    {
++        thresholdInterfaceWarning = objectServer.add_interface(
++            dbusPath, "xyz.openbmc_project.Sensor.Threshold.Warning");
++    }
++    if (thresholds::hasCriticalInterface(thresholds))
++    {
++        thresholdInterfaceCritical = objectServer.add_interface(
++            dbusPath, "xyz.openbmc_project.Sensor.Threshold.Critical");
++    }
++
++    // This should be called before initializing association.
++    // createInventoryAssoc() does add more associations before doing
++    // register and initialize "Associations" property.
++    if (label.empty() || tSize == thresholds.size())
++    {
++        setInitialProperties(sensorUnits);
++    }
++    else
++    {
++        setInitialProperties(sensorUnits, label, tSize);
++    }
++
++    association = objectServer.add_interface(dbusPath, association::interface);
++
++    createInventoryAssoc(conn, association, configurationPath);
++
++    if (auto fileParts = splitFileName(path))
++    {
++        auto& [type, nr, item] = *fileParts;
++        if (item.compare("input") == 0)
++        {
++            pathRatedMax = boost::replace_all_copy(path, item, "rated_max");
++            pathRatedMin = boost::replace_all_copy(path, item, "rated_min");
++        }
++    }
++    if (DEBUG)
++    {
++        std::cerr << "File: " << pathRatedMax
++                  << " will be used to update MaxValue\n";
++        std::cerr << "File: " << pathRatedMin
++                  << " will be used to update MinValue\n";
++    }
++}
++
++SysfsSensor::~SysfsSensor()
++{
++    waitTimer.cancel();
++    objServer.remove_interface(sensorInterface);
++    objServer.remove_interface(thresholdInterfaceWarning);
++    objServer.remove_interface(thresholdInterfaceCritical);
++    objServer.remove_interface(association);
++}
++
++void SysfsSensor::updateMinMaxValues(void)
++{
++    if (auto newVal = readFile(pathRatedMin, sensorFactor))
++    {
++        updateProperty(sensorInterface, minValue, *newVal, "MinValue");
++    }
++
++    if (auto newVal = readFile(pathRatedMax, sensorFactor))
++    {
++        updateProperty(sensorInterface, maxValue, *newVal, "MaxValue");
++    }
++}
++
++void SysfsSensor::setupRead(void)
++{
++    if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << "\n";
++
++    const std::string cSensorName(sensorName);
++
++    if (powerState == PowerState::on && !isPowerOn())
++    {
++        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName
++                    << " Power is off and PowerState is on, re-scheduling SetupRead\n";
++        updateValue(std::numeric_limits<double>::quiet_NaN());
++
++        waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollPowerOffMs));
++        std::weak_ptr<SysfsSensor> weakRef = weak_from_this();
++        waitTimer.async_wait([weakRef, cSensorName](const boost::system::error_code& ec) {
++            std::shared_ptr<SysfsSensor> self = weakRef.lock();
++            if (!self || ec)
++            {
++                if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " " << cSensorName << " Error: no self\n";
++                return;
++            }
++
++            self->setupRead();
++        });
++        return;
++    }
++
++    if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ <<  " " << sensorName << " Scheduling sensor read\n";
++
++    boost::system::error_code err;
++    std::shared_ptr<boost::asio::streambuf> buffer = std::make_shared<boost::asio::streambuf>();
++
++    int fd = open(path.c_str(), O_RDONLY);
++    if (fd < 0)
++    {
++        err = boost::system::errc::make_error_code(boost::system::errc::not_supported);
++    }
++    else
++    {
++        inputDev.assign(fd);
++        inputDev.non_blocking(true);
++
++        boost::asio::read_until(inputDev, *buffer, '\n', err);
++        inputDev.close();
++    }
++
++    if(err)
++    {
++        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " read error\n";
++        incrementError();
++    }
++    else
++    {
++        std::istream responseStream(buffer.get());
++        std::string response;
++        try
++        {
++            std::getline(responseStream, response);
++            if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " Got read:" << response << "\n";
++            rawValue = std::stod(response);
++            responseStream.clear();
++            double nvalue = std::round(rawValue / sensorFactor);
++
++            updateValue(nvalue);
++
++            if (minMaxReadCounter++ % 8 == 0)
++            {
++                updateMinMaxValues();
++            }
++        }
++        catch (const std::invalid_argument&)
++        {
++            std::cerr << "Could not parse " << response << "\n";
++            incrementError();
++        }
++    }
++
++    // Re-schedule setupRead()
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
++    std::weak_ptr<SysfsSensor> weakRef = weak_from_this();
++    waitTimer.async_wait([weakRef, cSensorName](const boost::system::error_code& ec) {
++        std::shared_ptr<SysfsSensor> self = weakRef.lock();
++        if (!self || ec)
++        {
++            if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " " << cSensorName << " Error: no self\n";
++            return;
++        }
++
++        self->setupRead();
++    });
++}
++
++void SysfsSensor::checkThresholds(void)
++{
++    thresholds::checkThresholds(this);
++}
+diff --git a/src/SysfsSensorMain.cpp b/src/SysfsSensorMain.cpp
+new file mode 100644
+index 0000000..d9ddf00
+--- /dev/null
++++ b/src/SysfsSensorMain.cpp
+@@ -0,0 +1,846 @@
++/*
++// Copyright (c) 2019 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#include <SysfsSensor.hpp>
++#include <Utils.hpp>
++#include <boost/algorithm/string/predicate.hpp>
++#include <boost/algorithm/string/replace.hpp>
++#include <boost/container/flat_map.hpp>
++#include <boost/container/flat_set.hpp>
++#include <sdbusplus/asio/connection.hpp>
++#include <sdbusplus/asio/object_server.hpp>
++#include <sdbusplus/bus/match.hpp>
++
++#include <array>
++#include <cmath>
++#include <filesystem>
++#include <fstream>
++#include <functional>
++#include <iostream>
++#include <regex>
++#include <string>
++#include <string_view>
++#include <utility>
++#include <variant>
++#include <vector>
++
++#include <CLI/CLI.hpp>
++bool DEBUG = false;
++
++static constexpr auto sensorTypes{std::to_array<const char*>(
++{
++    "ADM1272",
++    "ADM1278",
++    "DPS800",
++    "INA219",
++    "INA230",
++    "ISL68137",
++    "ISL68220",
++    "ISL68223",
++    "ISL69243",
++    "ISL69260",
++    "MAX16601",
++    "MAX20710",
++    "MAX20730",
++    "MAX20734",
++    "MAX20796",
++    "MAX34451",
++    "pmbus",
++    "PXE1610",
++    "RAA228000",
++    "RAA228228",
++    "RAA229004",
++    "TPS546D24",
++    "EMC1413",
++    "MAX31725",
++    "MAX31730",
++    "MAX6581",
++    "MAX6654",
++    "TMP112",
++    "TMP175",
++    "TMP421",
++    "TMP441",
++    "TMP75",
++    "NCT7802",
++    "JC42",
++    "LM5066I",
++    "LM5066I05",
++    "NCT7601",
++    "dcdc54"})};
++
++static std::vector<std::string> hwmonNames = {
++    "adm1272",   "adm1278",   "dps800",    "ina219",   "ina230",   "isl68137",
++    "isl68220",  "isl68223",  "isl69243",  "isl69260", "max16601", "max20710",
++    "max20730",  "max20734",  "max20796",  "max34451", "pmbus",    "pxe1610",
++    "raa228000", "raa228228", "raa229004", "tps546d24",
++    "emc1413", "max31725", "max31730","max6581", "max6654", "tmp112", "tmp175",
++    "tmp421", "tmp441", "tmp75", "nct7802", "jc42", "lm5066i", "lm5066i05", "nct7601", "dcdc54" };
++
++namespace fs = std::filesystem;
++
++static boost::container::flat_map<std::string, std::shared_ptr<SysfsSensor>>
++    sensors;
++static boost::container::flat_map<std::string, std::string> sensorTable;
++static boost::container::flat_map<std::string, SysfsProperty> labelMatch;
++
++static std::vector<SysfsProperty> sysfsProperties;
++
++static void createSensorsCallback(
++    boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,
++    std::shared_ptr<sdbusplus::asio::connection>& dbusConnection,
++    const ManagedObjectType& sensorConfigs,
++    const std::shared_ptr<boost::container::flat_set<std::string>>&
++        sensorsChanged)
++{
++    int numCreated = 0;
++    bool firstScan = sensorsChanged == nullptr;
++
++    std::vector<fs::path> hwmonPaths;
++    if (!findFiles(fs::path("/sys/class/hwmon"), "name", hwmonPaths))
++    {
++        std::cerr << "No hwmon sensors in system\n";
++        exit(0);
++    }
++
++    boost::container::flat_set<std::string> directories;
++    for (const auto& hwmonPath : hwmonPaths)
++    {
++        if (DEBUG)
++            std::cerr << "Processing " << hwmonPath << "\n";
++        std::ifstream nameFile(hwmonPath);
++        if (!nameFile.good())
++        {
++            if (DEBUG)
++                std::cerr << "Failure finding hwmon path " << hwmonPath << "\n";
++            continue;
++        }
++
++        std::string hwmonName;
++        std::getline(nameFile, hwmonName);
++        nameFile.close();
++
++        if (DEBUG)
++            std::cerr << hwmonPath << " name:" << hwmonName << "\n";
++        if (std::find(hwmonNames.begin(), hwmonNames.end(), hwmonName) ==
++            hwmonNames.end())
++        {
++            // To avoid this error message, add your driver name to
++            // the hwmonNames vector at the top of this file.
++            if (DEBUG)
++                std::cerr << "Driver name " << hwmonName
++                          << " not found in sensor whitelist\n";
++            continue;
++        }
++
++        if (DEBUG)
++            std::cerr << hwmonPath << " found in whitelist\n";
++        const std::string* sysfsName;
++        auto directory = hwmonPath.parent_path();
++
++        auto ret = directories.insert(directory.string());
++        if (!ret.second)
++        {
++            if (DEBUG) std::cerr << "Duplicate path " << directory.string() << "\n";
++            continue; // check if path has already been searched
++        }
++
++        fs::path device = directory / "device";
++        std::string deviceName = fs::canonical(device).stem();
++        auto findHyphen = deviceName.find('-');
++        if (findHyphen == std::string::npos)
++        {
++            if (DEBUG) std::cerr << "found bad device" << deviceName << "\n";
++            continue;
++        }
++        std::string busStr = deviceName.substr(0, findHyphen);
++        std::string addrStr = deviceName.substr(findHyphen + 1);
++
++        if (DEBUG)
++            std::cerr << hwmonPath << " Bus:" << busStr << " Addr:" << addrStr << "\n";
++
++        size_t bus = 0;
++        size_t addr = 0;
++
++        try
++        {
++            bus = std::stoi(busStr);
++            addr = std::stoi(addrStr, nullptr, 16);
++        }
++        catch (std::invalid_argument&)
++        {
++            if (DEBUG)
++                std::cerr << "Error parsing bus " << busStr << " addr " << addrStr
++                          << "\n";
++            continue;
++        }
++
++        const SensorBaseConfigMap* baseConfig = nullptr;
++        const SensorData* sensorData = nullptr;
++        const std::string* interfacePath = nullptr;
++        const char* sensorType = nullptr;
++        size_t thresholdConfSize = 0;
++
++        for (const auto& [path, cfgData] : sensorConfigs)
++        {
++            sensorData = &cfgData;
++            if (DEBUG)
++                std::cerr << __FUNCTION__ << ":" << __LINE__ << " sensorData:" << sensorData << "\n";
++            for (const char* type : sensorTypes)
++            {
++                auto sensorBase = sensorData->find(configInterfaceName(type));
++                if (sensorBase != sensorData->end())
++                {
++                    if (DEBUG)
++                        std::cerr << hwmonPath << " Found sensor type:" << type << "\n";
++                    baseConfig = &sensorBase->second;
++                    sensorType = type;
++                    break;
++                }
++            }
++            if (baseConfig == nullptr)
++            {
++                if (DEBUG)
++                    std::cerr << "error finding base configuration for "
++                              << deviceName << "\n";
++                continue;
++            }
++
++            auto configBus = baseConfig->find("Bus");
++            auto configAddress = baseConfig->find("Address");
++
++            if (configBus == baseConfig->end() ||
++                configAddress == baseConfig->end())
++            {
++                if (DEBUG)
++                    std::cerr << "error finding necessary entry in configuration\n";
++                continue;
++            }
++
++            const uint64_t* confBus;
++            const uint64_t* confAddr;
++            if (!(confBus = std::get_if<uint64_t>(&(configBus->second))) ||
++                !(confAddr = std::get_if<uint64_t>(&(configAddress->second))))
++            {
++                if (DEBUG)
++                    std::cerr << "Cannot get bus or address, invalid configuration\n";
++                continue;
++            }
++
++            if ((*confBus != bus) || (*confAddr != addr))
++            {
++                if (DEBUG)
++                {
++                    std::cerr << "Configuration skipping " << *confBus << "-"
++                          << *confAddr << " because not " << bus << "-" << addr
++                          << "\n";
++                }
++                continue;
++            }
++
++            std::vector<thresholds::Threshold> confThresholds;
++            if (!parseThresholdsFromConfig(*sensorData, confThresholds))
++            {
++                if (DEBUG) std::cerr << "error populating totoal thresholds\n";
++            }
++            thresholdConfSize = confThresholds.size();
++
++            interfacePath = &path.str;
++            break;
++        }
++        if (interfacePath == nullptr)
++        {
++            // To avoid this error message, add your export map entry,
++            // from Entity Manager, to sensorTypes at the top of this file.
++            continue;
++        }
++
++        auto findSysfsName = baseConfig->find("Name");
++        if (findSysfsName == baseConfig->end())
++        {
++            std::cerr << "could not determine configuration name for "
++                      << deviceName << "\n";
++            continue;
++        }
++
++        if (!(sysfsName = std::get_if<std::string>(&(findSysfsName->second))))
++        {
++            if (DEBUG) std::cerr << "Cannot find sysfs name, invalid configuration\n";
++            continue;
++        }
++
++        // on rescans, only update sensors we were signaled by
++        if (!firstScan)
++        {
++            std::string sysfsNameStr = "/" + *sysfsName;
++            auto it =
++                std::find_if(sensorsChanged->begin(), sensorsChanged->end(),
++                             [sysfsNameStr](std::string& s) {
++                                 return boost::ends_with(s, sysfsNameStr);
++                             });
++
++            if (it == sensorsChanged->end())
++            {
++                continue;
++            }
++            sensorsChanged->erase(it);
++        }
++
++        /* Check if there are more sensors in the same interface */
++        int i = 1;
++        std::vector<std::string> sysfsNames;
++        do
++        {
++            // Individual string fields: Name, Name1, Name2, Name3, ...
++            sysfsNames.push_back(std::get<std::string>(findSysfsName->second));
++            findSysfsName = baseConfig->find("Name" + std::to_string(i++));
++        } while (findSysfsName != baseConfig->end());
++
++        std::vector<fs::path> sensorPaths;
++        findFiles(directory, R"(\w\d+_average$)", sensorPaths, 0);
++        if (sensorPaths.empty())
++        {
++            if (DEBUG) std::cerr << "No sysfs average sensor in hwmon, trying input\n";
++            findFiles(directory, R"(\w\d+_input$)", sensorPaths, 0);
++            if (sensorPaths.empty())
++            {
++                if (DEBUG) std::cerr << "No sysfs input/average sensor in hwmon dir " << directory << "\n";
++                continue;
++            }
++        }
++
++        /* read max value in sysfs for in, curr, power, temp, ... */
++        if (!findFiles(directory, R"(\w\d+_max$)", sensorPaths, 0))
++        {
++            if (DEBUG) std::cerr << "No max name in sysfs \n";
++        }
++
++        /* Find array of labels to be exposed if it is defined in config */
++        std::vector<std::string> findLabels;
++        auto findLabelObj = baseConfig->find("Labels");
++        if (findLabelObj != baseConfig->end())
++        {
++            findLabels =
++                std::get<std::vector<std::string>>(findLabelObj->second);
++        }
++
++        std::regex sensorNameRegEx("([A-Za-z]+)[0-9]*_");
++        std::smatch matches;
++
++        for (const auto& sensorPath : sensorPaths)
++        {
++            bool maxLabel = false;
++            std::string labelHead;
++            std::string sensorPathStr = sensorPath.string();
++            std::string sensorNameStr = sensorPath.filename();
++            std::string sensorNameSubStr{""};
++            if (std::regex_search(sensorNameStr, matches, sensorNameRegEx))
++            {
++                // hwmon *_input filename without number:
++                // in, curr, power, temp, ...
++                sensorNameSubStr = matches[1];
++            }
++            else
++            {
++                if (DEBUG)
++                    std::cerr << "Could not extract the alpha prefix from "
++                              << sensorNameStr;
++                continue;
++            }
++
++            std::string labelPath;
++
++            /* find and differentiate _max and _input to replace "label" */
++            size_t pos = sensorPathStr.find('_');
++            if (pos != std::string::npos)
++            {
++
++                std::string sensorPathStrMax = sensorPathStr.substr(pos);
++                if (sensorPathStrMax.compare("_max") == 0)
++                {
++                    labelPath =
++                        boost::replace_all_copy(sensorPathStr, "max", "label");
++                    maxLabel = true;
++                }
++                else if (sensorPathStrMax.compare("_input") == 0)
++                {
++                    labelPath = boost::replace_all_copy(sensorPathStr, "input",
++                                                        "label");
++                    maxLabel = false;
++                }
++                else if (sensorPathStrMax.compare("_average") == 0)
++                {
++                    labelPath = boost::replace_all_copy(sensorPathStr, "average",
++                                                        "label");
++                    maxLabel = false;
++                }
++                else
++                {
++                    std::cerr << __FUNCTION__ << ":" << __LINE__ << " Unknown suffix:" << sensorPathStrMax << "\n";
++                    maxLabel = false;
++                }
++            }
++            else
++            {
++                continue;
++            }
++
++            std::ifstream labelFile(labelPath);
++            if (!labelFile.good())
++            {
++                if (DEBUG)
++                {
++                    std::cerr << "Input file " << sensorPath
++                              << " has no corresponding label file\n";
++                }
++                // hwmon *_input filename with number:
++                // temp1, temp2, temp3, ...
++                labelHead = sensorNameStr.substr(0, sensorNameStr.find('_'));
++            }
++            else
++            {
++                std::string label;
++                std::getline(labelFile, label);
++                labelFile.close();
++                auto findSensor = sensors.find(label);
++                if (findSensor != sensors.end())
++                {
++                    continue;
++                }
++
++                // hwmon corresponding *_label file contents:
++                // vin1, vout1, ...
++                labelHead = label.substr(0, label.find(' '));
++            }
++
++            /* append "max" for labelMatch */
++            if (maxLabel)
++            {
++                labelHead.insert(0, "max");
++            }
++
++            if (DEBUG)
++                std::cerr << "Sensor type=\"" << sensorNameSubStr
++                          << "\" label=\"" << labelHead << "\"\n";
++
++            if (!findLabels.empty())
++            {
++                /* Check if this labelHead is enabled in config file */
++                if (std::find(findLabels.begin(), findLabels.end(),
++                              labelHead) == findLabels.end())
++                {
++                    if (DEBUG)
++                    {
++                        std::cerr << "could not find " << labelHead
++                                  << " in the Labels list\n";
++                    }
++                    continue;
++                }
++            }
++
++            auto findProperty = labelMatch.find(labelHead);
++            if (findProperty == labelMatch.end())
++            {
++                if (DEBUG)
++                    std::cerr << "Could not find matching default property for "
++                              << labelHead << "\n";
++                continue;
++            }
++
++            // Protect the hardcoded labelMatch list from changes,
++            // by making a copy and modifying that instead.
++            // Avoid bleedthrough of one device's customizations to
++            // the next device, as each should be independently customizable.
++            sysfsProperties.push_back(findProperty->second);
++            auto sysfsProperty = sysfsProperties.rbegin();
++
++            // Use label head as prefix for reading from config file,
++            // example if temp1: temp1_Name, temp1_Scale, temp1_Min, ...
++            std::string keyName = labelHead + "_Name";
++            std::string keyScale = labelHead + "_Scale";
++            std::string keyMin = labelHead + "_Min";
++            std::string keyMax = labelHead + "_Max";
++
++            bool customizedName = false;
++            auto findCustomName = baseConfig->find(keyName);
++            if (findCustomName != baseConfig->end())
++            {
++                try
++                {
++                    sysfsProperty->labelTypeName = std::visit(
++                        VariantToStringVisitor(), findCustomName->second);
++                }
++                catch (std::invalid_argument&)
++                {
++                    if (DEBUG) std::cerr << "Unable to parse " << keyName << "\n";
++                    continue;
++                }
++
++                // All strings are valid, including empty string
++                customizedName = true;
++            }
++
++            bool customizedScale = false;
++            auto findCustomScale = baseConfig->find(keyScale);
++            if (findCustomScale != baseConfig->end())
++            {
++                try
++                {
++                    sysfsProperty->sensorScaleFactor = std::visit(
++                        VariantToUnsignedIntVisitor(), findCustomScale->second);
++                }
++                catch (std::invalid_argument&)
++                {
++                    if (DEBUG) std::cerr << "Unable to parse " << keyScale << "\n";
++                    continue;
++                }
++
++                // Avoid later division by zero
++                if (sysfsProperty->sensorScaleFactor > 0)
++                {
++                    customizedScale = true;
++                }
++                else
++                {
++                    if (DEBUG) std::cerr << "Unable to accept " << keyScale << "\n";
++                    continue;
++                }
++            }
++
++            auto findCustomMin = baseConfig->find(keyMin);
++            if (findCustomMin != baseConfig->end())
++            {
++                try
++                {
++                    sysfsProperty->minReading = std::visit(
++                        VariantToDoubleVisitor(), findCustomMin->second);
++                }
++                catch (std::invalid_argument&)
++                {
++                    if (DEBUG) std::cerr << "Unable to parse " << keyMin << "\n";
++                    continue;
++                }
++            }
++
++            auto findCustomMax = baseConfig->find(keyMax);
++            if (findCustomMax != baseConfig->end())
++            {
++                try
++                {
++                    sysfsProperty->maxReading = std::visit(
++                        VariantToDoubleVisitor(), findCustomMax->second);
++                }
++                catch (std::invalid_argument&)
++                {
++                    if (DEBUG) std::cerr << "Unable to parse " << keyMax << "\n";
++                    continue;
++                }
++            }
++
++            if (!(sysfsProperty->minReading < sysfsProperty->maxReading))
++            {
++                if (DEBUG) std::cerr << "Min must be less than Max\n";
++                continue;
++            }
++
++            // If the sensor name is being customized by config file,
++            // then prefix/suffix composition becomes not necessary,
++            // and in fact not wanted, because it gets in the way.
++            std::string sysfsNameFromIndex;
++            if (!customizedName)
++            {
++                /* Find out sensor name index for this label */
++                std::regex rgx("[A-Za-z]+([0-9]+)");
++                size_t nameIndex{0};
++                if (std::regex_search(labelHead, matches, rgx))
++                {
++                    nameIndex = std::stoi(matches[1]);
++
++                    // Decrement to preserve alignment, because hwmon
++                    // human-readable filenames and labels use 1-based
++                    // numbering, but the "Name", "Name1", "Name2", etc. naming
++                    // convention (the sysfsNames vector) uses 0-based numbering.
++                    if (nameIndex > 0)
++                    {
++                        --nameIndex;
++                    }
++                }
++                else
++                {
++                    nameIndex = 0;
++                }
++
++                if (sysfsNames.size() <= nameIndex)
++                {
++                    if (DEBUG)
++                        std::cerr << "Could not pair " << labelHead
++                                  << " with a Name field\n";
++                    continue;
++                }
++
++                sysfsNameFromIndex = sysfsNames[nameIndex];
++
++                if (DEBUG)
++                    std::cerr << "Sensor label head " << labelHead
++                              << " paired with " << sysfsNameFromIndex
++                              << " at index " << nameIndex << "\n";
++            }
++
++            // Similarly, if sensor scaling factor is being customized,
++            // then the below power-of-10 constraint becomes unnecessary,
++            // as config should be able to specify an arbitrary divisor.
++            unsigned int factor = sysfsProperty->sensorScaleFactor;
++            if (!customizedScale)
++            {
++                // Preserve existing usage of hardcoded labelMatch table below
++                factor = std::pow(10.0, factor);
++
++                /* Change first char of substring to uppercase */
++                char firstChar =
++                    static_cast<char>(std::toupper(sensorNameSubStr[0]));
++                std::string strScaleFactor =
++                    firstChar + sensorNameSubStr.substr(1) + "ScaleFactor";
++
++                // Preserve existing configs by accepting earlier syntax,
++                // example CurrScaleFactor, PowerScaleFactor, ...
++                auto findScaleFactor = baseConfig->find(strScaleFactor);
++                if (findScaleFactor != baseConfig->end())
++                {
++                    factor = std::visit(VariantToIntVisitor(),
++                                        findScaleFactor->second);
++                }
++
++                if (DEBUG)
++                    std::cerr << "Sensor scaling factor " << factor
++                              << " string " << strScaleFactor << "\n";
++            }
++
++            std::vector<thresholds::Threshold> sensorThresholds;
++            if (!parseThresholdsFromConfig(*sensorData, sensorThresholds,
++                                           &labelHead))
++            {
++                if (DEBUG)
++                    std::cerr << "error populating thresholds for "
++                              << sensorNameSubStr << "\n";
++            }
++
++            auto findSensorUnit = sensorTable.find(sensorNameSubStr);
++            if (findSensorUnit == sensorTable.end())
++            {
++                if (DEBUG)
++                    std::cerr << sensorNameSubStr
++                              << " is not a recognized sensor type\n";
++                continue;
++            }
++
++            if (DEBUG)
++                std::cerr << "Sensor properties: Name \""
++                          << sysfsProperty->labelTypeName << "\" Scale "
++                          << sysfsProperty->sensorScaleFactor << " Min "
++                          << sysfsProperty->minReading << " Max "
++                          << sysfsProperty->maxReading << "\n";
++
++            std::string sensorName = sysfsProperty->labelTypeName;
++            if (customizedName)
++            {
++                if (sensorName.empty())
++                {
++                    // Allow selective disabling of an individual sensor,
++                    // by customizing its name to an empty string.
++                    if (DEBUG) std::cerr << "Sensor disabled, empty string\n";
++                    continue;
++                }
++            }
++            else
++            {
++                // Sensor name not customized, do prefix/suffix composition,
++                // preserving default behavior by using sysfsNameFromIndex.
++                sensorName =
++                    sysfsNameFromIndex + " " + sysfsProperty->labelTypeName;
++            }
++
++            if (DEBUG)
++            {
++                std::cerr << "Sensor name \"" << sensorName << "\" path \""
++                          << sensorPathStr << "\" type \"" << sensorType
++                          << "\"\n";
++            }
++            // destruct existing one first if already created
++            sensors[sensorName] = nullptr;
++
++            auto findPowerState = baseConfig->find("PowerState");
++            PowerState powerState = PowerState::always;
++
++            if (findPowerState != baseConfig->end())
++            {
++                setReadState(std::visit(VariantToStringVisitor(),
++                                          findPowerState->second),
++                             powerState);
++            }
++
++            sensors[sensorName] = std::make_shared<SysfsSensor>(
++                sensorPathStr, sensorType, objectServer, dbusConnection, io,
++                sensorName, std::move(sensorThresholds), *interfacePath,
++                findSensorUnit->second, factor, sysfsProperty->maxReading,
++                sysfsProperty->minReading, labelHead, thresholdConfSize,
++                powerState);
++            sensors[sensorName]->setupRead();
++            ++numCreated;
++            if (DEBUG)
++                std::cerr << "Created " << numCreated << " sensors so far\n";
++        }
++    }
++
++    if (DEBUG) std::cerr << "Created total of " << numCreated << " sensors\n";
++
++    return;
++}
++
++void createSensors(
++    boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,
++    std::shared_ptr<sdbusplus::asio::connection>& dbusConnection,
++    const std::shared_ptr<boost::container::flat_set<std::string>>&
++        sensorsChanged)
++{
++    auto getter = std::make_shared<GetSensorConfiguration>(
++        dbusConnection, [&io, &objectServer, &dbusConnection, sensorsChanged](
++                            const ManagedObjectType& sensorConfigs) {
++            createSensorsCallback(io, objectServer, dbusConnection,
++                                  sensorConfigs, sensorsChanged);
++        });
++    getter->getConfiguration(
++        std::vector<std::string>(sensorTypes.begin(), sensorTypes.end()));
++}
++
++void propertyInitialize(void)
++{
++    sensorTable = {{"power", sensor_paths::unitWatts},
++                   {"curr", sensor_paths::unitAmperes},
++                   {"temp", sensor_paths::unitDegreesC},
++                   {"in", sensor_paths::unitVolts},
++                   {"fan", sensor_paths::unitRPMs}};
++
++    labelMatch = {{"pin", SysfsProperty("Input Power", 3000, 0, 6)},
++                  {"pout1", SysfsProperty("Output Power", 3000, 0, 6)},
++                  {"pout2", SysfsProperty("Output Power", 3000, 0, 6)},
++                  {"pout3", SysfsProperty("Output Power", 3000, 0, 6)},
++                  {"power1", SysfsProperty("Output Power", 3000, 0, 6)},
++                  {"power2", SysfsProperty("Output Power", 3000, 0, 6)},
++                  {"maxpin", SysfsProperty("Max Input Power", 3000, 0, 6)},
++                  {"vin", SysfsProperty("Input Voltage", 300, 0, 3)},
++                  {"maxvin", SysfsProperty("Max Input Voltage", 300, 0, 3)},
++                  {"vout1", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout2", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout3", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout4", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout5", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout6", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout7", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout8", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout9", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout10", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout11", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout12", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout13", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout14", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout15", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout16", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout17", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout18", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout19", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout20", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout21", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout22", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout23", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout24", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout25", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout26", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout27", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout28", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout29", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout30", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout31", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"vout32", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"in1", SysfsProperty("Output Voltage", 255, 0, 3)},
++                  {"iin", SysfsProperty("Input Current", 20, 0, 3)},
++                  {"iout1", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout2", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout3", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout4", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout5", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout6", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout7", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout8", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout9", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout10", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout11", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout12", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout13", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"iout14", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"curr1", SysfsProperty("Output Current", 255, 0, 3)},
++                  {"maxiout1", SysfsProperty("Max Output Current", 255, 0, 3)},
++                  {"temp1", SysfsProperty("Temperature", 127, -128, 3)},
++                  {"temp2", SysfsProperty("Temperature", 127, -128, 3)},
++                  {"temp3", SysfsProperty("Temperature", 127, -128, 3)},
++                  {"temp4", SysfsProperty("Temperature", 127, -128, 3)},
++                  {"temp5", SysfsProperty("Temperature", 127, -128, 3)},
++                  {"temp6", SysfsProperty("Temperature", 127, -128, 3)},
++                  {"maxtemp1", SysfsProperty("Max Temperature", 127, -128, 3)},
++                  {"fan1", SysfsProperty("Fan Speed 1", 30000, 0, 0)},
++                  {"fan2", SysfsProperty("Fan Speed 2", 30000, 0, 0)}};
++}
++
++int main(int argc, char* argv[])
++{
++    CLI::App app("Generic sysfs sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
++    boost::asio::io_service io;
++    auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
++
++    systemBus->request_name("xyz.openbmc_project.SysfsSensor");
++    sdbusplus::asio::object_server objectServer(systemBus);
++    auto sensorsChanged =
++        std::make_shared<boost::container::flat_set<std::string>>();
++
++    propertyInitialize();
++
++    io.post([&]() { createSensors(io, objectServer, systemBus, nullptr); });
++    boost::asio::steady_timer filterTimer(io);
++    std::function<void(sdbusplus::message_t&)> eventHandler =
++        [&](sdbusplus::message_t& message) {
++            if (message.is_method_error())
++            {
++                if (DEBUG) std::cerr << "callback method error\n";
++                return;
++            }
++            sensorsChanged->insert(message.get_path());
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(3));
++            filterTimer.async_wait([&](const boost::system::error_code& ec) {
++                if (ec)
++                {
++                    if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " ERROR\n";
++                    return;
++                }
++                if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " Creating sensors\n";
++                createSensors(io, objectServer, systemBus, sensorsChanged);
++            });
++        };
++
++    std::vector<std::unique_ptr<sdbusplus::bus::match_t>> matches =
++        setupPropertiesChangedMatches(*systemBus, sensorTypes, eventHandler);
++    io.run();
++}

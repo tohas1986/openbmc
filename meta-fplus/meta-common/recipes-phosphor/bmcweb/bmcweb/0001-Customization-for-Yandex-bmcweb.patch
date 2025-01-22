@@ -1,0 +1,161 @@
+From 7a29454dd1aded4037dc038362d20a770a85f92b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 30 Sep 2022 08:45:16 +0000
+Subject: [PATCH] Customization for Yandex bmcweb
+
+---
+ include/image_upload.hpp                       | 13 +++++++++++++
+ redfish-core/include/event_service_manager.hpp |  4 ++--
+ redfish-core/lib/log_services.hpp              |  2 +-
+ redfish-core/lib/managers.hpp                  | 10 +++++-----
+ redfish-core/lib/sensors.hpp                   |  8 ++++----
+ 5 files changed, 25 insertions(+), 12 deletions(-)
+
+diff --git a/include/image_upload.hpp b/include/image_upload.hpp
+index 4defbb66..88c027f1 100644
+--- a/include/image_upload.hpp
++++ b/include/image_upload.hpp
+@@ -10,6 +10,7 @@
+ #include <cstdio>
+ #include <fstream>
+ #include <memory>
++#include <filesystem>
+ 
+ namespace crow
+ {
+@@ -90,6 +91,18 @@ inline void
+         "member='InterfacesAdded',path='/xyz/openbmc_project/software'",
+         callback);
+ 
++    namespace fs = std::filesystem;
++
++    fs::path imgDir("/tmp/images");
++
++    if(fs::exists(imgDir))
++    {
++        for (auto& path: fs::directory_iterator(imgDir))
++        {
++            fs::remove_all(path);
++        }
++    }
++
+     std::string filepath(
+         "/tmp/images/" +
+         boost::uuids::to_string(boost::uuids::random_generator()()));
+diff --git a/redfish-core/include/event_service_manager.hpp b/redfish-core/include/event_service_manager.hpp
+index 7f3b43a8..fd97fa5c 100644
+--- a/redfish-core/include/event_service_manager.hpp
++++ b/redfish-core/include/event_service_manager.hpp
+@@ -78,8 +78,8 @@ inline std::span<const MessageEntry>
+ 
+ #ifndef BMCWEB_ENABLE_REDFISH_DBUS_LOG_ENTRIES
+ static std::optional<boost::asio::posix::stream_descriptor> inotifyConn;
+-static constexpr const char* redfishEventLogDir = "/var/log";
+-static constexpr const char* redfishEventLogFile = "/var/log/redfish";
++static constexpr const char* redfishEventLogDir = "/var/lib/ipmi";
++static constexpr const char* redfishEventLogFile = "/var/lib/ipmi/redfish";
+ static constexpr const size_t iEventSize = sizeof(inotify_event);
+ static int inotifyFd = -1;
+ static int dirWatchDesc = -1;
+diff --git a/redfish-core/lib/log_services.hpp b/redfish-core/lib/log_services.hpp
+index a9122630..0921b50e 100644
+--- a/redfish-core/lib/log_services.hpp
++++ b/redfish-core/lib/log_services.hpp
+@@ -316,7 +316,7 @@ inline static bool
+ static bool
+     getRedfishLogFiles(std::vector<std::filesystem::path>& redfishLogFiles)
+ {
+-    static const std::filesystem::path redfishLogDir = "/var/log";
++    static const std::filesystem::path redfishLogDir = "/var/lib/ipmi";
+     static const std::string redfishLogFilename = "redfish";
+ 
+     // Loop through the directory looking for redfish log files
+diff --git a/redfish-core/lib/managers.hpp b/redfish-core/lib/managers.hpp
+index 55c3949c..4e502d07 100644
+--- a/redfish-core/lib/managers.hpp
++++ b/redfish-core/lib/managers.hpp
+@@ -720,7 +720,7 @@ inline bool
+                                                "Zones");
+             return false;
+         }
+-        std::replace(input.begin(), input.end(), '_', ' ');
++        std::replace(input.begin(), input.end(), ' ', '_');
+         zones.emplace_back(std::move(input));
+     }
+     return true;
+@@ -733,7 +733,7 @@ inline const dbus::utility::ManagedObjectType::value_type*
+     BMCWEB_LOG_DEBUG << "Find Chassis: " << value << "\n";
+ 
+     std::string escaped = value;
+-    std::replace(escaped.begin(), escaped.end(), '_', ' ');
++    std::replace(escaped.begin(), escaped.end(), ' ', '_');
+     escaped = "/" + escaped;
+     auto it = std::find_if(managedObj.begin(), managedObj.end(),
+                            [&escaped](const auto& obj) {
+@@ -955,7 +955,7 @@ inline CreatePIDRet createPidInterface(
+                 }
+                 for (std::string& value : *container)
+                 {
+-                    std::replace(value.begin(), value.end(), '_', ' ');
++                    std::replace(value.begin(), value.end(), ' ', '_');
+                 }
+                 std::string key;
+                 if (index == 0)
+@@ -1137,7 +1137,7 @@ inline CreatePIDRet createPidInterface(
+             for (std::string& value : *inputs)
+             {
+ 
+-                std::replace(value.begin(), value.end(), '_', ' ');
++                std::replace(value.begin(), value.end(), ' ', '_');
+             }
+             output.emplace_back("Inputs", std::move(*inputs));
+         }
+@@ -1616,7 +1616,7 @@ struct SetPIDValues : std::enable_shared_from_this<SetPIDValues>
+                     continue;
+                 }
+                 std::string escaped = name;
+-                std::replace(escaped.begin(), escaped.end(), '_', ' ');
++                std::replace(escaped.begin(), escaped.end(), ' ', '_');
+                 output.emplace_back("Name", escaped);
+ 
+                 std::string chassis;
+diff --git a/redfish-core/lib/sensors.hpp b/redfish-core/lib/sensors.hpp
+index 3cd43798..c873e095 100644
+--- a/redfish-core/lib/sensors.hpp
++++ b/redfish-core/lib/sensors.hpp
+@@ -745,7 +745,7 @@ inline void objectPropertiesToJson(
+         sensorJson["Id"] = std::move(subNodeEscaped);
+ 
+         std::string sensorNameEs(sensorName);
+-        std::replace(sensorNameEs.begin(), sensorNameEs.end(), '_', ' ');
++        std::replace(sensorNameEs.begin(), sensorNameEs.end(), ' ', '_');
+         sensorJson["Name"] = std::move(sensorNameEs);
+     }
+     else if (sensorType != "power")
+@@ -755,7 +755,7 @@ inline void objectPropertiesToJson(
+         // multiple sensors can be stored in the same JSON object.
+         sensorJson["MemberId"] = sensorName;
+         std::string sensorNameEs(sensorName);
+-        std::replace(sensorNameEs.begin(), sensorNameEs.end(), '_', ' ');
++        std::replace(sensorNameEs.begin(), sensorNameEs.end(), ' ', '_');
+         sensorJson["Name"] = std::move(sensorNameEs);
+     }
+ 
+@@ -1066,7 +1066,7 @@ inline void populateFanRedundancy(
+                             sensorsAsyncResp->asyncResp->res);
+                         return;
+                     }
+-                    std::replace(name.begin(), name.end(), '_', ' ');
++                    std::replace(name.begin(), name.end(), ' ', '_');
+ 
+                     std::string health;
+ 
+@@ -2218,7 +2218,7 @@ inline nlohmann::json& getPowerSupply(nlohmann::json& powerSupplyArray,
+     powerSupply["@odata.id"] =
+         "/redfish/v1/Chassis/" + chassisId + "/Power#/PowerSupplies/";
+     powerSupply["MemberId"] = inventoryItem.name;
+-    powerSupply["Name"] = boost::replace_all_copy(inventoryItem.name, "_", " ");
++    powerSupply["Name"] = boost::replace_all_copy(inventoryItem.name, " ", "_");
+     powerSupply["Manufacturer"] = inventoryItem.manufacturer;
+     powerSupply["Model"] = inventoryItem.model;
+     powerSupply["PartNumber"] = inventoryItem.partNumber;

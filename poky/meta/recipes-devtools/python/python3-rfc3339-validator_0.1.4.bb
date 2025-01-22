@@ -13,9 +13,9 @@ UPSTREAM_CHECK_REGEX = "/rfc3339-validator/(?P<pver>(\d+[\.\-_]*)+)/"
 inherit pypi setuptools3
 
 RDEPENDS:${PN} += "\
-    python3-core \
-    python3-datetime \
-    python3-six \
+    ${PYTHON_PN}-core \
+    ${PYTHON_PN}-datetime \
+    ${PYTHON_PN}-six \
 "
 
 BBCLASSEXTEND = "native nativesdk"

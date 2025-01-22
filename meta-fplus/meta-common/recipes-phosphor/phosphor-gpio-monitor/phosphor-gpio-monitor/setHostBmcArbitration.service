@@ -1,0 +1,6 @@
+[Unit]
+Description=Set Arbitration to Host BMC
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/setHostBmcArbitration.sh

@@ -1,0 +1,30 @@
+From 6e3b610fd03fcf059fe94bfbcd08c97beeb7e120 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 21 Jan 2020 11:07:53 +0300
+Subject: [PATCH 1/1] Add espi to aspeed-g5 dts
+
+---
+ arch/arm/boot/dts/aspeed-g5.dtsi | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/arch/arm/boot/dts/aspeed-g5.dtsi b/arch/arm/boot/dts/aspeed-g5.dtsi
+index 6580b23..452ec32 100644
+--- a/arch/arm/boot/dts/aspeed-g5.dtsi
++++ b/arch/arm/boot/dts/aspeed-g5.dtsi
+@@ -408,6 +408,13 @@
+ 				status = "disabled";
+ 			};
+ 
++			espi: espi@1e6ee000 {
++				compatible = "aspeed,ast2500-espi-slave";
++				reg = <0x1e6ee000 0x100>;
++				interrupts = <23>;
++				status = "disabled";
++			};
++
+ 			lpc: lpc@1e789000 {
+ 				compatible = "aspeed,ast2500-lpc", "simple-mfd";
+ 				reg = <0x1e789000 0x1000>;
+-- 
+1.9.1
+

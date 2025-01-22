@@ -23,9 +23,10 @@ RPROVIDES:${PN}-system += "virtual-obmc-system-mgmt"
 
 SUMMARY:${PN}-chassis = "HPE Chassis"
 RDEPENDS:${PN}-chassis = " \
+        obmc-phosphor-buttons-signals \
+        obmc-phosphor-buttons-handler \
         phosphor-skeleton-control-power \
         obmc-host-failure-reboots \
-        x86-power-control \
         "
 
 SUMMARY:${PN}-fans = "HPE Fans"
@@ -35,16 +36,12 @@ RDEPENDS:${PN}-fans = " \
 
 SUMMARY:${PN}-flash = "HPE Flash"
 RDEPENDS:${PN}-flash = " \
-        phosphor-software-manager \
         "
 
 SUMMARY:${PN}-system = "HPE System"
 RDEPENDS:${PN}-system = " \
+        bmcweb \
+        webui-vue \
         phosphor-ipmi-ipmb \
         dbus-sensors \
-        host-ehci-owner-reset \
-        host-boot-enable \
-        entity-manager \
-        phosphor-host-postd \
-        phosphor-post-code-manager \
         "

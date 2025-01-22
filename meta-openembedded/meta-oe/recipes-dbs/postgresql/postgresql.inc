@@ -35,9 +35,8 @@ LEAD_SONAME = "libpq.so"
 
 # LDFLAGS for shared libraries
 export LDFLAGS_SL = "${LDFLAGS}"
-export LDFLAGS_EX_BE = "-Wl,--export-dynamic"
 
-inherit autotools pkgconfig perlnative python3native python3targetconfig useradd update-rc.d systemd gettext cpan-base multilib_header
+inherit autotools pkgconfig perlnative python3native python3targetconfig useradd update-rc.d systemd gettext cpan-base
 
 CFLAGS += "-I${STAGING_INCDIR}/${PYTHON_DIR} -I${STAGING_INCDIR}/tcl8.6"
 
@@ -55,7 +54,7 @@ pkg_postinst:${PN} () {
 
 PACKAGECONFIG ??= " \
     ${@bb.utils.filter('DISTRO_FEATURES', 'pam systemd', d)} \
-    openssl python uuid libxml tcl perl zlib icu \
+    openssl python uuid libxml tcl perl zlib \
 "
 PACKAGECONFIG[tcl] = "--with-tcl --with-tclconfig=${STAGING_BINDIR_CROSS},--without-tcl,tcl tcl-native,"
 PACKAGECONFIG[perl] = "--with-perl,--without-perl,perl,perl"
@@ -70,7 +69,6 @@ PACKAGECONFIG[libxslt] = "--with-libxslt,--without-libxslt,libxslt"
 PACKAGECONFIG[zlib] = "--with-zlib,--without-zlib,zlib"
 PACKAGECONFIG[lz4] = "--with-lz4,--without-lz4,lz4"
 PACKAGECONFIG[openssl] = "--with-ssl=openssl,ac_cv_file__dev_urandom=yes,openssl"
-PACKAGECONFIG[icu] = "--with-icu,--without-icu,icu,icu"
 
 EXTRA_OECONF += "--enable-thread-safety --disable-rpath \
     --datadir=${datadir}/${BPN} \
@@ -185,7 +183,6 @@ INITSCRIPT_PARAMS = "start 64 . stop 36 0 1 2 3 4 5 6 ."
 do_install:append() {
     # install contrib
     oe_runmake DESTDIR=${D} -C contrib install
-    oe_multilib_header pg_config.h pg_config_ext.h ecpg_config.h postgresql/server/pg_config.h postgresql/server/pg_config_ext.h
     # install tutorial
     install -d -m 0755 ${D}${libdir}/${BPN}/tutorial
     install ${B}/src/tutorial/* ${D}${libdir}/${BPN}/tutorial
@@ -230,16 +227,6 @@ do_install:append() {
 
 SSTATE_SCAN_FILES += "Makefile.global"
 SSTATE_SCAN_FILES:remove = "*_config"
-
-postgresql_fix_sources () {
-	for f in ${PKGD}${TARGET_DBGSRC_DIR}/src/pl/plperl/Util.c \
-			${PKGD}${TARGET_DBGSRC_DIR}/src/pl/plperl/SPI.c; do
-		if [ -e $f ]; then
-			sed -i -e 's#${B}/../${P}#${TARGET_DBGSRC_DIR}#g' $f
-		fi
-	done
-}
-PACKAGESPLITFUNCS =+ "postgresql_fix_sources"
 
 PACKAGES =+ "${PN}-client ${PN}-server-dev ${PN}-timezone \
     libecpg-compat libecpg-compat-dev \

@@ -1,0 +1,90 @@
+From 491797215a9e0585b6caaf08f6e23d3aa9ec370f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 16 Feb 2022 13:26:52 +0000
+Subject: [PATCH 2/2] AspeedTech works
+
+- Backport USB VHUB driver from AspeedTech
+- Enable DisplayPort
+---
+ arch/arm/dts/ast2600.dtsi        | 25 +++++++++++++++++++++++++
+ drivers/misc/aspeed_dp.c         |  2 ++
+ include/configs/yandex_ast2600.h |  2 ++
+ 3 files changed, 29 insertions(+)
+
+diff --git a/arch/arm/dts/ast2600.dtsi b/arch/arm/dts/ast2600.dtsi
+index cef93e6cc5..a9a5b5f169 100644
+--- a/arch/arm/dts/ast2600.dtsi
++++ b/arch/arm/dts/ast2600.dtsi
+@@ -250,6 +250,17 @@
+ 			status = "disabled";
+ 		};
+ 
++		vhub: usb-vhub@1e6a0000 {
++			compatible = "aspeed,ast2600-usb-vhub";
++			reg = <0x1e6a0000 0x350>;
++			interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
++			clocks = <&syscon ASPEED_CLK_GATE_USBPORT1CLK>;
++			resets = <&rst ASPEED_RESET_EHCI_P1>;
++			pinctrl-names = "default";
++			pinctrl-0 = <&pinctrl_usb2ad_default>;
++			status = "disabled";
++		};
++
+ 		ehci0: usb@1e6a1000 {
+ 			compatible = "aspeed,aspeed-ehci", "usb-ehci";
+ 			reg = <0x1e6a1000 0x100>;
+@@ -335,6 +346,15 @@
+ 				status = "disabled";
+ 			};
+ 
++			acry: acry@1e6fa000 {
++				compatible = "aspeed,ast2600-acry";
++				reg = <0x1e6fa000 0x1000>;
++				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>;
++				clocks = <&scu ASPEED_CLK_GATE_RSAECCCLK>;
++				clock-names = "rsaeccclk";
++				status = "disabled";
++			};
++
+ 			smp-memram@0 {
+ 				compatible = "aspeed,ast2600-smpmem", "syscon";
+ 				reg = <0x1e6e2180 0x40>;
+@@ -1940,6 +1960,11 @@
+ 		groups = "USB2AD";
+ 	};
+ 
++	pinctrl_usb2ad_default: usb2ad_default {
++		function = "USB2AD";
++		groups = "USB2AD";
++	};
++
+ 	pinctrl_usb2ah_default: usb2ah_default {
+ 		function = "USB2AH";
+ 		groups = "USB2AH";
+diff --git a/drivers/misc/aspeed_dp.c b/drivers/misc/aspeed_dp.c
+index 96caccd5b8..3c998f5a85 100644
+--- a/drivers/misc/aspeed_dp.c
++++ b/drivers/misc/aspeed_dp.c
+@@ -22,6 +22,8 @@ static int aspeed_dp_probe(struct udevice *dev)
+ 	struct reset_ctl dp_reset_ctl, dpmcu_reset_ctrl;
+ 	int i, ret = 0;
+ 
++	printf("Probing DisplayPort\n");
++
+ 	/* Get the controller base address */
+ 	dp->ctrl_base = (void *)devfdt_get_addr_index(dev, 0);
+ 
+diff --git a/include/configs/yandex_ast2600.h b/include/configs/yandex_ast2600.h
+index f4f1b46d89..8d5d1b5bc7 100644
+--- a/include/configs/yandex_ast2600.h
++++ b/include/configs/yandex_ast2600.h
+@@ -33,4 +33,6 @@
+ 
+ #define CONFIG_SUPPORT_EMMC_BOOT
+ 
++#define CONFIG_USB_DEVICE       1
++
+ #endif	/* __CONFIG_H */
+-- 
+2.33.1
+

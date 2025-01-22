@@ -10,7 +10,7 @@ PYPI_PACKAGE = "semantic_version"
 inherit pypi setuptools3
 
 RDEPENDS:${PN} += " \
-    python3-pkg-resources \
+    ${PYTHON_PN}-pkg-resources \
 "
 
 BBCLASSEXTEND = "native nativesdk"

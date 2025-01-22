@@ -1,0 +1,33 @@
+From feb1358b8588539482f650015d39314b7d655588 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 5 Nov 2020 12:19:37 +0000
+Subject: [PATCH 1/1] Exit in case of file descriptor failure
+
+---
+ util.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/util.c b/util.c
+index d6e037a..3c25c90 100644
+--- a/util.c
++++ b/util.c
+@@ -16,6 +16,7 @@
+ 
+ #include <err.h>
+ #include <unistd.h>
++#include <stdlib.h>
+ 
+ #include "console-server.h"
+ 
+@@ -28,7 +29,7 @@ int write_buf_to_fd(int fd, const uint8_t *buf, size_t len)
+ 		rc = write(fd, buf + pos, len - pos);
+ 		if (rc <= 0) {
+ 			warn("Write error");
+-			return -1;
++            exit(0);
+ 		}
+ 	}
+ 
+-- 
+2.7.4
+

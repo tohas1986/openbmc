@@ -6,16 +6,13 @@ LIC_FILES_CHKSUM = "file://LICENCE;md5=a6a4edad4aed50f39a66d098d74b265b"
 DEPENDS = "boost \
            dbus \
            nlohmann-json \
-           phosphor-logging \
            sdbusplus \
            valijson \
+           ${PYTHON_PN}-jsonschema-native \
 "
-SRCREV = "ae36f5efd97e12a601cb090ab3e90a79a11ee09a"
+SRCREV = "10612f3fe552ea8141ed1960a6c2df088cff0b92"
 PACKAGECONFIG ??= "ipmi-fru"
 PACKAGECONFIG[ipmi-fru] = "-Dfru-device=true, -Dfru-device=false, i2c-tools,"
-PACKAGECONFIG[validate-json] = "-Dvalidate-json=true, \
-                                -Dvalidate-json=false, \
-                                ${PYTHON_PN}-jsonschema-native"
 PV = "0.1+git${SRCPV}"
 
 SRC_URI = "git://github.com/openbmc/entity-manager.git;branch=master;protocol=https \

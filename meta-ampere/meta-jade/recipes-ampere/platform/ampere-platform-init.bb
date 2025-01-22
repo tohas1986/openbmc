@@ -14,7 +14,6 @@ RDEPENDS:${PN} += "bash"
 
 SRC_URI = " \
     file://ampere_platform_init.sh \
-    file://mtjade_platform_gpios_init.sh \
     file://ampere-platform-init.service \
     "
 
@@ -26,5 +25,4 @@ do_install () {
     install -m 0755 ${WORKDIR}/ampere_platform_init.sh ${D}${sbindir}/
     install -d ${D}${systemd_unitdir}/system/
     install -m 0644 ${WORKDIR}/ampere-platform-init.service ${D}${systemd_unitdir}/system
-    install -m 0755 ${WORKDIR}/mtjade_platform_gpios_init.sh ${D}${sbindir}/platform_gpios_init.sh
 }

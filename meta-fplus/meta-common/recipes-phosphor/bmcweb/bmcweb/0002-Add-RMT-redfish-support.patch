@@ -1,0 +1,258 @@
+From a841ae19920f4c2dfae742cb82ce04377d75b7bf Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 31 Oct 2022 11:14:36 +0000
+Subject: [PATCH] Add RMT RedFish support
+
+---
+ redfish-core/include/redfish.hpp              |   2 +
+ .../include/registries/privilege_registry.hpp |   8 ++
+ redfish-core/lib/chassis.hpp                  |   4 +
+ redfish-core/lib/rmt.hpp                      | 117 ++++++++++++++++++
+ scripts/update_schemas.py                     |   1 +
+ static/redfish/v1/$metadata/index.xml         |  14 +++
+ .../v1/JsonSchemas/RmtService/index.json      |  21 ++++
+ 7 files changed, 167 insertions(+)
+ create mode 100644 redfish-core/lib/rmt.hpp
+ create mode 100644 static/redfish/v1/JsonSchemas/RmtService/index.json
+
+diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
+index e98a04cd..a4867900 100644
+--- a/redfish-core/include/redfish.hpp
++++ b/redfish-core/include/redfish.hpp
+@@ -50,6 +50,7 @@
+ #include "trigger.hpp"
+ #include "update_service.hpp"
+ #include "virtual_media.hpp"
++#include "rmt.hpp"
+ 
+ namespace redfish
+ {
+@@ -100,6 +101,7 @@ class RedfishService
+         requestRoutesStorageCollection(app);
+         requestRoutesStorage(app);
+         requestRoutesDrive(app);
++        requestRoutesRmtService(app);
+         requestRoutesCable(app);
+         requestRoutesCableCollection(app);
+ #ifdef BMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE
+diff --git a/redfish-core/include/registries/privilege_registry.hpp b/redfish-core/include/registries/privilege_registry.hpp
+index 57c9e024..01fd4b24 100644
+--- a/redfish-core/include/registries/privilege_registry.hpp
++++ b/redfish-core/include/registries/privilege_registry.hpp
+@@ -262,6 +262,14 @@ const static auto& putChassis = privilegeSetConfigureComponents;
+ const static auto& deleteChassis = privilegeSetConfigureComponents;
+ const static auto& postChassis = privilegeSetConfigureComponents;
+ 
++// Rmt
++const static auto& getRmt = privilegeSetLogin;
++const static auto& headRmt = privilegeSetLogin;
++const static auto& patchRmt = privilegeSetConfigureComponents;
++const static auto& putRmt = privilegeSetConfigureComponents;
++const static auto& deleteRmt = privilegeSetConfigureComponents;
++const static auto& postRmt = privilegeSetConfigureComponents;
++
+ // ChassisCollection
+ const static auto& getChassisCollection = privilegeSetLogin;
+ const static auto& headChassisCollection = privilegeSetLogin;
+diff --git a/redfish-core/lib/chassis.hpp b/redfish-core/lib/chassis.hpp
+index c6016cbe..c7ac6cbe 100644
+--- a/redfish-core/lib/chassis.hpp
++++ b/redfish-core/lib/chassis.hpp
+@@ -416,6 +416,10 @@ inline void
+                     "/redfish/v1/Chassis/" + chassisId + "/Sensors";
+                 asyncResp->res.jsonValue["Status"]["State"] = "Enabled";
+ 
++                asyncResp->res.jsonValue["RmtService"] = {
++                          {"@odata.id", "/redfish/v1/Chassis/" +
++                          chassisId + "/RmtService"}};
++
+                 nlohmann::json::array_t computerSystems;
+                 nlohmann::json::object_t system;
+                 system["@odata.id"] = "/redfish/v1/Systems/system";
+diff --git a/redfish-core/lib/rmt.hpp b/redfish-core/lib/rmt.hpp
+new file mode 100644
+index 00000000..0fb3d9f8
+--- /dev/null
++++ b/redfish-core/lib/rmt.hpp
+@@ -0,0 +1,117 @@
++/*
++ *  redfish-core/lib/rmt.hpp
++ *
++ *  Created on: Jan 12, 2022
++ *  Author: Nikita Vedeneev
++ *
++ */
++
++#pragma once
++
++#include <utils/sw_utils.hpp>
++#include <iostream>
++#include <fstream>
++
++namespace redfish
++{
++
++/*
++ * RmtService class supports handle get method for rmt.
++ */
++
++inline bool fileExist(const std::string& name)
++{
++    std::ifstream f(name.c_str());
++    return f.good();
++}
++
++inline bool isEmpty(std::ifstream& pFile)
++{
++    return pFile.peek() == std::ifstream::traits_type::eof();
++}
++
++inline void getRmtResults(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
++{
++    std::string path = "/var/log/rmt.json";
++
++    aResp->res.jsonValue["Help"] = {{"Node", "0-1"}, {"Channel", "0-5"}, {"DIMM","0,1"}, {"Rank","0-3"}};
++    std::cerr << "Looking for RMT json file..." << "\n";
++
++    if(!fileExist(path))
++    {
++        std::cerr << "File not found!" << "\n";
++        return;
++    }
++
++    std::ifstream input(path);
++    nlohmann::json j;
++
++    if(isEmpty(input))
++    {
++        std::cerr << "File Empty, no RMT results found!" << "\n";
++        input.close();
++        return;
++    }
++
++    try
++    {
++        if(!(nlohmann::json::accept(input)))
++        {
++            std::cerr << "Invalid JSON file!" << "\n";
++            input.close();
++            return;
++        }
++        else
++        {
++            input.clear();
++            input.seekg(0);
++            input >> j;
++        }
++    }
++    catch(nlohmann::json::exception &e)
++    {
++        std::cerr << "Error in JSON object caught!" << "\n";
++        input.close();
++        return;
++    }
++
++    for (auto& el : j.items())
++    {
++        aResp->res.jsonValue[el.key()] = el.value();
++    }
++
++    input.close();
++}
++
++inline void requestRoutesRmtService(App& app)
++{
++    BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/RmtService/")
++        .privileges(redfish::privileges::getRmt)
++        .methods(boost::beast::http::verb::get)(
++            [](const crow::Request&,
++               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const std::string& param) {
++                BMCWEB_LOG_DEBUG << "Get RMT method called";
++
++                if (param.empty())
++                {
++                    return;
++                }
++
++                const std::string& chassisId = param;
++
++                asyncResp->res.jsonValue = {
++                    {"@odata.type",
++                     "#RmtService.v1_0_0.RmtService"},
++                    {"Name", "RMT Subsystem for Chassis"},
++                    {"Id", "RmtService"}};
++                asyncResp->res.jsonValue["@odata.id"] =
++                    "/redfish/v1/Chassis/" + chassisId + "/RmtService";
++
++                asyncResp->res.jsonValue["Status"] = {{"State", "Enabled"},
++                                                      {"Health", "OK"}};
++
++                getRmtResults(asyncResp);
++            });
++}
++}
+diff --git a/scripts/update_schemas.py b/scripts/update_schemas.py
+index 0b66ac6b..2c62c75e 100755
+--- a/scripts/update_schemas.py
++++ b/scripts/update_schemas.py
+@@ -29,6 +29,7 @@ include_list = [
+     "Assembly",
+     "AttributeRegistry",
+     "Bios",
++    "RmtService",
+     "Cable",
+     "CableCollection",
+     "Certificate",
+diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
+index a56ffac5..64f2e484 100644
+--- a/static/redfish/v1/$metadata/index.xml
++++ b/static/redfish/v1/$metadata/index.xml
+@@ -2808,6 +2808,20 @@
+         <edmx:Include Namespace="VLanNetworkInterface.v1_2_0"/>
+         <edmx:Include Namespace="VLanNetworkInterface.v1_3_0"/>
+     </edmx:Reference>
++    <edmx:Reference Uri="/redfish/v1/schema/RmtService_v1.xml">
++        <edmx:Include Namespace="RmtService"/>
++        <edmx:Include Namespace="RmtService.v1_0_0"/>
++        <edmx:Include Namespace="RmtService.v1_0_1"/>
++        <edmx:Include Namespace="RmtService.v1_0_2"/>
++        <edmx:Include Namespace="RmtService.v1_0_3"/>
++        <edmx:Include Namespace="RmtService.v1_1_0"/>
++        <edmx:Include Namespace="RmtService.v1_1_1"/>
++        <edmx:Include Namespace="RmtService.v1_1_2"/>
++        <edmx:Include Namespace="RmtService.v1_2_0"/>
++        <edmx:Include Namespace="RmtService.v1_3_0"/>
++        <edmx:Include Namespace="RmtService.v1_4_0"/>
++        <edmx:Include Namespace="RmtService.v1_4_1"/>
++    </edmx:Reference>
+     <edmx:Reference Uri="/redfish/v1/schema/VLanNetworkInterfaceCollection_v1.xml">
+         <edmx:Include Namespace="VLanNetworkInterfaceCollection"/>
+     </edmx:Reference>
+diff --git a/static/redfish/v1/JsonSchemas/RmtService/index.json b/static/redfish/v1/JsonSchemas/RmtService/index.json
+new file mode 100644
+index 00000000..f0855cad
+--- /dev/null
++++ b/static/redfish/v1/JsonSchemas/RmtService/index.json
+@@ -0,0 +1,21 @@
++{
++    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
++    "@odata.id": "/redfish/v1/JsonSchemas/RmtService",
++    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
++    "Name": "RmtService Schema File",
++    "Schema": "#RmtService.RmtService",
++    "Description": "RmtService Schema File Location",
++    "Id": "RmtService",
++    "Languages": [
++        "en"
++    ],
++    "Languages@odata.count": 1,
++    "Location": [
++        {
++            "Language": "en",
++            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/RmtService.json",
++            "Uri": "/redfish/v1/JsonSchemas/RmtService/RmtService.json"
++        }
++    ],
++    "Location@odata.count": 1
++}

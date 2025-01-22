@@ -1,0 +1,24 @@
+From 551b8fef8662cea9f5128cccfdd90701abb697ee Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 17 Dec 2021 06:52:34 +0000
+Subject: [PATCH] Add StartLimitBurst
+
+---
+ phosphor-ipmi-kcs@.service.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/phosphor-ipmi-kcs@.service.in b/phosphor-ipmi-kcs@.service.in
+index 3dacda4..4c1c984 100644
+--- a/phosphor-ipmi-kcs@.service.in
++++ b/phosphor-ipmi-kcs@.service.in
+@@ -8,6 +8,7 @@ Type=notify
+ Restart=always
+ ExecStart=@BIN@ -c "%i"
+ SyslogIdentifier=kcsbridged-%i
++StartLimitBurst=9999999
+ 
+ [Install]
+ WantedBy=multi-user.target
+-- 
+2.33.1
+

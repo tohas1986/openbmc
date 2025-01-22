@@ -1,0 +1,24 @@
+From 11142ad593006335b800dc68d6ed65194cb92a3f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 5 Feb 2020 16:13:51 +0300
+Subject: [PATCH 1/1] fan debug
+
+---
+ drivers/hwmon/aspeed-pwm-tacho.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/hwmon/aspeed-pwm-tacho.c b/drivers/hwmon/aspeed-pwm-tacho.c
+index 40c489b..281747d 100644
+--- a/drivers/hwmon/aspeed-pwm-tacho.c
++++ b/drivers/hwmon/aspeed-pwm-tacho.c
+@@ -453,6 +453,7 @@ static void aspeed_set_tacho_type_values(struct regmap *regmap, u8 type,
+ static void aspeed_set_fan_tach_ch_enable(struct regmap *regmap, u8 fan_tach_ch,
+ 					  bool enable)
+ {
++	printk("aspeed_set_fan_tach_ch_enable: channel:%i enable:%i\n", fan_tach_ch, enable);
+ 	regmap_update_bits(regmap, ASPEED_PTCR_CTRL,
+ 			   ASPEED_PTCR_CTRL_FAN_NUM_EN(fan_tach_ch),
+ 			   enable ?
+-- 
+1.9.1
+

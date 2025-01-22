@@ -1,0 +1,38 @@
+From 7bfe7e0e3458000ba21d4ba2b80f4f1c0fc03cd7 Mon Sep 17 00:00:00 2001
+From: Richard Purdie <richard.purdie@linuxfoundation.org>
+Date: Tue, 5 Jan 2021 23:00:14 +0000
+Subject: [PATCH] qemu: Upgrade 5.1.0->5.2.0
+
+We need to be able to trigger configure's cross code but we don't want
+to set cross_prefix as it does other things we don't want. Patch things
+so we can do what we need in the target config case.
+
+Upstream-Status: Inappropriate [may be rewritten in a way upstream may accept?]
+Signed-off-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+
+---
+ configure | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/configure b/configure
+index 48c21775f..6287f170e 100755
+--- a/configure
++++ b/configure
+@@ -3932,7 +3932,6 @@ if test "$skip_meson" = no; then
+   fi
+   echo "strip = [$(meson_quote $strip)]" >> $cross
+   echo "windres = [$(meson_quote $windres)]" >> $cross
+-  if test "$cross_compile" = "yes"; then
+     cross_arg="--cross-file config-meson.cross"
+     echo "[host_machine]" >> $cross
+     if test "$mingw32" = "yes" ; then
+@@ -3964,9 +3963,6 @@ if test "$skip_meson" = no; then
+     else
+         echo "endian = 'little'" >> $cross
+     fi
+-  else
+-    cross_arg="--native-file config-meson.cross"
+-  fi
+   mv $cross config-meson.cross
+ 
+   rm -rf meson-private meson-info meson-logs

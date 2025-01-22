@@ -1,5 +1,6 @@
 SUMMARY = "Basic task to get a device booting"
 
+PR = "r58"
 
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 inherit packagegroup

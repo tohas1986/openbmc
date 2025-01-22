@@ -5,6 +5,7 @@ DEPENDS = "virtual/kernel"
 RDEPENDS:${PN} = "busybox-mdev"
 SRC_URI = "file://init-live.sh"
 
+PR = "r12"
 
 S = "${WORKDIR}"
 

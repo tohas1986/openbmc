@@ -1,0 +1,907 @@
+From 1aac2ae948b3b3b8030a670a15f09ecbe709b550 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 16 Dec 2022 13:18:09 +0000
+Subject: [PATCH] Revert Ed Tanos breaking commit
+
+This commit d90672513d726c63fc57bb48ae06138b30793564 breaks things.
+This causes ipmitool sdr to fail.
+
+%% original patch: 0016-Revert-Ed-Tanos-breaking-commit.patch
+
+%% original patch: 0016-Revert-Ed-Tanos-breaking-commit.patch
+---
+ include/ADCSensor.hpp         |  2 +-
+ include/ExitAirTempSensor.hpp |  4 ++--
+ include/ExternalSensor.hpp    |  2 +-
+ include/HwmonTempSensor.hpp   |  2 +-
+ include/IntelCPUSensor.hpp    |  2 +-
+ include/MCUTempSensor.hpp     |  3 +--
+ include/NVMeSensor.hpp        |  2 +-
+ include/PSUEvent.hpp          |  2 +-
+ include/PSUSensor.hpp         |  2 +-
+ include/SysfsSensor.hpp       |  2 +-
+ include/TachSensor.hpp        |  2 +-
+ src/ADCSensor.cpp             |  8 ++++----
+ src/ADCSensorMain.cpp         |  7 ++++---
+ src/BMCResetCauseMain.cpp     |  6 ++----
+ src/ExitAirTempSensor.cpp     | 26 ++++++++++++++------------
+ src/ExternalSensor.cpp        |  8 ++++----
+ src/ExternalSensorMain.cpp    |  6 +++---
+ src/FanMain.cpp               |  7 +++----
+ src/GPUSensor.cpp             |  4 +++-
+ src/HealthSensor.cpp          |  4 +++-
+ src/HwmonTempMain.cpp         |  5 +++--
+ src/HwmonTempSensor.cpp       |  8 ++++----
+ src/I2CSensorMain.cpp         |  6 ++----
+ src/IntelCPUSensor.cpp        | 12 ++++++------
+ src/IntelCPUSensorMain.cpp    |  9 +++++----
+ src/IntrusionSensorMain.cpp   | 11 ++++-------
+ src/IpmbSensor.cpp            |  5 +++--
+ src/MCUTempSensor.cpp         | 13 ++++++-------
+ src/NMSensor.cpp              |  6 ++++--
+ src/NVMELegacySensor.cpp      |  4 +++-
+ src/NVMeSensor.cpp            |  8 ++++----
+ src/NVMeSensorMain.cpp        |  6 ++++--
+ src/PSUEvent.cpp              |  6 +++---
+ src/PSUSensor.cpp             |  8 ++++----
+ src/PSUSensorMain.cpp         |  8 ++++----
+ src/SysfsSensor.cpp           |  8 ++++----
+ src/SysfsSensorMain.cpp       |  6 ++++--
+ src/TachSensor.cpp            | 12 ++++++------
+ src/VRSensor.cpp              |  4 +++-
+ 39 files changed, 128 insertions(+), 118 deletions(-)
+
+diff --git a/include/ADCSensor.hpp b/include/ADCSensor.hpp
+index 5c4b8ed..3cfb1a5 100644
+--- a/include/ADCSensor.hpp
++++ b/include/ADCSensor.hpp
+@@ -77,7 +77,7 @@ class ADCSensor : public Sensor, public std::enable_shared_from_this<ADCSensor>
+     void setupRead(void);
+ 
+   private:
+-    sdbusplus::asio::object_server& objServer;
++    sdbusplus::asio::object_server& objectServer;
+     boost::asio::posix::stream_descriptor inputDev;
+     boost::asio::steady_timer waitTimer;
+     std::shared_ptr<boost::asio::streambuf> readBuf;
+diff --git a/include/ExitAirTempSensor.hpp b/include/ExitAirTempSensor.hpp
+index 5bd9735..097be3c 100644
+--- a/include/ExitAirTempSensor.hpp
++++ b/include/ExitAirTempSensor.hpp
+@@ -43,7 +43,7 @@ struct CFMSensor : public Sensor, std::enable_shared_from_this<CFMSensor>
+         tachRanges;
+     std::shared_ptr<sdbusplus::asio::dbus_interface> pwmLimitIface;
+     std::shared_ptr<sdbusplus::asio::dbus_interface> cfmLimitIface;
+-    sdbusplus::asio::object_server& objServer;
++    sdbusplus::asio::object_server& objectServer;
+ };
+ 
+ struct ExitAirTempSensor :
+@@ -77,7 +77,7 @@ struct ExitAirTempSensor :
+     double inletTemp = std::numeric_limits<double>::quiet_NaN();
+     boost::container::flat_map<std::string, double> powerReadings;
+ 
+-    sdbusplus::asio::object_server& objServer;
++    sdbusplus::asio::object_server& objectServer;
+     std::chrono::time_point<std::chrono::steady_clock> lastTime;
+     static double getTotalCFM(void);
+     bool calculate(double& val);
+diff --git a/include/ExternalSensor.hpp b/include/ExternalSensor.hpp
+index 20dd2f0..795431f 100644
+--- a/include/ExternalSensor.hpp
++++ b/include/ExternalSensor.hpp
+@@ -52,7 +52,7 @@ class ExternalSensor :
+         ageRemaining(const std::chrono::steady_clock::time_point& now) const;
+ 
+   private:
+-    sdbusplus::asio::object_server& objServer;
++    sdbusplus::asio::object_server& objectServer;
+ 
+     std::chrono::steady_clock::time_point writeLast;
+     std::chrono::steady_clock::duration writeTimeout;
+diff --git a/include/HwmonTempSensor.hpp b/include/HwmonTempSensor.hpp
+index 40be3bb..1e43938 100644
+--- a/include/HwmonTempSensor.hpp
++++ b/include/HwmonTempSensor.hpp
+@@ -50,7 +50,7 @@ class HwmonTempSensor :
+     // while async operations from other member fields might still be using it.
+     std::array<char, 128> readBuf{};
+     std::shared_ptr<I2CDevice> i2cDevice;
+-    sdbusplus::asio::object_server& objServer;
++    sdbusplus::asio::object_server& objectServer;
+     boost::asio::random_access_file inputDev;
+     boost::asio::steady_timer waitTimer;
+     std::string path;
+diff --git a/include/IntelCPUSensor.hpp b/include/IntelCPUSensor.hpp
+index 5f9124e..ab5d71c 100644
+--- a/include/IntelCPUSensor.hpp
++++ b/include/IntelCPUSensor.hpp
+@@ -36,7 +36,7 @@ class IntelCPUSensor :
+     void setupRead(void);
+ 
+   private:
+-    sdbusplus::asio::object_server& objServer;
++    sdbusplus::asio::object_server& objectServer;
+     boost::asio::streambuf readBuf;
+     boost::asio::posix::stream_descriptor inputDev;
+     boost::asio::steady_timer waitTimer;
+diff --git a/include/MCUTempSensor.hpp b/include/MCUTempSensor.hpp
+index 5e7c50e..c4c2406 100644
+--- a/include/MCUTempSensor.hpp
++++ b/include/MCUTempSensor.hpp
+@@ -16,8 +16,7 @@ struct MCUTempSensor : public Sensor
+                   const std::string& sensorConfiguration,
+                   sdbusplus::asio::object_server& objectServer,
+                   std::vector<thresholds::Threshold>&& thresholdData,
+-                  uint8_t busId, uint8_t mcuAddress, uint8_t tempReg,
+-                  const PowerState powerState);
++                  uint8_t busId, uint8_t mcuAddress, uint8_t tempReg);
+     ~MCUTempSensor() override;
+ 
+     void checkThresholds(void) override;
+diff --git a/include/NVMeSensor.hpp b/include/NVMeSensor.hpp
+index 4e0000f..e1803ed 100644
+--- a/include/NVMeSensor.hpp
++++ b/include/NVMeSensor.hpp
+@@ -24,7 +24,7 @@ class NVMeSensor : public Sensor
+ 
+   private:
+     const unsigned int scanDelayTicks = 5 * 60;
+-    sdbusplus::asio::object_server& objServer;
++    sdbusplus::asio::object_server& objectServer;
+     unsigned int scanDelay{0};
+ 
+     void checkThresholds(void) override;
+diff --git a/include/PSUEvent.hpp b/include/PSUEvent.hpp
+index 25a7ebc..1aaafc3 100644
+--- a/include/PSUEvent.hpp
++++ b/include/PSUEvent.hpp
+@@ -91,7 +91,7 @@ class PSUCombineEvent
+         const std::string& combineEventName, double pollRate);
+     ~PSUCombineEvent();
+ 
+-    sdbusplus::asio::object_server& objServer;
++    sdbusplus::asio::object_server& objectServer;
+     std::shared_ptr<sdbusplus::asio::dbus_interface> eventInterface;
+     boost::container::flat_map<std::string,
+                                std::vector<std::shared_ptr<PSUSubEvent>>>
+diff --git a/include/PSUSensor.hpp b/include/PSUSensor.hpp
+index 63699ea..2d96576 100644
+--- a/include/PSUSensor.hpp
++++ b/include/PSUSensor.hpp
+@@ -31,7 +31,7 @@ class PSUSensor : public Sensor, public std::enable_shared_from_this<PSUSensor>
+     // might have to outlive the PSUSensor class if the object gets destroyed
+     // while in the middle of a read operation
+     std::shared_ptr<std::array<char, 128>> buffer;
+-    sdbusplus::asio::object_server& objServer;
++    sdbusplus::asio::object_server& objectServer;
+     boost::asio::random_access_file inputDev;
+     boost::asio::steady_timer waitTimer;
+     std::string path;
+diff --git a/include/SysfsSensor.hpp b/include/SysfsSensor.hpp
+index a606ed2..cf4f73e 100644
+--- a/include/SysfsSensor.hpp
++++ b/include/SysfsSensor.hpp
+@@ -29,7 +29,7 @@ class SysfsSensor : public Sensor, public std::enable_shared_from_this<SysfsSens
+     void setupRead(void);
+ 
+   private:
+-    sdbusplus::asio::object_server& objServer;
++    sdbusplus::asio::object_server& objectServer;
+     boost::asio::posix::stream_descriptor inputDev;
+     boost::asio::steady_timer waitTimer;
+     std::string path;
+diff --git a/include/TachSensor.hpp b/include/TachSensor.hpp
+index c360395..6f28396 100644
+--- a/include/TachSensor.hpp
++++ b/include/TachSensor.hpp
+@@ -81,7 +81,7 @@ class TachSensor :
+     // Ordering is important here; readBuf is first so that it's not destroyed
+     // while async operations from other member fields might still be using it.
+     std::array<char, 128> readBuf{};
+-    sdbusplus::asio::object_server& objServer;
++    sdbusplus::asio::object_server& objectServer;
+     std::optional<RedundancySensor>* redundancy;
+     std::unique_ptr<PresenceSensor> presence;
+     std::shared_ptr<sdbusplus::asio::dbus_interface> itemIface;
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index fe2c8a7..e8a2e39 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -50,7 +50,7 @@ ADCSensor::ADCSensor(const std::string& path,
+     Sensor(escapeName(sensorName), std::move(thresholdsIn), sensorConfiguration,
+            "ADC", false, false, maxVoltageReading / scaleFactor,
+            minVoltageReading / scaleFactor, conn, readState),
+-    objServer(objectServer), inputDev(io), waitTimer(io), path(path),
++    objectServer(objectServer), inputDev(io), waitTimer(io), path(path),
+     scaleFactor(scaleFactor),
+     sensorPollMs(static_cast<unsigned int>(pollRate * 1000)),
+     bridgeGpio(std::move(bridgeGpio)), thresholdTimer(io)
+@@ -87,10 +87,10 @@ ADCSensor::~ADCSensor()
+ 
+     for (const auto& iface : thresholdInterfaces)
+     {
+-        objServer.remove_interface(iface);
++        objectServer.remove_interface(iface);
+     }
+-    objServer.remove_interface(sensorInterface);
+-    objServer.remove_interface(association);
++    objectServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(association);
+ }
+ 
+ void ADCSensor::setupRead(void)
+diff --git a/src/ADCSensorMain.cpp b/src/ADCSensorMain.cpp
+index 3cbb5f6..3e7bff8 100644
+--- a/src/ADCSensorMain.cpp
++++ b/src/ADCSensorMain.cpp
+@@ -299,10 +299,11 @@ int main()
+ {
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-    sdbusplus::asio::object_server objectServer(systemBus, true);
+-    objectServer.add_manager("/xyz/openbmc_project/sensors");
+-
+     systemBus->request_name("xyz.openbmc_project.ADCSensor");
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
++
+     boost::container::flat_map<std::string, std::shared_ptr<ADCSensor>> sensors;
+     auto sensorsChanged =
+         std::make_shared<boost::container::flat_set<std::string>>();
+diff --git a/src/BMCResetCauseMain.cpp b/src/BMCResetCauseMain.cpp
+index e70f2e0..2a4e7da 100644
+--- a/src/BMCResetCauseMain.cpp
++++ b/src/BMCResetCauseMain.cpp
+@@ -83,16 +83,14 @@ int main(int argc, char* argv[])
+     CLI11_PARSE(app, argc, argv);
+ 
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-    auto objServer = sdbusplus::asio::object_server(systemBus);
+-
+-    // setup object server, define interface
+     systemBus->request_name("xyz.openbmc_project.BMCResetCauseSensor");
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
+ 
+     std::string sensorPath = "/xyz/openbmc_project/sensors/bmc/BMC_RESET_CAUSE";
+ 
+     // add interface into sensor tree
+     std::shared_ptr<sdbusplus::asio::dbus_interface> iface =
+-        objServer.add_interface(sensorPath, sensorValueInterface);
++        objectServer.add_interface(sensorPath, sensorValueInterface);
+ 
+     double cause = get_reset_cause();
+     if (cause == -1)
+diff --git a/src/ExitAirTempSensor.cpp b/src/ExitAirTempSensor.cpp
+index 7f947e5..f57083c 100644
+--- a/src/ExitAirTempSensor.cpp
++++ b/src/ExitAirTempSensor.cpp
+@@ -161,7 +161,7 @@ CFMSensor::CFMSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+     Sensor(escapeName(sensorName), std::move(thresholdData),
+            sensorConfiguration, "CFMSensor", false, false, cfmMaxReading,
+            cfmMinReading, conn, PowerState::on),
+-    parent(parent), objServer(objectServer)
++    parent(parent), objectServer(objectServer)
+ {
+     sensorInterface = objectServer.add_interface(
+         "/xyz/openbmc_project/sensors/airflow/" + name,
+@@ -279,12 +279,12 @@ CFMSensor::~CFMSensor()
+ {
+     for (const auto& iface : thresholdInterfaces)
+     {
+-        objServer.remove_interface(iface);
++        objectServer.remove_interface(iface);
+     }
+-    objServer.remove_interface(sensorInterface);
+-    objServer.remove_interface(association);
+-    objServer.remove_interface(cfmLimitIface);
+-    objServer.remove_interface(pwmLimitIface);
++    objectServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(association);
++    objectServer.remove_interface(cfmLimitIface);
++    objectServer.remove_interface(pwmLimitIface);
+ }
+ 
+ void CFMSensor::createMaxCFMIface(void)
+@@ -498,7 +498,7 @@ ExitAirTempSensor::ExitAirTempSensor(
+     Sensor(escapeName(sensorName), std::move(thresholdData),
+            sensorConfiguration, "ExitAirTemp", false, false, exitAirMaxReading,
+            exitAirMinReading, conn, PowerState::on),
+-    objServer(objectServer)
++    objectServer(objectServer)
+ {
+     sensorInterface = objectServer.add_interface(
+         "/xyz/openbmc_project/sensors/temperature/" + name,
+@@ -521,10 +521,10 @@ ExitAirTempSensor::~ExitAirTempSensor()
+ {
+     for (const auto& iface : thresholdInterfaces)
+     {
+-        objServer.remove_interface(iface);
++        objectServer.remove_interface(iface);
+     }
+-    objServer.remove_interface(sensorInterface);
+-    objServer.remove_interface(association);
++    objectServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(association);
+ }
+ 
+ void ExitAirTempSensor::setupMatches(void)
+@@ -931,9 +931,11 @@ int main()
+ 
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-    sdbusplus::asio::object_server objectServer(systemBus, true);
+-    objectServer.add_manager("/xyz/openbmc_project/sensors");
+     systemBus->request_name("xyz.openbmc_project.ExitAirTempSensor");
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
++
+     std::shared_ptr<ExitAirTempSensor> sensor =
+         nullptr; // wait until we find the config
+ 
+diff --git a/src/ExternalSensor.cpp b/src/ExternalSensor.cpp
+index cbba6e1..9b0812d 100644
+--- a/src/ExternalSensor.cpp
++++ b/src/ExternalSensor.cpp
+@@ -26,7 +26,7 @@ ExternalSensor::ExternalSensor(
+     double minReading, double timeoutSecs, const PowerState& powerState) :
+     Sensor(escapeName(sensorName), std::move(thresholdsIn), sensorConfiguration,
+            objectType, true, true, maxReading, minReading, conn, powerState),
+-    objServer(objectServer), writeLast(std::chrono::steady_clock::now()),
++    objectServer(objectServer), writeLast(std::chrono::steady_clock::now()),
+     writeTimeout(
+         std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+             std::chrono::duration<double>(timeoutSecs))),
+@@ -101,12 +101,12 @@ ExternalSensor::~ExternalSensor()
+     // Make sure the write hook does not reference this object anymore
+     externalSetHook = nullptr;
+ 
+-    objServer.remove_interface(association);
++    objectServer.remove_interface(association);
+     for (const auto& iface : thresholdInterfaces)
+     {
+-        objServer.remove_interface(iface);
++        objectServer.remove_interface(iface);
+     }
+-    objServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(sensorInterface);
+ 
+     if constexpr (debug)
+     {
+diff --git a/src/ExternalSensorMain.cpp b/src/ExternalSensorMain.cpp
+index aa1e6b8..e0b8ab3 100644
+--- a/src/ExternalSensorMain.cpp
++++ b/src/ExternalSensorMain.cpp
+@@ -339,10 +339,10 @@ int main()
+ 
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-    sdbusplus::asio::object_server objectServer(systemBus, true);
+-
+-    objectServer.add_manager("/xyz/openbmc_project/sensors");
+     systemBus->request_name("xyz.openbmc_project.ExternalSensor");
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
+ 
+     boost::container::flat_map<std::string, std::shared_ptr<ExternalSensor>>
+         sensors;
+diff --git a/src/FanMain.cpp b/src/FanMain.cpp
+index 7260131..0185f8b 100644
+--- a/src/FanMain.cpp
++++ b/src/FanMain.cpp
+@@ -542,12 +542,11 @@ int main()
+ {
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-    sdbusplus::asio::object_server objectServer(systemBus, true);
+-
+-    objectServer.add_manager("/xyz/openbmc_project/sensors");
++    systemBus->request_name("xyz.openbmc_project.FanSensor");
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
+     objectServer.add_manager("/xyz/openbmc_project/control");
+     objectServer.add_manager("/xyz/openbmc_project/inventory");
+-    systemBus->request_name("xyz.openbmc_project.FanSensor");
++
+     boost::container::flat_map<std::string, std::shared_ptr<TachSensor>>
+         tachSensors;
+     boost::container::flat_map<std::string, std::unique_ptr<PwmSensor>>
+diff --git a/src/GPUSensor.cpp b/src/GPUSensor.cpp
+index a6708d3..b9c6189 100644
+--- a/src/GPUSensor.cpp
++++ b/src/GPUSensor.cpp
+@@ -560,7 +560,9 @@ int main(int argc, char* argv[])
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     systemBus->request_name("xyz.openbmc_project.GPUSensor");
+-    sdbusplus::asio::object_server objectServer(systemBus);
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
+ 
+     io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
+ 
+diff --git a/src/HealthSensor.cpp b/src/HealthSensor.cpp
+index 3f20824..b16fd79 100644
+--- a/src/HealthSensor.cpp
++++ b/src/HealthSensor.cpp
+@@ -411,7 +411,9 @@ int main(int argc, char* argv[])
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     systemBus->request_name("xyz.openbmc_project.HealthSensor");
+-    sdbusplus::asio::object_server objectServer(systemBus);
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
+ 
+     io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
+ 
+diff --git a/src/HwmonTempMain.cpp b/src/HwmonTempMain.cpp
+index 1621f5a..6bac548 100644
+--- a/src/HwmonTempMain.cpp
++++ b/src/HwmonTempMain.cpp
+@@ -646,9 +646,10 @@ int main()
+ {
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-    sdbusplus::asio::object_server objectServer(systemBus, true);
+-    objectServer.add_manager("/xyz/openbmc_project/sensors");
+     systemBus->request_name("xyz.openbmc_project.HwmonTempSensor");
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
+ 
+     boost::container::flat_map<std::string, std::shared_ptr<HwmonTempSensor>>
+         sensors;
+diff --git a/src/HwmonTempSensor.cpp b/src/HwmonTempSensor.cpp
+index 144f9d9..648990d 100644
+--- a/src/HwmonTempSensor.cpp
++++ b/src/HwmonTempSensor.cpp
+@@ -52,7 +52,7 @@ HwmonTempSensor::HwmonTempSensor(
+            std::move(thresholdsIn), sensorConfiguration, objectType, false,
+            false, thisSensorParameters.maxValue, thisSensorParameters.minValue,
+            conn, powerState),
+-    i2cDevice(i2cDevice), objServer(objectServer),
++    i2cDevice(i2cDevice), objectServer(objectServer),
+     inputDev(io, path, boost::asio::random_access_file::read_only),
+     waitTimer(io), path(path), offsetValue(thisSensorParameters.offsetValue),
+     scaleValue(thisSensorParameters.scaleValue),
+@@ -110,10 +110,10 @@ HwmonTempSensor::~HwmonTempSensor()
+ 
+     for (const auto& iface : thresholdInterfaces)
+     {
+-        objServer.remove_interface(iface);
++        objectServer.remove_interface(iface);
+     }
+-    objServer.remove_interface(sensorInterface);
+-    objServer.remove_interface(association);
++    objectServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(association);
+ }
+ 
+ void HwmonTempSensor::setupRead(void)
+diff --git a/src/I2CSensorMain.cpp b/src/I2CSensorMain.cpp
+index 257ab59..18bcc6d 100644
+--- a/src/I2CSensorMain.cpp
++++ b/src/I2CSensorMain.cpp
+@@ -97,9 +97,7 @@ int main(int argc, char* argv[])
+     CLI11_PARSE(app, argc, argv);
+ 
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-    auto objServer = sdbusplus::asio::object_server(systemBus);
+-
+-    // setup object server, define interface
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
+     systemBus->request_name("xyz.openbmc_project.I2CSensor");
+ 
+     // Get access to physical memory
+@@ -125,7 +123,7 @@ int main(int argc, char* argv[])
+ 
+         // add interface into sensor tree
+         std::shared_ptr<sdbusplus::asio::dbus_interface> iface =
+-            objServer.add_interface(sensorPath, sensorValueInterface);
++            objectServer.add_interface(sensorPath, sensorValueInterface);
+ 
+         uint8_t i2cBusStatus = get_bus_status(bus);
+ 
+diff --git a/src/IntelCPUSensor.cpp b/src/IntelCPUSensor.cpp
+index 3410574..6e7777e 100644
+--- a/src/IntelCPUSensor.cpp
++++ b/src/IntelCPUSensor.cpp
+@@ -42,7 +42,7 @@ IntelCPUSensor::IntelCPUSensor(
+     double dtsOffset) :
+     Sensor(escapeName(sensorName), std::move(thresholdsIn), sensorConfiguration,
+            objectType, false, false, 0, 0, conn, PowerState::on),
+-    objServer(objectServer), inputDev(io), waitTimer(io),
++    objectServer(objectServer), inputDev(io), waitTimer(io),
+     nameTcontrol("Tcontrol CPU" + std::to_string(cpuId)), path(path),
+     privTcontrol(std::numeric_limits<double>::quiet_NaN()),
+     dtsOffset(dtsOffset), show(show), pollTime(IntelCPUSensor::sensorPollMs)
+@@ -100,12 +100,12 @@ IntelCPUSensor::~IntelCPUSensor()
+     {
+         for (const auto& iface : thresholdInterfaces)
+         {
+-            objServer.remove_interface(iface);
++            objectServer.remove_interface(iface);
+         }
+-        objServer.remove_interface(sensorInterface);
+-        objServer.remove_interface(association);
+-        objServer.remove_interface(availableInterface);
+-        objServer.remove_interface(operationalInterface);
++        objectServer.remove_interface(sensorInterface);
++        objectServer.remove_interface(association);
++        objectServer.remove_interface(availableInterface);
++        objectServer.remove_interface(operationalInterface);
+     }
+ }
+ 
+diff --git a/src/IntelCPUSensorMain.cpp b/src/IntelCPUSensorMain.cpp
+index aa06628..057952e 100644
+--- a/src/IntelCPUSensorMain.cpp
++++ b/src/IntelCPUSensorMain.cpp
+@@ -706,10 +706,13 @@ int main()
+ {
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
++    systemBus->request_name("xyz.openbmc_project.IntelCPUSensor");
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
++
+     boost::container::flat_set<CPUConfig> cpuConfigs;
+ 
+-    sdbusplus::asio::object_server objectServer(systemBus, true);
+-    objectServer.add_manager("/xyz/openbmc_project/sensors");
+     boost::asio::steady_timer pingTimer(io);
+     boost::asio::steady_timer creationTimer(io);
+     boost::asio::steady_timer filterTimer(io);
+@@ -762,8 +765,6 @@ int main()
+     std::vector<std::unique_ptr<sdbusplus::bus::match_t>> matches =
+         setupPropertiesChangedMatches(*systemBus, sensorTypes, eventHandler);
+ 
+-    systemBus->request_name("xyz.openbmc_project.IntelCPUSensor");
+-
+     setupManufacturingModeMatch(*systemBus);
+     io.run();
+     return 0;
+diff --git a/src/IntrusionSensorMain.cpp b/src/IntrusionSensorMain.cpp
+index 3b63b6e..6fc02e5 100644
+--- a/src/IntrusionSensorMain.cpp
++++ b/src/IntrusionSensorMain.cpp
+@@ -419,16 +419,13 @@ int main()
+     // setup connection to dbus
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-
+-    // setup object server, define interface
+     systemBus->request_name("xyz.openbmc_project.IntrusionSensor");
+-
+-    sdbusplus::asio::object_server objServer(systemBus, true);
+-
+-    objServer.add_manager("/xyz/openbmc_project/sensors");
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
+ 
+     std::shared_ptr<sdbusplus::asio::dbus_interface> ifaceChassis =
+-        objServer.add_interface(
++        objectServer.add_interface(
+             "/xyz/openbmc_project/Intrusion/Chassis_Intrusion",
+             "xyz.openbmc_project.Chassis.Intrusion");
+ 
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 3fc0ee5..1231a21 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -644,9 +644,10 @@ int main()
+ 
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-    sdbusplus::asio::object_server objectServer(systemBus, true);
+-    objectServer.add_manager("/xyz/openbmc_project/sensors");
+     systemBus->request_name("xyz.openbmc_project.IpmbSensor");
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
+ 
+     initCmdTimer = std::make_unique<boost::asio::steady_timer>(io);
+ 
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index 164caa7..a6592d4 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -52,10 +52,10 @@ MCUTempSensor::MCUTempSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+                              sdbusplus::asio::object_server& objectServer,
+                              std::vector<thresholds::Threshold>&& thresholdData,
+                              uint8_t busId, uint8_t mcuAddress,
+-                             uint8_t tempReg, const PowerState powerState) :
++                             uint8_t tempReg) :
+     Sensor(escapeName(sensorName), std::move(thresholdData),
+            sensorConfiguration, "MCUTempSensor", false, false,
+-           mcuTempMaxReading, mcuTempMinReading, conn),
++           mcuTempMaxReading, mcuTempMinReading, conn, PowerState::on),
+     busId(busId), mcuAddress(mcuAddress), tempReg(tempReg),
+     objectServer(objectServer), waitTimer(io)
+ {
+@@ -256,8 +256,7 @@ void createSensors(
+ 
+                 sensor = std::make_unique<MCUTempSensor>(
+                     dbusConnection, io, name, path, objectServer,
+-                    std::move(sensorThresholds), busId, mcuAddress, tempReg,
+-                    powerState);
++                    std::move(sensorThresholds), busId, mcuAddress, tempReg);
+ 
+                 sensor->init();
+             }
+@@ -271,10 +270,10 @@ int main()
+ {
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-    sdbusplus::asio::object_server objectServer(systemBus, true);
+-    objectServer.add_manager("/xyz/openbmc_project/sensors");
+-
+     systemBus->request_name("xyz.openbmc_project.MCUTempSensor");
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
+ 
+     io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
+ 
+diff --git a/src/NMSensor.cpp b/src/NMSensor.cpp
+index 24dff2d..c56cf52 100644
+--- a/src/NMSensor.cpp
++++ b/src/NMSensor.cpp
+@@ -74,7 +74,7 @@ NMSensor::NMSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+                        uint8_t& deviceDIMMID, std::string& deviceTypeName,
+                        std::string& sensorTypeName) :
+     Sensor(escapeName(sensorName), std::move(thresholdData),
+-           sensorConfiguration, "xyz.openbmc_project.Configuration.ExitAirTemp",
++           sensorConfiguration, "xyz.openbmc_project.Configuration.NMSensor",
+            false, false, 0xff, 0x00, conn, PowerState::on),
+     deviceAddress(deviceAddress),
+     deviceCPUID(deviceCPUID), deviceChannelID(deviceChannelID), deviceDIMMID(deviceDIMMID),
+@@ -641,7 +641,9 @@ int main(int argc, char* argv[])
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     systemBus->request_name("xyz.openbmc_project.NMSensor");
+-    sdbusplus::asio::object_server objectServer(systemBus);
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
+ 
+     io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
+ 
+diff --git a/src/NVMELegacySensor.cpp b/src/NVMELegacySensor.cpp
+index 93173f6..a4ece22 100644
+--- a/src/NVMELegacySensor.cpp
++++ b/src/NVMELegacySensor.cpp
+@@ -342,7 +342,9 @@ int main(int argc, char* argv[])
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     systemBus->request_name("xyz.openbmc_project.NVMELegacySensor");
+-    sdbusplus::asio::object_server objectServer(systemBus);
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
+ 
+     io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
+ 
+diff --git a/src/NVMeSensor.cpp b/src/NVMeSensor.cpp
+index d32d166..0f773a0 100644
+--- a/src/NVMeSensor.cpp
++++ b/src/NVMeSensor.cpp
+@@ -31,7 +31,7 @@ NVMeSensor::NVMeSensor(sdbusplus::asio::object_server& objectServer,
+     Sensor(escapeName(sensorName), std::move(thresholdsIn), sensorConfiguration,
+            NVMeSensor::sensorType, false, false, maxReading, minReading, conn,
+            PowerState::on),
+-    bus(busNumber), objServer(objectServer)
++    bus(busNumber), objectServer(objectServer)
+ {
+     if (bus < 0)
+     {
+@@ -61,10 +61,10 @@ NVMeSensor::~NVMeSensor()
+     // close the input dev to cancel async operations
+     for (const auto& iface : thresholdInterfaces)
+     {
+-        objServer.remove_interface(iface);
++        objectServer.remove_interface(iface);
+     }
+-    objServer.remove_interface(sensorInterface);
+-    objServer.remove_interface(association);
++    objectServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(association);
+ }
+ 
+ bool NVMeSensor::sample()
+diff --git a/src/NVMeSensorMain.cpp b/src/NVMeSensorMain.cpp
+index 1351456..28001ca 100644
+--- a/src/NVMeSensorMain.cpp
++++ b/src/NVMeSensorMain.cpp
+@@ -231,8 +231,10 @@ int main()
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     systemBus->request_name("xyz.openbmc_project.NVMeSensor");
+-    sdbusplus::asio::object_server objectServer(systemBus, true);
+-    objectServer.add_manager("/xyz/openbmc_project/sensors/");
++    auto objectServer = sdbusplus::asio::object_server(systemBus, true);
++    objectServer.add_manager("/xyz/openbmc_project/sensors");
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
+ 
+     io.post([&]() { createSensors(io, objectServer, systemBus); });
+ 
+diff --git a/src/PSUEvent.cpp b/src/PSUEvent.cpp
+index 27bb8b1..e77fd19 100644
+--- a/src/PSUEvent.cpp
++++ b/src/PSUEvent.cpp
+@@ -43,10 +43,10 @@ PSUCombineEvent::PSUCombineEvent(
+         boost::container::flat_map<std::string, std::vector<std::string>>>&
+         groupEventPathList,
+     const std::string& combineEventName, double pollRate) :
+-    objServer(objectServer)
++    objectServer(objectServer)
+ {
+     std::string psuNameEscaped = sensor_paths::escapePathForDbus(psuName);
+-    eventInterface = objServer.add_interface(
++    eventInterface = objectServer.add_interface(
+         "/xyz/openbmc_project/State/Decorator/" + psuNameEscaped + "_" +
+             combineEventName,
+         "xyz.openbmc_project.State.Decorator.OperationalStatus");
+@@ -114,7 +114,7 @@ PSUCombineEvent::~PSUCombineEvent()
+         }
+     }
+     events.clear();
+-    objServer.remove_interface(eventInterface);
++    objectServer.remove_interface(eventInterface);
+ }
+ 
+ static boost::container::flat_map<std::string,
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index 6e2934f..0554eb5 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -46,7 +46,7 @@ PSUSensor::PSUSensor(const std::string& path, const std::string& objectType,
+                      const std::string& label, size_t tSize, double pollRate) :
+     Sensor(escapeName(sensorName), std::move(thresholdsIn), sensorConfiguration,
+            objectType, false, false, max, min, conn, powerState),
+-    objServer(objectServer),
++    objectServer(objectServer),
+     inputDev(io, path, boost::asio::random_access_file::read_only),
+     waitTimer(io), path(path), sensorFactor(factor), sensorOffset(offset),
+     thresholdTimer(io)
+@@ -99,12 +99,12 @@ PSUSensor::~PSUSensor()
+ {
+     waitTimer.cancel();
+     inputDev.close();
+-    objServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(sensorInterface);
+     for (const auto& iface : thresholdInterfaces)
+     {
+-        objServer.remove_interface(iface);
++        objectServer.remove_interface(iface);
+     }
+-    objServer.remove_interface(association);
++    objectServer.remove_interface(association);
+ }
+ 
+ void PSUSensor::setupRead(void)
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index 38f92a7..856bfe6 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -1042,11 +1042,11 @@ int main()
+ {
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-
+-    sdbusplus::asio::object_server objectServer(systemBus, true);
+-    objectServer.add_manager("/xyz/openbmc_project/sensors");
+-    objectServer.add_manager("/xyz/openbmc_project/control");
+     systemBus->request_name("xyz.openbmc_project.PSUSensor");
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
++
+     auto sensorsChanged =
+         std::make_shared<boost::container::flat_set<std::string>>();
+ 
+diff --git a/src/SysfsSensor.cpp b/src/SysfsSensor.cpp
+index 01a762e..4be0061 100644
+--- a/src/SysfsSensor.cpp
++++ b/src/SysfsSensor.cpp
+@@ -49,7 +49,7 @@ SysfsSensor::SysfsSensor(const std::string& path, const std::string& objectType,
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(thresholdsIn), sensorConfiguration, objectType, false, false, max, min,
+            conn, powerState),
+-    std::enable_shared_from_this<SysfsSensor>(), objServer(objectServer),
++    std::enable_shared_from_this<SysfsSensor>(), objectServer(objectServer),
+     inputDev(io), waitTimer(io), path(path), pathRatedMax(""), pathRatedMin(""),
+     sensorFactor(factor), minMaxReadCounter(0), sensorName(sensorName), powerState(powerState)
+ {
+@@ -115,14 +115,14 @@ SysfsSensor::SysfsSensor(const std::string& path, const std::string& objectType,
+ SysfsSensor::~SysfsSensor()
+ {
+     waitTimer.cancel();
+-    objServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(sensorInterface);
+ 
+     for (const auto& iface : thresholdInterfaces)
+     {
+-        objServer.remove_interface(iface);
++        objectServer.remove_interface(iface);
+     }
+ 
+-    objServer.remove_interface(association);
++    objectServer.remove_interface(association);
+ }
+ 
+ void SysfsSensor::updateMinMaxValues(void)
+diff --git a/src/SysfsSensorMain.cpp b/src/SysfsSensorMain.cpp
+index d9ddf00..a1aac0e 100644
+--- a/src/SysfsSensorMain.cpp
++++ b/src/SysfsSensorMain.cpp
+@@ -810,9 +810,11 @@ int main(int argc, char* argv[])
+ 
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+-
+     systemBus->request_name("xyz.openbmc_project.SysfsSensor");
+-    sdbusplus::asio::object_server objectServer(systemBus);
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
++
+     auto sensorsChanged =
+         std::make_shared<boost::container::flat_set<std::string>>();
+ 
+diff --git a/src/TachSensor.cpp b/src/TachSensor.cpp
+index 35185cd..17f58fb 100644
+--- a/src/TachSensor.cpp
++++ b/src/TachSensor.cpp
+@@ -51,7 +51,7 @@ TachSensor::TachSensor(const std::string& path, const std::string& objectType,
+     Sensor(escapeName(fanName), std::move(thresholdsIn), sensorConfiguration,
+            objectType, false, false, limits.second, limits.first, conn,
+            powerState),
+-    objServer(objectServer), redundancy(redundancy),
++    objectServer(objectServer), redundancy(redundancy),
+     presence(std::move(presenceSensor)),
+     inputDev(io, path, boost::asio::random_access_file::read_only),
+     waitTimer(io), path(path), led(ledIn)
+@@ -99,12 +99,12 @@ TachSensor::~TachSensor()
+     waitTimer.cancel();
+     for (const auto& iface : thresholdInterfaces)
+     {
+-        objServer.remove_interface(iface);
++        objectServer.remove_interface(iface);
+     }
+-    objServer.remove_interface(sensorInterface);
+-    objServer.remove_interface(association);
+-    objServer.remove_interface(itemIface);
+-    objServer.remove_interface(itemAssoc);
++    objectServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(association);
++    objectServer.remove_interface(itemIface);
++    objectServer.remove_interface(itemAssoc);
+ }
+ 
+ void TachSensor::setupRead()
+diff --git a/src/VRSensor.cpp b/src/VRSensor.cpp
+index 07d604b..5449f07 100644
+--- a/src/VRSensor.cpp
++++ b/src/VRSensor.cpp
+@@ -404,7 +404,9 @@ int main(int argc, char* argv[])
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+     systemBus->request_name("xyz.openbmc_project.VRSensor");
+-    sdbusplus::asio::object_server objectServer(systemBus);
++    auto objectServer = sdbusplus::asio::object_server(systemBus);
++    objectServer.add_manager("/xyz/openbmc_project/control");
++    objectServer.add_manager("/xyz/openbmc_project/inventory");
+ 
+     io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
+ 
+-- 
+2.36.1
+

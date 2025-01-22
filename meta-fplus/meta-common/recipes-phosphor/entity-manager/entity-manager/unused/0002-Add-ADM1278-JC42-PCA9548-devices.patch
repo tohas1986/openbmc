@@ -1,0 +1,52 @@
+From 1685ec396b38a837b54af41841ceb0681e3d47af Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 10:26:15 +0000
+Subject: [PATCH 1/1] Add ADM1278 JC42 PCA9548 devices
+
+---
+ include/devices.hpp | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/include/devices.hpp b/include/devices.hpp
+index 50fbe63..917a3c7 100644
+--- a/include/devices.hpp
++++ b/include/devices.hpp
+@@ -65,6 +65,9 @@ const boost::container::flat_map<const char*, ExportTemplate, CmpStr>
+          {"Gpio", ExportTemplate("$Index", "/sys/class/gpio/export")},
+          {"INA230", ExportTemplate("ina230 $Address",
+                                    "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++
++         {"ADM1278", ExportTemplate("adm1278 $Address",
++                                   "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+          {"ISL68137",
+           ExportTemplate("isl68137 $Address",
+                          "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+@@ -119,10 +122,16 @@ const boost::container::flat_map<const char*, ExportTemplate, CmpStr>
+          {"PCA9547Mux",
+           ExportTemplate("pca9547 $Address",
+                          "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++         {"PCA9548Mux",
++          ExportTemplate("pca9548 $Address",
++                         "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++
+          {"SBTSI", ExportTemplate("sbtsi $Address",
+                                   "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+          {"pmbus", ExportTemplate("pmbus $Address",
+                                   "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
++         {"JC42", ExportTemplate("jc42 $Address",
++                                  "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+          {"TMP112", ExportTemplate("tmp112 $Address",
+                                    "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+          {"TMP175", ExportTemplate("tmp175 $Address",
+@@ -131,7 +140,6 @@ const boost::container::flat_map<const char*, ExportTemplate, CmpStr>
+                                    "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+          {"TMP441", ExportTemplate("tmp441 $Address",
+                                    "/sys/bus/i2c/devices/i2c-$Bus/new_device")},
+-         {"TMP75",
+-          ExportTemplate("tmp75 $Address",
++         {"TMP75", ExportTemplate("tmp75 $Address",
+                          "/sys/bus/i2c/devices/i2c-$Bus/new_device")}}};
+ } // namespace devices
+-- 
+2.7.4
+

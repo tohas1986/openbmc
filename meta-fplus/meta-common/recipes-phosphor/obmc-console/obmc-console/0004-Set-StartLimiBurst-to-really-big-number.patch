@@ -1,0 +1,18 @@
+From f607f857e95dd3294a751d86743646e065b8ae9d Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 12 Jan 2021 12:51:29 +0000
+Subject: [PATCH] Set StartLimiBurst to really big number
+
+---
+ conf/obmc-console@.service.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/conf/obmc-console@.service.in b/conf/obmc-console@.service.in
+index c6cd1b4..cdb48d6 100644
+--- a/conf/obmc-console@.service.in
++++ b/conf/obmc-console@.service.in
+@@ -7,3 +7,4 @@ ConditionPathExists=/etc/obmc-console/server.%i.conf
+ ExecStart=/usr/sbin/obmc-console-server --config /etc/obmc-console/server.%i.conf %i
+ SyslogIdentifier=%i-console-server
+ Restart=always
++StartLimitBurst=9999999

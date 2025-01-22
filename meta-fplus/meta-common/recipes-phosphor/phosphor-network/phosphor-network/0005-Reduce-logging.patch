@@ -1,0 +1,65 @@
+From 8a26b3d42cc74bd5f5b0c4de194895e1e5a14646 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 6 Oct 2022 10:30:17 +0000
+Subject: [PATCH 1/2] Reduce logging
+
+%% original patch: 0005-Reduce-logging.patch
+---
+ src/ethernet_interface.cpp   | 2 +-
+ src/network_manager_main.cpp | 4 ++--
+ src/util.cpp                 | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/ethernet_interface.cpp b/src/ethernet_interface.cpp
+index 9795a7e..5f47ea1 100644
+--- a/src/ethernet_interface.cpp
++++ b/src/ethernet_interface.cpp
+@@ -666,7 +666,7 @@ ServerList EthernetInterface::getNTPServerFromTimeSyncd()
+     }
+     catch (const sdbusplus::exception::SdBusError& e)
+     {
+-        log<level::ERR>(
++        log<level::DEBUG>(
+             "Failed to get NTP server information from Systemd-Timesyncd");
+     }
+ 
+diff --git a/src/network_manager_main.cpp b/src/network_manager_main.cpp
+index 8f8a89e..3dce30e 100644
+--- a/src/network_manager_main.cpp
++++ b/src/network_manager_main.cpp
+@@ -241,9 +241,9 @@ void refreshObjects()
+ {
+     if (manager)
+     {
+-        log<level::INFO>("Refreshing the objects.");
++        log<level::DEBUG>("Refreshing the objects.");
+         manager->createChildObjects();
+-        log<level::INFO>("Refreshing complete.");
++        log<level::DEBUG>("Refreshing complete.");
+     }
+ }
+ 
+diff --git a/src/util.cpp b/src/util.cpp
+index 9396760..53b0d2c 100644
+--- a/src/util.cpp
++++ b/src/util.cpp
+@@ -263,14 +263,14 @@ inline auto systemdParseLast(const config::Parser& config,
+     {
+         auto err = fmt::format("Unable to get the value of {}[{}] from {}",
+                                section, key, config.getFilename().native());
+-        log<level::NOTICE>(err.c_str(),
++        log<level::DEBUG>(err.c_str(),
+                            entry("FILE=%s", config.getFilename().c_str()));
+     }
+     else if (auto val = fun(*str); !val)
+     {
+         auto err = fmt::format("Invalid value of {}[{}] from {}: {}", section,
+                                key, config.getFilename().native(), *str);
+-        log<level::NOTICE>(err.c_str(), entry("VALUE=%s", str->c_str()),
++        log<level::DEBUG>(err.c_str(), entry("VALUE=%s", str->c_str()),
+                            entry("FILE=%s", config.getFilename().c_str()));
+     }
+     else
+-- 
+2.34.1
+

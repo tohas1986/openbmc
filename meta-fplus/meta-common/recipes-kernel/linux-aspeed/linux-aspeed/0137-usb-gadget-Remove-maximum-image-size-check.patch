@@ -1,0 +1,24 @@
+From e4fbc0301b23b48aba4a247808db7a958e53b5ab Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 14 May 2021 12:14:03 +0000
+Subject: [PATCH] usb-gadget: Remove maximum image size check
+
+---
+ drivers/usb/gadget/function/storage_common.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/drivers/usb/gadget/function/storage_common.c b/drivers/usb/gadget/function/storage_common.c
+index 2325b97..b8f07c9 100644
+--- a/drivers/usb/gadget/function/storage_common.c
++++ b/drivers/usb/gadget/function/storage_common.c
+@@ -244,7 +244,6 @@ int fsg_lun_open(struct fsg_lun *curlun, const char *filename)
+ 	if (curlun->cdrom) {
+ 		min_sectors = 300;	/* Smallest track is 300 frames */
+ 		if (num_sectors >= 256*60*75) {
+-			num_sectors = 256*60*75 - 1;
+ 			LINFO(curlun, "file too big: %s\n", filename);
+ 			LINFO(curlun, "using only first %d blocks\n",
+ 					(int) num_sectors);
+-- 
+2.7.4
+

@@ -10,7 +10,7 @@
 def get_rootfs_uuid(d):
     import subprocess
     rootfs = d.getVar('ROOTFS')
-    output = subprocess.check_output(['tune2fs', '-l', rootfs], text=True)
+    output = subprocess.check_output(['tune2fs', '-l', rootfs])
     for line in output.split('\n'):
         if line.startswith('Filesystem UUID:'):
             uuid = line.split()[-1]

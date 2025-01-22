@@ -1,0 +1,53 @@
+From 97cfd5c3569da7b132c241d0627acbd17ccc7c90 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 13 Dec 2021 14:40:45 +0000
+Subject: [PATCH] aspeed_kcs: Turn on clock before device to avoid kernel
+
+---
+ drivers/char/ipmi/kcs_bmc_aspeed.c | 16 ++++++++++++++++
+ 1 files changed, 18 insertions(+)
+
+diff --git a/drivers/char/ipmi/kcs_bmc_aspeed.c b/drivers/char/ipmi/kcs_bmc_aspeed.c
+index b555286016b1..e27c68993dfc 100644
+--- a/drivers/char/ipmi/kcs_bmc_aspeed.c
++++ b/drivers/char/ipmi/kcs_bmc_aspeed.c
+@@ -21,6 +21,7 @@
+ #include <linux/sched.h>
+ #include <linux/slab.h>
+ #include <linux/timer.h>
++#include <linux/clk.h>
+ 
+ #include "kcs_bmc_device.h"
+ 
+@@ -115,6 +116,7 @@ struct aspeed_kcs_bmc {
+ 	struct kcs_bmc_device kcs_bmc;
+ 
+ 	struct regmap *map;
++	struct clk *clk;
+ 
+ 	struct {
+ 		enum aspeed_kcs_irq_mode mode;
+@@ -620,6 +622,20 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
+ 		return -ENODEV;
+ 	}
+ 
++	/* Clock part */
++	priv->clk = devm_clk_get(&pdev->dev, NULL);
++	if (IS_ERR(priv->clk)) {
++		rc = PTR_ERR(priv->clk);
++		if (rc != -EPROBE_DEFER)
++			dev_err(&pdev->dev, "couldn't get clock\n");
++		return rc;
++	}
++	rc = clk_prepare_enable(priv->clk);
++	if (rc) {
++		dev_err(&pdev->dev, "couldn't enable clock\n");
++		return rc;
++	}
++
+ 	spin_lock_init(&priv->obe.lock);
+ 	priv->obe.remove = false;
+ 	timer_setup(&priv->obe.timer, aspeed_kcs_check_obe, 0);
+-- 
+2.33.1
+

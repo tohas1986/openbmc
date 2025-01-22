@@ -38,4 +38,4 @@ S = "${WORKDIR}/Config-AutoConf-${PV}"
 
 inherit cpan ptest-perl
 
-BBCLASSEXTEND = "native"
+BBCLASSEXTEND = "native nativesdk"

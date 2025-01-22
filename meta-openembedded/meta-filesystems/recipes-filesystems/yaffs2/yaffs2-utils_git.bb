@@ -9,8 +9,7 @@ LIC_FILES_CHKSUM = "file://utils/mkyaffs2image.c;beginline=11;endline=13;md5=5f5
                     file://utils/mkyaffsimage.c;beginline=10;endline=12;md5=5f5464f9b3e981ca574e65b00e438561 \
                     "
 
-# The commit date of SRCREV
-PV = "20221209"
+PV = "0.0+git${SRCPV}"
 
 DEPENDS = "mtd-utils"
 
@@ -18,10 +17,9 @@ DEPENDS = "mtd-utils"
 SRC_URI = "git://www.aleph1.co.uk/yaffs2;protocol=git;branch=master \
            file://makefile-add-ldflags.patch \
            file://0001-define-loff_t-if-not-already-defined.patch \
-           file://0001-yaffs_guts.h-define-YTIME_T-if-not-already-defined.patch \
            "
 
-SRCREV = "613a901a229e8a701c18f003dd0aee18453e0670"
+SRCREV = "9a6f486e56f927eeb8dc7e4e0d84f6bb95eeaa0f"
 
 UPSTREAM_CHECK_COMMITS = "1"
 

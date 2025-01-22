@@ -1,0 +1,31 @@
+From 59b3f03d254f102ce50e3128fc7512d4bb3ce133 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 17 Aug 2020 14:22:09 +0000
+Subject: [PATCH 1/1] SMC: Don't unregister whole chip if one flash IC is
+ missing
+
+---
+ drivers/mtd/spi-nor/controllers/aspeed-smc.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/mtd/spi-nor/controllers/aspeed-smc.c b/drivers/mtd/spi-nor/controllers/aspeed-smc.c
+index 0805dca..40a9c5c 100644
+--- a/drivers/mtd/spi-nor/controllers/aspeed-smc.c
++++ b/drivers/mtd/spi-nor/controllers/aspeed-smc.c
+@@ -1321,8 +1321,11 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
+ 	}
+ 
+ 	if (ret) {
+-		of_node_put(child);
+-		aspeed_smc_unregister(controller);
++		/* As it's the controller we're flying on, it doesn't make sence to make any errors:
++		   If we don't have rootfs - we have to halt.
++		   If one chip is OK and the other one is missing - it's OK, we can continue.
++		*/
++		return 0;
+ 	}
+ 
+ 	return ret;
+-- 
+2.7.4
+

@@ -1,0 +1,30 @@
+From 5d2d6453477036d5ef6b98bf8de8c3b4d4831ee3 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 13 Aug 2020 15:03:06 +0000
+Subject: [PATCH] Remove PAM call
+
+---
+ command/rakp12.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/command/rakp12.cpp b/command/rakp12.cpp
+index c72611e..8bcd8a3 100644
+--- a/command/rakp12.cpp
++++ b/command/rakp12.cpp
+@@ -205,7 +205,7 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+         return outPayload;
+     }
+     // Check whether user is already locked for failed attempts
+-    if (!ipmi::ipmiUserPamAuthenticate(userName, passwd))
++/*    if (!ipmi::ipmiUserPamAuthenticate(userName, passwd))
+     {
+         lg2::error(
+             "Authentication failed - user already locked out, user id: {ID}",
+@@ -216,6 +216,7 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+         logInvalidLoginRedfishEvent(message);
+         return outPayload;
+     }
++*/
+ 
+     uint8_t chNum = static_cast<uint8_t>(getInterfaceIndex());
+     // Get channel based access information

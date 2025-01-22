@@ -1,0 +1,44 @@
+From 6b42d2271a530218dbb3ed8868cecd82b06b6565 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 17 Dec 2021 09:14:33 +0000
+Subject: [PATCH] Move from sensor path search from dbus
+
+---
+ redfish-core/include/logutils.hpp | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/redfish-core/include/logutils.hpp b/redfish-core/include/logutils.hpp
+index ee15908..4e3a61f 100644
+--- a/redfish-core/include/logutils.hpp
++++ b/redfish-core/include/logutils.hpp
+@@ -1040,15 +1040,26 @@ void SELEntryOKHandler(std::vector<std::string>& logEntryFields, MessageID messa
+         eventDir = "Assertion";
+     }
+ 
++    std::vector<uint8_t> pprAddr = { 0x08, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86 };
++
+     path = getPathFromSensorNumber(sensorNum);
+ 
+     if (path.empty())
+     {
+         sensorStr = hexToSring<uint8_t>(sensorNum,true);
++
++        for (auto ppr : pprAddr)
++        {
++            if (sensorNum == ppr)
++            {
++                std::cerr << "Found PPR Address: 0x" << std::hex << std::setfill('0') << std::setw(2) << +ppr << "\n";
++                sensorStr = "BIOShPPRaddress";
++            }
++        }
+     }
+     else
+     {
+-        sensorStr = getSensorNameStringFromPath(path);
++        sensorStr = hexToSring<uint8_t>(sensorNum,true);
+     }
+ 
+     sensorTypeStr = ipmiGetGenericSensorType(sensorType);
+-- 
+2.33.1
+

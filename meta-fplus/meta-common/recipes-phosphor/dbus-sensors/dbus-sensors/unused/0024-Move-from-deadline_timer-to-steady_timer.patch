@@ -1,0 +1,927 @@
+From ae1acb655c0a931df44069f1b9f3982553c4cf33 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 2 Apr 2021 14:01:51 +0000
+Subject: [PATCH] Move-from-deadline_timer-to-steady_timer
+
+---
+ include/ADCSensor.hpp              |  2 +-
+ include/CPUSensor.hpp              |  2 +-
+ include/ChassisIntrusionSensor.hpp |  5 ++---
+ include/HealthSensor.hpp           |  4 ++--
+ include/HwmonTempSensor.hpp        |  2 +-
+ include/IpmbSensor.hpp             |  4 ++--
+ include/MCUTempSensor.hpp          |  4 ++--
+ include/NVMELegacySensor.hpp       |  4 ++--
+ include/NVMeSensor.hpp             |  6 +++---
+ include/PSUEvent.hpp               |  4 ++--
+ include/PSUSensor.hpp              |  3 ++-
+ include/TachSensor.hpp             |  2 +-
+ include/Thresholds.hpp             |  8 ++++----
+ src/ADCSensor.cpp                  |  6 +++---
+ src/ADCSensorMain.cpp              |  6 +++---
+ src/CPUSensor.cpp                  |  4 ++--
+ src/CPUSensorMain.cpp              | 28 ++++++++++++++--------------
+ src/ChassisIntrusionSensor.cpp     |  2 +-
+ src/ExitAirTempSensor.cpp          |  4 ++--
+ src/ExternalSensor.cpp             |  2 +-
+ src/ExternalSensorMain.cpp         |  4 ++--
+ src/FanMain.cpp                    |  4 ++--
+ src/HealthSensor.cpp               |  6 +++---
+ src/HwmonTempMain.cpp              |  4 ++--
+ src/HwmonTempSensor.cpp            |  6 +++---
+ src/IpmbSensor.cpp                 | 12 ++++++------
+ src/MCUTempSensor.cpp              |  6 +++---
+ src/NVMELegacySensor.cpp           |  6 +++---
+ src/NVMeSensor.cpp                 |  4 ++--
+ src/NVMeSensorMain.cpp             |  6 +++---
+ src/PSUEvent.cpp                   |  6 +++---
+ src/PSUSensor.cpp                  | 12 ++++++------
+ src/PSUSensorMain.cpp              |  4 ++--
+ src/TachSensor.cpp                 |  4 ++--
+ 34 files changed, 93 insertions(+), 93 deletions(-)
+
+diff --git a/include/ADCSensor.hpp b/include/ADCSensor.hpp
+index 5a995aa..6fe5726 100644
+--- a/include/ADCSensor.hpp
++++ b/include/ADCSensor.hpp
+@@ -75,7 +75,7 @@ class ADCSensor : public Sensor, public std::enable_shared_from_this<ADCSensor>
+   private:
+     sdbusplus::asio::object_server& objServer;
+     boost::asio::posix::stream_descriptor inputDev;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     std::shared_ptr<boost::asio::streambuf> readBuf;
+     std::string path;
+     double scaleFactor;
+diff --git a/include/CPUSensor.hpp b/include/CPUSensor.hpp
+index 29b8209..e317ce3 100644
+--- a/include/CPUSensor.hpp
++++ b/include/CPUSensor.hpp
+@@ -35,7 +35,7 @@ class CPUSensor : public Sensor
+   private:
+     sdbusplus::asio::object_server& objServer;
+     boost::asio::posix::stream_descriptor inputDev;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     boost::asio::streambuf readBuf;
+     std::string nameTcontrol;
+     std::string path;
+diff --git a/include/ChassisIntrusionSensor.hpp b/include/ChassisIntrusionSensor.hpp
+index 142ced3..ac4b7fc 100644
+--- a/include/ChassisIntrusionSensor.hpp
++++ b/include/ChassisIntrusionSensor.hpp
+@@ -1,6 +1,6 @@
+ #pragma once
+ 
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/asio/io_service.hpp>
+ #include <gpiod.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+@@ -39,8 +39,7 @@ class ChassisIntrusionSensor
+     // valid if it is PCH register via i2c
+     int mBusId;
+     int mSlaveAddr;
+-    boost::asio::deadline_timer mPollTimer;
+-
++    boost::asio::steady_timer mPollTimer;
+     // valid if it is via GPIO
+     bool mGpioInverted;
+     std::string mPinName = "CHASSIS_INTRUSION";
+diff --git a/include/HealthSensor.hpp b/include/HealthSensor.hpp
+index 1fddc15..f52dcfd 100644
+--- a/include/HealthSensor.hpp
++++ b/include/HealthSensor.hpp
+@@ -1,7 +1,7 @@
+ #pragma once
+ #include "sensor.hpp"
+ 
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/container/flat_map.hpp>
+ 
+ #include <chrono>
+@@ -36,7 +36,7 @@ struct HealthSensor : public Sensor
+ 
+   private:
+     sdbusplus::asio::object_server& objectServer;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     uint16_t failCount;
+     uint16_t pollTime;
+     uint16_t failTime;
+diff --git a/include/HwmonTempSensor.hpp b/include/HwmonTempSensor.hpp
+index 11e46f3..a382c27 100644
+--- a/include/HwmonTempSensor.hpp
++++ b/include/HwmonTempSensor.hpp
+@@ -27,7 +27,7 @@ class HwmonTempSensor :
+   private:
+     sdbusplus::asio::object_server& objServer;
+     boost::asio::posix::stream_descriptor inputDev;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     boost::asio::streambuf readBuf;
+     std::string path;
+     size_t errCount;
+diff --git a/include/IpmbSensor.hpp b/include/IpmbSensor.hpp
+index ff15fa6..d19742c 100644
+--- a/include/IpmbSensor.hpp
++++ b/include/IpmbSensor.hpp
+@@ -1,5 +1,5 @@
+ #pragma once
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/container/flat_map.hpp>
+ #include <sensor.hpp>
+ 
+@@ -109,5 +109,5 @@ struct IpmbSensor : public Sensor
+ 
+   private:
+     sdbusplus::asio::object_server& objectServer;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+ };
+diff --git a/include/MCUTempSensor.hpp b/include/MCUTempSensor.hpp
+index d0bed60..16400a8 100644
+--- a/include/MCUTempSensor.hpp
++++ b/include/MCUTempSensor.hpp
+@@ -1,5 +1,5 @@
+ #pragma once
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/container/flat_map.hpp>
+ #include <sensor.hpp>
+ 
+@@ -31,5 +31,5 @@ struct MCUTempSensor : public Sensor
+   private:
+     int getMCURegsInfoWord(uint8_t regs, int16_t* pu16data);
+     sdbusplus::asio::object_server& objectServer;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+ };
+diff --git a/include/NVMELegacySensor.hpp b/include/NVMELegacySensor.hpp
+index ac3f62f..811ab21 100644
+--- a/include/NVMELegacySensor.hpp
++++ b/include/NVMELegacySensor.hpp
+@@ -1,7 +1,7 @@
+ #pragma once
+ #include "sensor.hpp"
+ 
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/container/flat_map.hpp>
+ 
+ #include <chrono>
+@@ -39,5 +39,5 @@ struct NVMELegacySensor : public Sensor
+   private:
+     int getRegister(uint8_t idx, int8_t* temp);
+     sdbusplus::asio::object_server& objectServer;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+ };
+diff --git a/include/NVMeSensor.hpp b/include/NVMeSensor.hpp
+index 02510d4..c3761a1 100644
+--- a/include/NVMeSensor.hpp
++++ b/include/NVMeSensor.hpp
+@@ -3,7 +3,7 @@
+ #include <libmctp-smbus.h>
+ #include <libmctp.h>
+ 
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/asio/io_service.hpp>
+ #include <boost/asio/ip/tcp.hpp>
+ #include <sensor.hpp>
+@@ -38,9 +38,9 @@ struct NVMeContext : std::enable_shared_from_this<NVMeContext>
+     void pollNVMeDevices();
+     void close();
+ 
+-    boost::asio::deadline_timer scanTimer;
++    boost::asio::steady_timer scanTimer;
+     int rootBus; // Root bus for this drive
+-    boost::asio::deadline_timer mctpResponseTimer;
++    boost::asio::steady_timer mctpResponseTimer;
+     boost::asio::ip::tcp::socket nvmeSlaveSocket;
+     std::list<std::shared_ptr<NVMeSensor>> sensors; // used as a poll queue
+ };
+diff --git a/include/PSUEvent.hpp b/include/PSUEvent.hpp
+index 7f63515..790a0ee 100644
+--- a/include/PSUEvent.hpp
++++ b/include/PSUEvent.hpp
+@@ -20,7 +20,7 @@
+ #include "Thresholds.hpp"
+ #include "sensor.hpp"
+ 
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/asio/io_service.hpp>
+ #include <boost/asio/streambuf.hpp>
+ #include <boost/container/flat_map.hpp>
+@@ -57,7 +57,7 @@ class PSUSubEvent : public std::enable_shared_from_this<PSUSubEvent>
+     std::string path;
+     std::string eventName;
+ 
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     std::shared_ptr<boost::asio::streambuf> readBuf;
+     void handleResponse(const boost::system::error_code& err);
+     void updateValue(const int& newValue);
+diff --git a/include/PSUSensor.hpp b/include/PSUSensor.hpp
+index 123629c..85dc2ac 100644
+--- a/include/PSUSensor.hpp
++++ b/include/PSUSensor.hpp
+@@ -5,6 +5,7 @@
+ #include <boost/asio/streambuf.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ #include <sensor.hpp>
++#include <boost/asio/steady_timer.hpp>
+ 
+ #include <memory>
+ #include <string>
+@@ -130,7 +131,7 @@ class PSUSensor : public Sensor, public std::enable_shared_from_this<PSUSensor>
+   private:
+     sdbusplus::asio::object_server& objServer;
+     boost::asio::posix::stream_descriptor inputDev;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     std::shared_ptr<boost::asio::streambuf> readBuf;
+     std::string path;
+     std::string pathRatedMax;
+diff --git a/include/TachSensor.hpp b/include/TachSensor.hpp
+index 1b80404..bed5a07 100644
+--- a/include/TachSensor.hpp
++++ b/include/TachSensor.hpp
+@@ -83,7 +83,7 @@ class TachSensor : public Sensor
+     std::shared_ptr<sdbusplus::asio::dbus_interface> itemIface;
+     std::shared_ptr<sdbusplus::asio::dbus_interface> itemAssoc;
+     boost::asio::posix::stream_descriptor inputDev;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     boost::asio::streambuf readBuf;
+     std::string path;
+     std::optional<std::string> led;
+diff --git a/include/Thresholds.hpp b/include/Thresholds.hpp
+index 559f4df..ea4f93d 100644
+--- a/include/Thresholds.hpp
++++ b/include/Thresholds.hpp
+@@ -1,6 +1,6 @@
+ #pragma once
+ #include <Utils.hpp>
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/asio/io_service.hpp>
+ #include <nlohmann/json.hpp>
+ 
+@@ -54,7 +54,7 @@ struct TimerUsed
+     bool assert;
+ };
+ 
+-using TimerPair = std::pair<struct TimerUsed, boost::asio::deadline_timer>;
++using TimerPair = std::pair<struct TimerUsed, boost::asio::steady_timer>;
+ 
+ struct ThresholdTimer
+ {
+@@ -115,14 +115,14 @@ struct ThresholdTimer
+         if (pair == nullptr)
+         {
+             pair = &timers.emplace_back(timerUsed,
+-                                        boost::asio::deadline_timer(io));
++                                        boost::asio::steady_timer(io));
+         }
+ 
+         pair->first.used = true;
+         pair->first.level = threshold.level;
+         pair->first.direction = threshold.direction;
+         pair->first.assert = assert;
+-        pair->second.expires_from_now(boost::posix_time::seconds(waitTime));
++        pair->second.expires_from_now(boost::asio::chrono::seconds(waitTime));
+         pair->second.async_wait([this, pair, threshold, assert,
+                                  assertValue](boost::system::error_code ec) {
+             pair->first.used = false;
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index 49b7df5..b73d976 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -20,7 +20,7 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/read_until.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+@@ -108,7 +108,7 @@ void ADCSensor::setupRead(void)
+         // value. Guarantee that the HW signal can be stable, the HW signal
+         // could be instability.
+         waitTimer.expires_from_now(
+-            boost::posix_time::milliseconds(gpioBridgeEnableMs));
++            boost::asio::chrono::milliseconds(gpioBridgeEnableMs));
+         waitTimer.async_wait(
+             [weakRef, buffer](const boost::system::error_code& ec) {
+                 std::shared_ptr<ADCSensor> self = weakRef.lock();
+@@ -195,7 +195,7 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+         return; // we're no longer valid
+     }
+     inputDev.assign(fd);
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollMs));
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+     waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+         std::shared_ptr<ADCSensor> self = weakRef.lock();
+         if (ec == boost::asio::error::operation_aborted)
+diff --git a/src/ADCSensorMain.cpp b/src/ADCSensorMain.cpp
+index db492d2..2397aa7 100644
+--- a/src/ADCSensorMain.cpp
++++ b/src/ADCSensorMain.cpp
+@@ -346,7 +346,7 @@ int main(int argc, char* argv[])
+         createSensors(io, objectServer, sensors, systemBus, nullptr);
+     });
+ 
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message& message) {
+             if (message.is_method_error())
+@@ -356,7 +356,7 @@ int main(int argc, char* argv[])
+             }
+             sensorsChanged->insert(message.get_path());
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+@@ -404,7 +404,7 @@ int main(int argc, char* argv[])
+             }
+ 
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index 939bbc2..badd45e 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -21,7 +21,7 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/read_until.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+@@ -136,7 +136,7 @@ void CPUSensor::setupRead(void)
+         pollTime = sensorFailedPollTimeMs;
+         markAvailable(false);
+     }
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(pollTime));
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(pollTime));
+     waitTimer.async_wait([&](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
+diff --git a/src/CPUSensorMain.cpp b/src/CPUSensorMain.cpp
+index 02714b8..3818ae7 100644
+--- a/src/CPUSensorMain.cpp
++++ b/src/CPUSensorMain.cpp
+@@ -23,7 +23,7 @@
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/container/flat_map.hpp>
+ #include <boost/container/flat_set.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ #include <sdbusplus/bus/match.hpp>
+@@ -96,8 +96,8 @@ static constexpr std::array<const char*, 3> hiddenProps = {
+     CPUSensor::labelTcontrol, "Tthrottle", "Tjmax"};
+ 
+ void detectCpuAsync(
+-    boost::asio::deadline_timer& pingTimer,
+-    boost::asio::deadline_timer& creationTimer, boost::asio::io_service& io,
++    boost::asio::steady_timer& pingTimer,
++    boost::asio::steady_timer& creationTimer, boost::asio::io_service& io,
+     sdbusplus::asio::object_server& objectServer,
+     std::shared_ptr<sdbusplus::asio::connection>& dbusConnection,
+     boost::container::flat_set<CPUConfig>& cpuConfigs,
+@@ -450,8 +450,8 @@ void exportDevice(const CPUConfig& config)
+     std::cout << parameters << " on bus " << busStr << " is exported\n";
+ }
+ 
+-void detectCpu(boost::asio::deadline_timer& pingTimer,
+-               boost::asio::deadline_timer& creationTimer,
++void detectCpu(boost::asio::steady_timer& pingTimer,
++               boost::asio::steady_timer& creationTimer,
+                boost::asio::io_service& io,
+                sdbusplus::asio::object_server& objectServer,
+                std::shared_ptr<sdbusplus::asio::connection>& dbusConnection,
+@@ -554,7 +554,7 @@ void detectCpu(boost::asio::deadline_timer& pingTimer,
+     if (rescanDelaySeconds)
+     {
+         creationTimer.expires_from_now(
+-            boost::posix_time::seconds(rescanDelaySeconds));
++            boost::asio::chrono::seconds(rescanDelaySeconds));
+         creationTimer.async_wait([&](const boost::system::error_code& ec) {
+             if (ec == boost::asio::error::operation_aborted)
+             {
+@@ -578,14 +578,14 @@ void detectCpu(boost::asio::deadline_timer& pingTimer,
+ }
+ 
+ void detectCpuAsync(
+-    boost::asio::deadline_timer& pingTimer,
+-    boost::asio::deadline_timer& creationTimer, boost::asio::io_service& io,
++    boost::asio::steady_timer& pingTimer,
++    boost::asio::steady_timer& creationTimer, boost::asio::io_service& io,
+     sdbusplus::asio::object_server& objectServer,
+     std::shared_ptr<sdbusplus::asio::connection>& dbusConnection,
+     boost::container::flat_set<CPUConfig>& cpuConfigs,
+     ManagedObjectType& sensorConfigs)
+ {
+-    pingTimer.expires_from_now(boost::posix_time::seconds(1));
++    pingTimer.expires_from_now(boost::asio::chrono::seconds(1));
+     pingTimer.async_wait([&](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
+@@ -718,12 +718,12 @@ int main(int argc, char* argv[])
+ 
+     sdbusplus::asio::object_server objectServer(systemBus);
+     std::vector<std::unique_ptr<sdbusplus::bus::match::match>> matches;
+-    boost::asio::deadline_timer pingTimer(io);
+-    boost::asio::deadline_timer creationTimer(io);
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer pingTimer(io);
++    boost::asio::steady_timer creationTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     ManagedObjectType sensorConfigs;
+ 
+-    filterTimer.expires_from_now(boost::posix_time::seconds(1));
++    filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+     filterTimer.async_wait([&](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
+@@ -751,7 +751,7 @@ int main(int argc, char* argv[])
+             }
+ 
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+                 {
+diff --git a/src/ChassisIntrusionSensor.cpp b/src/ChassisIntrusionSensor.cpp
+index af5ced3..1557a9e 100644
+--- a/src/ChassisIntrusionSensor.cpp
++++ b/src/ChassisIntrusionSensor.cpp
+@@ -142,7 +142,7 @@ void ChassisIntrusionSensor::pollSensorStatusByPch()
+ {
+     // setting a new experation implicitly cancels any pending async wait
+     mPollTimer.expires_from_now(
+-        boost::posix_time::seconds(intrusionSensorPollSec));
++        boost::asio::chrono::seconds(intrusionSensorPollSec));
+ 
+     mPollTimer.async_wait([&](const boost::system::error_code& ec) {
+         // case of timer expired
+diff --git a/src/ExitAirTempSensor.cpp b/src/ExitAirTempSensor.cpp
+index c85b352..ee0d526 100644
+--- a/src/ExitAirTempSensor.cpp
++++ b/src/ExitAirTempSensor.cpp
+@@ -921,11 +921,11 @@ int main()
+ 
+     io.post([&]() { createSensor(objectServer, sensor, systemBus); });
+ 
+-    boost::asio::deadline_timer configTimer(io);
++    boost::asio::steady_timer configTimer(io);
+ 
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message&) {
+-            configTimer.expires_from_now(boost::posix_time::seconds(1));
++            configTimer.expires_from_now(boost::asio::chrono::seconds(1));
+             // create a timer because normally multiple properties change
+             configTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+diff --git a/src/ExternalSensor.cpp b/src/ExternalSensor.cpp
+index c6db174..a4e6ef0 100644
+--- a/src/ExternalSensor.cpp
++++ b/src/ExternalSensor.cpp
+@@ -6,7 +6,7 @@
+ 
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+diff --git a/src/ExternalSensorMain.cpp b/src/ExternalSensorMain.cpp
+index 19b8f60..0fbf73b 100644
+--- a/src/ExternalSensorMain.cpp
++++ b/src/ExternalSensorMain.cpp
+@@ -223,7 +223,7 @@ int main()
+         createSensors(io, objectServer, sensors, systemBus, nullptr);
+     });
+ 
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&io, &objectServer, &sensors, &systemBus, &sensorsChanged,
+          &filterTimer](sdbusplus::message::message& message) {
+@@ -234,7 +234,7 @@ int main()
+             }
+             sensorsChanged->insert(message.get_path());
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&io, &objectServer, &sensors, &systemBus,
+                                     &sensorsChanged](
+diff --git a/src/FanMain.cpp b/src/FanMain.cpp
+index a34dd4d..e04bdb2 100644
+--- a/src/FanMain.cpp
++++ b/src/FanMain.cpp
+@@ -454,7 +454,7 @@ int main()
+                       nullptr);
+     });
+ 
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message& message) {
+             if (message.is_method_error())
+@@ -464,7 +464,7 @@ int main()
+             }
+             sensorsChanged->insert(message.get_path());
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+diff --git a/src/HealthSensor.cpp b/src/HealthSensor.cpp
+index cb25509..3bd75e5 100644
+--- a/src/HealthSensor.cpp
++++ b/src/HealthSensor.cpp
+@@ -247,7 +247,7 @@ double readCPUUtilization()
+ 
+ void HealthSensor::readSensor(void)
+ {
+-    waitTimer.expires_from_now(boost::posix_time::seconds(pollTime));
++    waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
+     waitTimer.async_wait([this](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
+@@ -402,11 +402,11 @@ int main(int argc, char* argv[])
+ 
+     io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
+ 
+-    boost::asio::deadline_timer configTimer(io);
++    boost::asio::steady_timer configTimer(io);
+ 
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message&) {
+-            configTimer.expires_from_now(boost::posix_time::seconds(1));
++            configTimer.expires_from_now(boost::asio::chrono::seconds(1));
+             // create a timer because normally multiple properties change
+             configTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+diff --git a/src/HwmonTempMain.cpp b/src/HwmonTempMain.cpp
+index 70c96ad..5c25a80 100644
+--- a/src/HwmonTempMain.cpp
++++ b/src/HwmonTempMain.cpp
+@@ -295,7 +295,7 @@ int main()
+         createSensors(io, objectServer, sensors, systemBus, nullptr);
+     });
+ 
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message& message) {
+             if (message.is_method_error())
+@@ -305,7 +305,7 @@ int main()
+             }
+             sensorsChanged->insert(message.get_path());
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+diff --git a/src/HwmonTempSensor.cpp b/src/HwmonTempSensor.cpp
+index a376d0d..b49d7a4 100644
+--- a/src/HwmonTempSensor.cpp
++++ b/src/HwmonTempSensor.cpp
+@@ -20,7 +20,7 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/read_until.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+@@ -90,7 +90,7 @@ void HwmonTempSensor::setupRead(void)
+     if (readState == PowerState::on && !isPowerOn())
+     {
+         updateValue(std::numeric_limits<double>::quiet_NaN());
+-        waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorSetupRetryMs));
++        waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorSetupRetryMs));
+         std::weak_ptr<HwmonTempSensor> weakRef = weak_from_this();
+         waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+             std::shared_ptr<HwmonTempSensor> self = weakRef.lock();
+@@ -176,7 +176,7 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+         return; // we're no longer valid
+     }
+     inputDev.assign(fd);
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollMs));
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+     std::weak_ptr<HwmonTempSensor> weakRef = weak_from_this();
+     waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+         std::shared_ptr<HwmonTempSensor> self = weakRef.lock();
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 3fdae57..598b873 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -55,7 +55,7 @@ using IpmbMethodType =
+ 
+ boost::container::flat_map<std::string, std::unique_ptr<IpmbSensor>> sensors;
+ 
+-std::unique_ptr<boost::asio::deadline_timer> initCmdTimer;
++std::unique_ptr<boost::asio::steady_timer> initCmdTimer;
+ 
+ IpmbSensor::IpmbSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+                        boost::asio::io_service& io,
+@@ -324,7 +324,7 @@ void IpmbSensor::read(void)
+ {
+     static constexpr size_t pollTime = 1; // in seconds
+ 
+-    waitTimer.expires_from_now(boost::posix_time::seconds(pollTime));
++    waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
+     waitTimer.async_wait([this](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
+@@ -561,7 +561,7 @@ void reinitSensors(sdbusplus::message::message& message)
+             // we seem to send this command too fast sometimes, wait before
+             // sending
+             initCmdTimer->expires_from_now(
+-                boost::posix_time::seconds(reinitWaitSeconds));
++                boost::asio::chrono::seconds(reinitWaitSeconds));
+ 
+             initCmdTimer->async_wait([](const boost::system::error_code ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+@@ -592,15 +592,15 @@ int main(int argc, char* argv[])
+     systemBus->request_name("xyz.openbmc_project.IpmbSensor");
+     sdbusplus::asio::object_server objectServer(systemBus);
+ 
+-    initCmdTimer = std::make_unique<boost::asio::deadline_timer>(io);
++    initCmdTimer = std::make_unique<boost::asio::steady_timer>(io);
+ 
+     io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
+ 
+-    boost::asio::deadline_timer configTimer(io);
++    boost::asio::steady_timer configTimer(io);
+ 
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message&) {
+-            configTimer.expires_from_now(boost::posix_time::seconds(1));
++            configTimer.expires_from_now(boost::asio::chrono::seconds(1));
+             // create a timer because normally multiple properties change
+             configTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index 54c943f..9d7cfec 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -156,7 +156,7 @@ void MCUTempSensor::read(void)
+ {
+     static constexpr size_t pollTime = 1; // in seconds
+ 
+-    waitTimer.expires_from_now(boost::posix_time::seconds(pollTime));
++    waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
+     waitTimer.async_wait([this](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
+@@ -287,11 +287,11 @@ int main()
+ 
+     io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
+ 
+-    boost::asio::deadline_timer configTimer(io);
++    boost::asio::steady_timer configTimer(io);
+ 
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message&) {
+-            configTimer.expires_from_now(boost::posix_time::seconds(1));
++            configTimer.expires_from_now(boost::asio::chrono::seconds(1));
+             // create a timer because normally multiple properties change
+             configTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+diff --git a/src/NVMELegacySensor.cpp b/src/NVMELegacySensor.cpp
+index a0e20a2..fe9f319 100644
+--- a/src/NVMELegacySensor.cpp
++++ b/src/NVMELegacySensor.cpp
+@@ -192,7 +192,7 @@ void NVMELegacySensor::readSensor(void)
+ {
+     static constexpr size_t pollTime = 5; // in seconds
+ 
+-    waitTimer.expires_from_now(boost::posix_time::seconds(pollTime));
++    waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
+     waitTimer.async_wait([this](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
+@@ -348,11 +348,11 @@ int main(int argc, char* argv[])
+ 
+     io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
+ 
+-    boost::asio::deadline_timer configTimer(io);
++    boost::asio::steady_timer configTimer(io);
+ 
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message&) {
+-            configTimer.expires_from_now(boost::posix_time::seconds(1));
++            configTimer.expires_from_now(boost::asio::chrono::seconds(1));
+             // create a timer because normally multiple properties change
+             configTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+diff --git a/src/NVMeSensor.cpp b/src/NVMeSensor.cpp
+index 77067b0..a9bc9d3 100644
+--- a/src/NVMeSensor.cpp
++++ b/src/NVMeSensor.cpp
+@@ -218,7 +218,7 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
+ 
+     // setup the timeout timer
+     nvmeDevice->mctpResponseTimer.expires_from_now(
+-        boost::posix_time::seconds(mctpResponseTimeout));
++        boost::asio::chrono::seconds(mctpResponseTimeout));
+ 
+     nvmeDevice->mctpResponseTimer.async_wait(
+         [sensor, nvmeDevice](const boost::system::error_code errorCode) {
+@@ -395,7 +395,7 @@ NVMeContext::NVMeContext(boost::asio::io_service& io, int rootBus) :
+ 
+ void NVMeContext::pollNVMeDevices()
+ {
+-    scanTimer.expires_from_now(boost::posix_time::seconds(5));
++    scanTimer.expires_from_now(boost::asio::chrono::seconds(5));
+     scanTimer.async_wait(
+         [self{shared_from_this()}](const boost::system::error_code errorCode) {
+             if (errorCode == boost::asio::error::operation_aborted)
+diff --git a/src/NVMeSensorMain.cpp b/src/NVMeSensorMain.cpp
+index 9084941..e4eac9d 100644
+--- a/src/NVMeSensorMain.cpp
++++ b/src/NVMeSensorMain.cpp
+@@ -16,7 +16,7 @@
+ 
+ #include <NVMeSensor.hpp>
+ #include <CLI/CLI.hpp>
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ 
+ #include <regex>
+ 
+@@ -165,12 +165,12 @@ int main(int argc, char* argv[])
+ 
+     io.post([&]() { createSensors(io, objectServer, systemBus); });
+ 
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&filterTimer, &io, &objectServer,
+          &systemBus](sdbusplus::message::message&) {
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+diff --git a/src/PSUEvent.cpp b/src/PSUEvent.cpp
+index 70b9e9d..6803b5f 100644
+--- a/src/PSUEvent.cpp
++++ b/src/PSUEvent.cpp
+@@ -189,7 +189,7 @@ void PSUSubEvent::setupRead(void)
+ {
+     if (!isPowerOn()) // No need to read events from switched off PSU
+     {
+-        waitTimer.expires_from_now(boost::posix_time::milliseconds(eventPollPowerOffMs));
++        waitTimer.expires_from_now(boost::asio::chrono::milliseconds(eventPollPowerOffMs));
+         std::weak_ptr<PSUSubEvent> weakRef = weak_from_this();
+         waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+             std::shared_ptr<PSUSubEvent> self = weakRef.lock();
+@@ -241,7 +241,7 @@ void PSUSubEvent::handleResponse(const boost::system::error_code& err)
+         errCount = 0;
+         updateValue(std::numeric_limits<double>::quiet_NaN());
+ 
+-        waitTimer.expires_from_now(boost::posix_time::milliseconds(eventPollPowerOffMs));
++        waitTimer.expires_from_now(boost::asio::chrono::milliseconds(eventPollPowerOffMs));
+         std::weak_ptr<PSUSubEvent> weakRef = weak_from_this();
+         waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+             std::shared_ptr<PSUSubEvent> self = weakRef.lock();
+@@ -289,7 +289,7 @@ void PSUSubEvent::handleResponse(const boost::system::error_code& err)
+         errCount++;
+     }
+     lseek(fd, 0, SEEK_SET);
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(eventPollMs));
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(eventPollMs));
+ 
+     std::weak_ptr<PSUSubEvent> weakRef = weak_from_this();
+     waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index 89ac04e..0d48696 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -20,7 +20,7 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/read_until.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+@@ -142,7 +142,7 @@ void PSUSensor::setupRead(void)
+         if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName
+                     << " Power is off and PowerState is on, re-scheduling SetupRead\n";
+         updateValue(std::numeric_limits<double>::quiet_NaN());
+-        waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollPowerOffMs));
++        waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollPowerOffMs));
+         std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+         /* Check inputDev and open it if needed */
+         if (! inputDev.is_open())
+@@ -158,7 +158,7 @@ void PSUSensor::setupRead(void)
+             {
+                 std::cerr << __FUNCTION__ << " " << sensorName << " Failed to open " << path << ", re-scheduling SetupRead\n";
+                 updateValue(std::numeric_limits<double>::quiet_NaN());
+-                waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollMs));
++                waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+                 std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+                 waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+                     std::shared_ptr<PSUSensor> self = weakRef.lock();
+@@ -206,7 +206,7 @@ void PSUSensor::setupRead(void)
+         // value. Guarantee that the HW signal can be stable, the HW signal
+         // could be instability.
+         waitTimer.expires_from_now(
+-            boost::posix_time::milliseconds(gpioBridgeEnableMs));
++            boost::asio::chrono::milliseconds(gpioBridgeEnableMs));
+         waitTimer.async_wait(
+             [weakRef, buffer](const boost::system::error_code& ec) {
+                 std::shared_ptr<PSUSensor> self = weakRef.lock();
+@@ -275,7 +275,7 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+         errCount = 0;
+         updateValue(std::numeric_limits<double>::quiet_NaN());
+ 
+-        waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollPowerOffMs));
++        waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollPowerOffMs));
+         std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+         waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+             std::shared_ptr<PSUSensor> self = weakRef.lock();
+@@ -342,7 +342,7 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+ 
+         lseek(fd, 0, SEEK_SET);
+     }
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollMs));
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+ 
+     std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+     waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index e9e0b0c..ca87f8c 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -1020,7 +1020,7 @@ int main()
+     propertyInitialize();
+ 
+     io.post([&]() { createSensors(io, objectServer, systemBus, nullptr); });
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message& message) {
+             if (message.is_method_error())
+@@ -1029,7 +1029,7 @@ int main()
+                 return;
+             }
+             sensorsChanged->insert(message.get_path());
+-            filterTimer.expires_from_now(boost::posix_time::seconds(3));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(3));
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+                 {
+diff --git a/src/TachSensor.cpp b/src/TachSensor.cpp
+index 1ec979f..6c6ddf5 100644
+--- a/src/TachSensor.cpp
++++ b/src/TachSensor.cpp
+@@ -21,7 +21,7 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/read_until.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <gpiod.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+@@ -173,7 +173,7 @@ void TachSensor::handleResponse(const boost::system::error_code& err)
+         return; // we're no longer valid
+     }
+     inputDev.assign(fd);
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(pollTime));
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(pollTime));
+     waitTimer.async_wait([&](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {

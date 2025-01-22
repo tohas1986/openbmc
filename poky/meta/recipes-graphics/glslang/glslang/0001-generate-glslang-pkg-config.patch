@@ -1,4 +1,4 @@
-From fc33f1cf032a15c07044ef932bc991c346d62d62 Mon Sep 17 00:00:00 2001
+From e8c1b7e1dc6d108a3b49d0adfdc4f836cfafcf1a Mon Sep 17 00:00:00 2001
 From: Jose Quaresma <quaresma.jose@gmail.com>
 Date: Sun, 7 Feb 2021 01:30:39 +0000
 Subject: [PATCH] generate glslang pkg-config
@@ -8,6 +8,7 @@ Based on https://src.fedoraproject.org/rpms/glslang/blob/main/f/0001-pkg-config-
 Upstream-Status: Pending
 
 Signed-off-by: Jose Quaresma <quaresma.jose@gmail.com>
+
 ---
  glslang/CMakeLists.txt      |  2 ++
  glslang/glslang.pc.cmake.in | 11 +++++++++++
@@ -15,21 +16,21 @@ Signed-off-by: Jose Quaresma <quaresma.jose@gmail.com>
  create mode 100644 glslang/glslang.pc.cmake.in
 
 diff --git a/glslang/CMakeLists.txt b/glslang/CMakeLists.txt
-index e4690f09..8e660bc5 100644
+index 72e82b48..c6188e12 100644
 --- a/glslang/CMakeLists.txt
 +++ b/glslang/CMakeLists.txt
-@@ -233,6 +233,8 @@ if(GLSLANG_ENABLE_INSTALL)
-         install(TARGETS MachineIndependent EXPORT glslang-targets)
-         install(TARGETS GenericCodeGen EXPORT glslang-targets)
+@@ -223,6 +223,8 @@ if(ENABLE_GLSLANG_INSTALL)
+         ")
+         install(FILES "${CMAKE_CURRENT_BINARY_DIR}/glslangTargets.cmake" DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake)
      endif()
 +    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/glslang.pc.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/glslang.pc @ONLY)
 +    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/pkgconfig/glslang.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
  
-     set(PUBLIC_HEADERS
-         Public/ResourceLimits.h
+     set(ALL_HEADERS
+         ${GLSLANG_HEADERS}
 diff --git a/glslang/glslang.pc.cmake.in b/glslang/glslang.pc.cmake.in
 new file mode 100644
-index 00000000..43104e68
+index 00000000..948a0952
 --- /dev/null
 +++ b/glslang/glslang.pc.cmake.in
 @@ -0,0 +1,11 @@

@@ -1,0 +1,262 @@
+From d3b3942d9c77aa40f5408f852813f51902526a1a Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Tue, 2 Feb 2021 16:31:45 +0000
+Subject: [PATCH] Fix ipmbsensor.service crush
+
+---
+ src/IpmbSensor.cpp | 194 ++++++++++++++++++++++++++---------------------------
+ 1 file changed, 97 insertions(+), 97 deletions(-)
+
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index b55f3b8..867335d 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -272,26 +272,6 @@ void IpmbSensor::checkThresholds(void)
+     thresholds::checkThresholds(this);
+ }
+ 
+-uint8_t IpmbSensor::getMeData(const std::vector<uint8_t>& meDataDIMMandCPU, std::string& deviceTypeName)
+-{
+-    uint8_t response = 0x00;
+-
+-    if (deviceTypeName == "DIMM")
+-    {
+-        for (int i=0; i<= meDataDIMMandCPU.size();i++)
+-        {
+-            if ((i == deviceDIMMID + deviceChannelID*4 + 3))
+-            {
+-                response = meDataDIMMandCPU[i];
+-                break;
+-            }
+-        }
+-    }
+-
+-    return response;
+-}
+-
+-
+ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+ {
+ 
+@@ -361,12 +341,15 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+             {
+                 return false;
+             }
+-            resp = getMeData(meDataDIMMandCPU, deviceTypeName);
+-            if(DEBUG)
++            if(meDataDIMMandCPU.size() >= (deviceDIMMID + deviceChannelID*4 + 3))
+             {
+-                std::cout << resp << " Response" << "\n";
++                resp = meDataDIMMandCPU[deviceDIMMID + deviceChannelID*4 + 3];
++                return true;
++            }
++            else
++            {
++                return false;
+             }
+-            return true;
+         }
+         case (ReadingFormat::tjmax):
+         {
+@@ -432,13 +415,16 @@ void IpmbSensor::read(void)
+             std::chrono::system_clock::now().time_since_epoch()).count();
+ 
+             double value = 0;
+-            if(DEBUG)
++
++            if(meDataDIMMandCPU.empty())
+             {
+-                std::cout << "No need to update data" << "\n";
++                incrementError();
++                read();
++                return;
+             }
++
+             if (!processReading(meDataDIMMandCPU, value))
+             {
+-                std::cout << __FUNCTION__ << "\n";
+                 incrementError();
+                 read();
+                 return;
+@@ -469,7 +455,7 @@ void IpmbSensor::read(void)
+                 const std::vector<uint8_t>& data = std::get<5>(response);
+                 if (DEBUG)
+                 {
+-                    std::cout << name << ": ";
++                    std::cout << "First data request " << " : ";
+                     for (size_t d : data)
+                     {
+                         std::cout << std::hex << d << " ";
+@@ -518,78 +504,92 @@ void IpmbSensor::read(void)
+ 
+                 readingMeDIMMDataTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+                 std::chrono::system_clock::now().time_since_epoch()).count();
+-
++        
++                if(deviceTypeName == "DIMM")
++                {
++                    dbusConnection->async_method_call(
++                        [this](boost::system::error_code ec,
++                            const IpmbMethodType& response) {
++                            
++                            const int& status = std::get<0>(response);
++                                
++                                if (ec || status)
++                                {
++                                    incrementError();
++                                    read();
++                                    return;
++                                }
++
++                                const std::vector<uint8_t>& temp = std::get<5>(response);
++
++                                if (temp.empty())
++                                {
++                                    incrementError();
++                                    read();
++                                    return;
++                                }
++
++                                if (DEBUG)
++                                {
++                                    std::cout << "Second data request " << " : ";
++
++                                    for (size_t d : temp)
++                                    {
++                                        std::cout << std::hex << d << " ";
++                                    }
++                                    std::cout << "\n";
++                                }
++
++                                for (int i=3; i < temp.size(); i++)
++                                {
++                                    meDataDIMMandCPU.push_back(temp[i]);
++                                }
++
++                                if (DEBUG)
++                                {
++                                    std::cout << "ALL data request " << " : ";
++
++                                    for (size_t d : meDataDIMMandCPU)
++                                    {
++                                        std::cout << std::hex << d << " ";
++                                    }
++                                    std::cout << "\n";
++                                }
++
++                                double value = 0;
++                                if (!processReading(meDataDIMMandCPU, value))
++                                {
++                                    incrementError();
++                                    read();
++                                    return;
++                                }
++                                // Byte 1 – Completion Code:
++                                // 00h – Success (Remaining standard Completion Codes are shown in Section 2.16.)
++                                // A1h – Wrong CPU number.
++                                // A3h - Inband PECI interface is down. Response data invalid.
++                                // D5h – Platform not in S0/S1 state.
++                                // ADh – Response cannot be delivered because its length is not supported for underlying transport.
++                                // FFh – Other error encountered
++
++                                value = (value * scaleVal) + offsetVal;
++                                if(value >= 161 && value <= 255)
++                                {
++                                    updateValue(std::numeric_limits<double>::quiet_NaN());
++                                }
++                                else
++                                {
++                                    updateValue(value);
++                                }
++                                read();
++                    },
++                    "xyz.openbmc_project.Ipmi.Channel.Ipmb",
++                    "/xyz/openbmc_project/Ipmi/Channel/Ipmb", "org.openbmc.Ipmb",
++                    "sendRequest", commandAddress, netfn, lun, command, SecondRequestCommandData);
++                }
+             },
+             "xyz.openbmc_project.Ipmi.Channel.Ipmb",
+             "/xyz/openbmc_project/Ipmi/Channel/Ipmb", "org.openbmc.Ipmb",
+             "sendRequest", commandAddress, netfn, lun, command, commandData);
+-
+-        if(deviceTypeName == "DIMM")
+-        {
+-            dbusConnection->async_method_call(
+-                   [this](boost::system::error_code ec,
+-                      const IpmbMethodType& response) {
+-                        const int& status = std::get<0>(response);
+-                        if (ec || status)
+-                        {
+-                            incrementError();
+-                            read();
+-                            return;
+-                        }
+-
+-                        const std::vector<uint8_t>& temp = std::get<5>(response);
+-
+-                        if (temp.empty())
+-                        {
+-                            incrementError();
+-                            read();
+-                            return;
+-                        }
+-
+-                        for (int i=3; i < temp.size(); i++)
+-                        {
+-                           meDataDIMMandCPU.push_back(temp[i]);
+-                        }
+-
+-                        if (DEBUG)
+-                        {
+-                            for (size_t d : meDataDIMMandCPU)
+-                            {
+-                                std::cout << std::hex << d << " ";
+-                            }
+-                            std::cout << "\n";
+-                        }
+-
+-                        double value = 0;
+-                        if (!processReading(meDataDIMMandCPU, value))
+-                        {
+-                            incrementError();
+-                            read();
+-                            return;
+-                        }
+-                        /* Byte 1 – Completion Code:
+-                         * 00h – Success (Remaining standard Completion Codes are shown in Section 2.16.)
+-                         * A1h – Wrong CPU number.
+-                         * A3h - Inband PECI interface is down. Response data invalid.
+-                         * D5h – Platform not in S0/S1 state.
+-                         * ADh – Response cannot be delivered because its length is not supported for underlying transport.
+-                         * FFh – Other error encountered
+-                         */
+-                        value = (value * scaleVal) + offsetVal;
+-                        if(value >= 161 && value <= 255)
+-                        {
+-                            updateValue(std::numeric_limits<double>::quiet_NaN());
+-                        }
+-                        else
+-                        {
+-                            updateValue(value);
+-                        }
+-                        read();
+-             },
+-             "xyz.openbmc_project.Ipmi.Channel.Ipmb",
+-             "/xyz/openbmc_project/Ipmi/Channel/Ipmb", "org.openbmc.Ipmb",
+-            "sendRequest", commandAddress, netfn, lun, command, SecondRequestCommandData);
+-        }
+     });
+ }
+ void createSensors(
+@@ -687,7 +687,7 @@ void createSensors(
+                     {
+                         deviceTypeName =
+                             loadVariant<std::string>(entry.second, "TypeName");
+-                        std::cout << deviceTypeName << "\n";
++                        //std::cout << deviceTypeName << "\n";
+                     }
+                     catch(...)
+                     {
+-- 
+2.7.4
+

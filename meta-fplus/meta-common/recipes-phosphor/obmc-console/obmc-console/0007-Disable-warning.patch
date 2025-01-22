@@ -1,0 +1,24 @@
+From 6ab7c2513de076624926ca49421b5739b0891539 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 13 Jan 2021 10:48:10 +0000
+Subject: [PATCH 1/1] Disable warning
+
+---
+ util.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/util.c b/util.c
+index d6e037a..caec3d4 100644
+--- a/util.c
++++ b/util.c
+@@ -27,7 +27,6 @@ int write_buf_to_fd(int fd, const uint8_t *buf, size_t len)
+ 	for (pos = 0; pos < len; pos += rc) {
+ 		rc = write(fd, buf + pos, len - pos);
+ 		if (rc <= 0) {
+-			warn("Write error");
+ 			return -1;
+ 		}
+ 	}
+-- 
+2.7.4
+

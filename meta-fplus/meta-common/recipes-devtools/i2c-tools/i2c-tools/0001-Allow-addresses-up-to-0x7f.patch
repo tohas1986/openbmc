@@ -1,0 +1,26 @@
+diff --git a/tools/i2cbusses.c b/tools/i2cbusses.c
+index b4f00ae..5048a92 100644
+--- a/tools/i2cbusses.c
++++ b/tools/i2cbusses.c
+@@ -382,7 +382,7 @@ int parse_i2c_address(const char *address_arg, int all_addrs)
+ 	long address;
+ 	char *end;
+ 	long min_addr = 0x08;
+-	long max_addr = 0x77;
++	long max_addr = 0x7f;
+ 
+ 	address = strtol(address_arg, &end, 0);
+ 	if (*end || !*address_arg) {
+diff --git a/tools/i2cdetect.c b/tools/i2cdetect.c
+index 0b9af48..5adb288 100644
+--- a/tools/i2cdetect.c
++++ b/tools/i2cdetect.c
+@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
+ 	char filename[20];
+ 	unsigned long funcs;
+ 	int mode = MODE_AUTO;
+-	int first = 0x08, last = 0x77;
++	int first = 0x08, last = 0x7f;
+ 	int flags = 0;
+ 	int yes = 0, version = 0, list = 0;
+ 

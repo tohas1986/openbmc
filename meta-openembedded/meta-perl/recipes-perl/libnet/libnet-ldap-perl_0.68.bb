@@ -41,3 +41,5 @@ RDEPENDS:${PN}-ptest += " \
     perl-module-perlio \
     perl-module-test-more \
 "
+
+BBCLASSEXTEND = "native"

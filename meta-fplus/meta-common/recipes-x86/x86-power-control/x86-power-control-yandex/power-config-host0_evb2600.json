@@ -1,0 +1,14 @@
+{
+  "IdButton": "ID_BUTTON",
+  "PostComplete": "POST_COMPLETE",
+  "NMIOut": "NMI_OUT",
+  "NMIInvert": "true",
+  "PwrButton": "POWER_BUTTON",
+  "PwrOK": "PS_PWROK",
+  "PwrOut": "POWER_OUT",
+  "RstButton": "RESET_BUTTON",
+  "RstOut": "RESET_OUT",
+  "LockSwitch": "FP_SW_1",
+  "LockSwitchInvert": "true",
+  "SafetyTimer1": 5
+}

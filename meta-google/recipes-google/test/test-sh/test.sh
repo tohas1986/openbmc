@@ -1,5 +1,4 @@
 #!/bin/bash
-# shellcheck disable=SC2317
 # Copyright 2021 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# shellcheck source=meta-google/recipes-google/test/test-sh/lib.sh
 source "$(dirname "$0")/lib.sh" || exit
 
 (

@@ -16,14 +16,13 @@ LIC_FILES_CHKSUM = "file://doc/COPYING;md5=2d0aa14b3fce4694e4f615e30186335f \
 
 SRC_URI = "${SAVANNAH_GNU_MIRROR}/attr/${BP}.tar.gz \
            file://run-ptest \
-           file://0001-attr.c-Include-libgen.h-for-posix-version-of-basenam.patch \
 "
 
 inherit ptest update-alternatives autotools gettext
 
 PACKAGES =+ "lib${BPN}"
 
-FILES:lib${BPN} = "${libdir}/lib*${SOLIBS} ${sysconfdir}"
+FILES:lib${BPN} = "${libdir}/lib*${SOLIBS}"
 
 ALTERNATIVE_PRIORITY = "100"
 ALTERNATIVE:${PN} = "setfattr"
@@ -49,14 +48,8 @@ do_install_ptest() {
 	cp -rf ${S}/test/ ${D}${PTEST_PATH}
 }
 
-do_install_ptest:append:libc-musl() {
-        sed -i -e 's|f: Operation n|f: N|g' ${D}${PTEST_PATH}/test/attr.test
-}
-
 RDEPENDS:${PN}-ptest = "attr \
-                        bash \
                         coreutils \
-                        perl-module-constant \
                         perl-module-filehandle \
                         perl-module-getopt-std \
                         perl-module-posix \

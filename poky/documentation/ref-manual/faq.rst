@@ -90,7 +90,7 @@ HTTPS requests and direct them to the ``http://`` sources mirror. You
 can use ``file://`` URLs to point to local directories or network shares
 as well.
 
-Another option is to set::
+Here are other options::
 
    BB_NO_NETWORK = "1"
 
@@ -106,7 +106,7 @@ This statement limits the build system to pulling source from the
 :term:`PREMIRRORS` only.  Again, this technique is useful for reproducing
 builds.
 
-Here is yet another technique::
+Here is another technique::
 
    BB_GENERATE_MIRROR_TARBALLS = "1"
 
@@ -135,7 +135,7 @@ Most source fetching by the OpenEmbedded build system is done by
 single user or can be in ``/usr/local/etc/wgetrc`` as a global user
 file.
 
-Here is the applicable code for setting various proxy types in the
+Following is the applicable code for setting various proxy types in the
 ``.wgetrc`` file. By default, these settings are disabled with comments.
 To use them, remove the comments::
 
@@ -168,8 +168,23 @@ Using the OpenEmbedded Build system
 How do I use an external toolchain?
 -----------------------------------
 
-See the ":ref:`dev-manual/external-toolchain:optionally using an external toolchain`"
-section in the Development Task manual.
+The toolchain configuration is very flexible and customizable. It
+is primarily controlled with the :term:`TCMODE` variable. This variable
+controls which ``tcmode-*.inc`` file to include from the
+``meta/conf/distro/include`` directory within the :term:`Source Directory`.
+
+The default value of :term:`TCMODE` is "default", which tells the
+OpenEmbedded build system to use its internally built toolchain (i.e.
+``tcmode-default.inc``). However, other patterns are accepted. In
+particular, "external-\*" refers to external toolchains. One example is
+the Sourcery G++ Toolchain. The support for this toolchain resides in
+the separate ``meta-sourcery`` layer at
+https://github.com/MentorEmbedded/meta-sourcery/.
+
+In addition to the toolchain configuration, you also need a
+corresponding toolchain recipe file. This recipe file needs to package
+up any pre-built objects in the toolchain such as ``libgcc``,
+``libstdcc++``, any locales, and ``libc``.
 
 Why do I get chmod permission issues?
 -------------------------------------
@@ -276,7 +291,7 @@ How do I make the Yocto Project support my board?
 Support for an additional board is added by creating a Board
 Support Package (BSP) layer for it. For more information on how to
 create a BSP layer, see the
-":ref:`dev-manual/layers:understanding and creating layers`"
+":ref:`dev-manual/common-tasks:understanding and creating layers`"
 section in the Yocto Project Development Tasks Manual and the
 :doc:`/bsp-guide/index`.
 
@@ -288,7 +303,7 @@ How do I make the Yocto Project support my package?
 
 To add a package, you need to create a BitBake recipe. For
 information on how to create a BitBake recipe, see the
-":ref:`dev-manual/new-recipe:writing a new recipe`"
+":ref:`dev-manual/common-tasks:writing a new recipe`"
 section in the Yocto Project Development Tasks Manual.
 
 What do I need to ship for license compliance?
@@ -305,7 +320,7 @@ configured and built.
 You can find more information on licensing in the
 ":ref:`overview-manual/development-environment:licensing`"
 section in the Yocto Project Overview and Concepts Manual and also in the
-":ref:`dev-manual/licenses:maintaining open source license compliance during your product's lifecycle`"
+":ref:`dev-manual/common-tasks:maintaining open source license compliance during your product's lifecycle`"
 section in the Yocto Project Development Tasks Manual.
 
 Do I have to make a full reflash after recompiling one package?

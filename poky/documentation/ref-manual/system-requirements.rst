@@ -29,70 +29,31 @@ and conceptual information in the :doc:`/overview-manual/index`.
    For more information about the Yocto Project Documentation set, see
    the :ref:`ref-manual/resources:links and related documentation` section.
 
-Minimum Free Disk Space
-=======================
-
-To build an image such as ``core-image-sato`` for the ``qemux86-64`` machine,
-you need a system with at least &MIN_DISK_SPACE; Gbytes of free disk space.
-However, much more disk space will be necessary to build more complex images,
-to run multiple builds and to cache build artifacts, improving build efficiency.
-
-If you have a shortage of disk space, see the ":doc:`/dev-manual/disk-space`"
-section of the Development Tasks Manual.
-
-.. _system-requirements-minimum-ram:
-
-Minimum System RAM
-==================
-
-You will manage to build an image such as ``core-image-sato`` for the
-``qemux86-64`` machine with as little as &MIN_RAM; Gbytes of RAM on an old
-system with 4 CPU cores, but your builds will be much faster on a system with
-as much RAM and as many CPU cores as possible.
-
-.. _system-requirements-supported-distros:
+.. _detailed-supported-distros:
 
 Supported Linux Distributions
 =============================
 
-Currently, the &DISTRO; release ("&DISTRO_NAME;") of the Yocto Project is
-supported on the following distributions:
+Currently, the Yocto Project is supported on the following
+distributions:
+
+-  Ubuntu 18.04 (LTS)
 
 -  Ubuntu 20.04 (LTS)
 
 -  Ubuntu 22.04 (LTS)
 
--  Fedora 38
+-  Fedora 34
 
--  CentOS Stream 8
+-  Fedora 35
 
--  Debian GNU/Linux 11 (Bullseye)
+-  AlmaLinux 8.5
 
--  Debian GNU/Linux 12 (Bookworm)
+-  Debian GNU/Linux 10.x (Buster)
 
--  OpenSUSE Leap 15.4
+-  Debian GNU/Linux 11.x (Bullseye)
 
--  AlmaLinux 8
-
--  AlmaLinux 9
-
--  Rocky 9
-
-The following distribution versions are still tested, even though the
-organizations publishing them no longer make updates publicly available:
-
--  Ubuntu 18.04 (LTS)
-
--  Ubuntu 23.04
-
-Note that the Yocto Project doesn't have access to private updates
-that some of these versions may have. Therefore, our testing has
-limited value if you have access to such updates.
-
-Finally, here are the distribution versions which were previously
-tested on former revisions of "&DISTRO_NAME;", but no longer are:
-
-*This list is currently empty*
+-  OpenSUSE Leap 15.3
 
 .. note::
 
@@ -110,13 +71,7 @@ tested on former revisions of "&DISTRO_NAME;", but no longer are:
       has no plans to support rolling-releases or development
       distributions due to their constantly changing nature. We welcome
       patches and bug reports, but keep in mind that our priority is on
-      the supported platforms listed above.
-
-   -  If your Linux distribution is not in the above list, we recommend to
-      get the :term:`buildtools` or :term:`buildtools-extended` tarballs
-      containing the host tools required by your Yocto Project release,
-      typically by running ``scripts/install-buildtools`` as explained in
-      the ":ref:`system-requirements-buildtools`" section.
+      the supported platforms listed below.
 
    -  You may use Windows Subsystem For Linux v2 to set up a build host
       using Windows 10 or later, or Windows Server 2019 or later, but validation
@@ -131,8 +86,9 @@ tested on former revisions of "&DISTRO_NAME;", but no longer are:
       interested in hearing about your experience. For information on
       how to submit a bug, see the Yocto Project
       :yocto_wiki:`Bugzilla wiki page </Bugzilla_Configuration_and_Bug_Tracking>`
-      and the ":doc:`../contributor-guide/report-defect`"
-      section in the Yocto Project and OpenEmbedded Contributor Guide.
+      and the ":ref:`dev-manual/common-tasks:submitting a defect against the yocto project`"
+      section in the Yocto Project Development Tasks Manual.
+
 
 Required Packages for the Build Host
 ====================================
@@ -147,10 +103,8 @@ function.
 Ubuntu and Debian
 -----------------
 
-Here are the packages needed to build an image on a headless system
-with a supported Ubuntu or Debian Linux distribution::
-
-   $ sudo apt install &UBUNTU_HOST_PACKAGES_ESSENTIAL;
+Here are the required packages by function given a
+supported Ubuntu or Debian Linux distribution:
 
 .. note::
 
@@ -162,65 +116,80 @@ with a supported Ubuntu or Debian Linux distribution::
          $ sudo apt build-dep qemu
          $ sudo apt remove oss4-dev
 
-Here are the packages needed to build Project documentation manuals::
+-  *Essentials:* Packages needed to build an image on a headless system::
 
-   $ sudo apt install git make inkscape texlive-latex-extra
-   $ sudo apt install sphinx python3-saneyaml python3-sphinx-rtd-theme
+      $ sudo apt install &UBUNTU_HOST_PACKAGES_ESSENTIAL;
+
+-  *Documentation:* Packages needed if you are going to build out the
+   Yocto Project documentation manuals::
+
+      $ sudo apt install make python3-pip inkscape texlive-latex-extra
+      &PIP3_HOST_PACKAGES_DOC;
 
 Fedora Packages
 ---------------
 
-Here are the packages needed to build an image on a headless system
-with a supported Fedora Linux distribution::
+Here are the required packages by function given a
+supported Fedora Linux distribution:
 
-   $ sudo dnf install &FEDORA_HOST_PACKAGES_ESSENTIAL;
+-  *Essentials:* Packages needed to build an image for a headless
+   system::
 
-Here are the packages needed to build Project documentation manuals::
+      $ sudo dnf install &FEDORA_HOST_PACKAGES_ESSENTIAL;
 
-   $ sudo dnf install git make python3-pip which inkscape texlive-fncychap
-   &PIP3_HOST_PACKAGES_DOC;
+-  *Documentation:* Packages needed if you are going to build out the
+   Yocto Project documentation manuals::
+
+      $ sudo dnf install make python3-pip which inkscape texlive-fncychap
+      &PIP3_HOST_PACKAGES_DOC;
 
 openSUSE Packages
 -----------------
 
-Here are the packages needed to build an image on a headless system
-with a supported openSUSE distribution::
+Here are the required packages by function given a
+supported openSUSE Linux distribution:
 
-   $ sudo zypper install &OPENSUSE_HOST_PACKAGES_ESSENTIAL;
+-  *Essentials:* Packages needed to build an image for a headless
+   system::
 
-Here are the packages needed to build Project documentation manuals::
+      $ sudo zypper install &OPENSUSE_HOST_PACKAGES_ESSENTIAL;
 
-   $ sudo zypper install git make python3-pip which inkscape texlive-fncychap
-   &PIP3_HOST_PACKAGES_DOC;
+-  *Documentation:* Packages needed if you are going to build out the
+   Yocto Project documentation manuals::
+
+      $ sudo zypper install make python3-pip which inkscape texlive-fncychap
+      &PIP3_HOST_PACKAGES_DOC;
 
 
-AlmaLinux Packages
-------------------
+AlmaLinux-8 Packages
+--------------------
 
-Here are the packages needed to build an image on a headless system
-with a supported AlmaLinux distribution::
+Here are the required packages by function given a
+supported AlmaLinux-8 Linux distribution:
 
-   $ sudo dnf install &ALMALINUX_HOST_PACKAGES_ESSENTIAL;
+-  *Essentials:* Packages needed to build an image for a headless
+   system::
 
-.. note::
+      $ sudo dnf install &CENTOS8_HOST_PACKAGES_ESSENTIAL;
 
-   -  Extra Packages for Enterprise Linux (i.e. ``epel-release``) is
-      a collection of packages from Fedora built on RHEL/CentOS for
-      easy installation of packages not included in enterprise Linux
-      by default. You need to install these packages separately.
+   .. note::
 
-   -  The ``PowerTools/CRB`` repo provides additional packages such as
-      ``rpcgen`` and ``texinfo``.
+      -  Extra Packages for Enterprise Linux (i.e. ``epel-release``) is
+         a collection of packages from Fedora built on RHEL/CentOS for
+         easy installation of packages not included in enterprise Linux
+         by default. You need to install these packages separately.
 
-   -  The ``makecache`` command consumes additional Metadata from
-      ``epel-release``.
+      -  The ``PowerTools`` repo provides additional packages such as
+         ``rpcgen`` and ``texinfo``.
 
-Here are the packages needed to build Project documentation manuals::
+      -  The ``makecache`` command consumes additional Metadata from
+         ``epel-release``.
 
-   $ sudo dnf install git make python3-pip which inkscape texlive-fncychap
-   &PIP3_HOST_PACKAGES_DOC;
+-  *Documentation:* Packages needed if you are going to build out the
+   Yocto Project documentation manuals::
 
-.. _system-requirements-buildtools:
+      $ sudo dnf install make python3-pip which inkscape texlive-fncychap
+      &PIP3_HOST_PACKAGES_DOC;
 
 Required Git, tar, Python, make and gcc Versions
 ================================================
@@ -237,9 +206,9 @@ the following version requirements for Git, tar, and Python:
 -  GNU make &MIN_MAKE_VERSION; or greater
 
 If your host development system does not meet all these requirements,
-you can resolve this by installing a :term:`buildtools` tarball that
-contains these tools. You can either download a pre-built tarball or
-use BitBake to build one.
+you can resolve this by installing a ``buildtools`` tarball that
+contains these tools. You can get the tarball one of two ways: download
+a pre-built tarball or use BitBake to build the tarball.
 
 In addition, your host development system must meet the following
 version requirement for gcc:
@@ -247,26 +216,26 @@ version requirement for gcc:
 -  gcc &MIN_GCC_VERSION; or greater
 
 If your host development system does not meet this requirement, you can
-resolve this by installing a :term:`buildtools-extended` tarball that
+resolve this by installing a ``buildtools-extended`` tarball that
 contains additional tools, the equivalent of the Debian/Ubuntu ``build-essential``
 package.
 
 For systems with a broken make version (e.g. make 4.2.1 without patches) but
-where the rest of the host tools are usable, you can use the :term:`buildtools-make`
+where the rest of the host tools are usable, you can use the ``buildtools-make``
 tarball instead.
 
 In the sections that follow, three different methods will be described for
-installing the :term:`buildtools`, :term:`buildtools-extended` or :term:`buildtools-make`
+installing the ``buildtools``, ``buildtools-extended`` or ``buildtools-make``
 toolset.
 
 Installing a Pre-Built ``buildtools`` Tarball with ``install-buildtools`` script
 --------------------------------------------------------------------------------
 
 The ``install-buildtools`` script is the easiest of the three methods by
-which you can get these tools. It downloads a pre-built :term:`buildtools`
+which you can get these tools. It downloads a pre-built buildtools
 installer and automatically installs the tools for you:
 
-#. Execute the ``install-buildtools`` script. Here is an example::
+1. Execute the ``install-buildtools`` script. Here is an example::
 
       $ cd poky
       $ scripts/install-buildtools \
@@ -275,7 +244,7 @@ installer and automatically installs the tools for you:
         --release yocto-&DISTRO; \
         --installer-version &DISTRO;
 
-   During execution, the :term:`buildtools` tarball will be downloaded, the
+   During execution, the buildtools tarball will be downloaded, the
    checksum of the download will be verified, the installer will be run
    for you, and some basic checks will be run to make sure the
    installation is functional.
@@ -286,7 +255,7 @@ installer and automatically installs the tools for you:
       /path/to/poky/buildtools
 
    If your host development system needs the additional tools provided
-   in the :term:`buildtools-extended` tarball, you can instead execute the
+   in the ``buildtools-extended`` tarball, you can instead execute the
    ``install-buildtools`` script with the default parameters::
 
       $ cd poky
@@ -294,21 +263,24 @@ installer and automatically installs the tools for you:
 
    Alternatively if your host development system has a broken ``make``
    version such that you only need a known good version of ``make``,
-   you can use the ``--make-only`` option::
+   you can use the ``--make-only`` option:
 
       $ cd poky
       $ scripts/install-buildtools --make-only
 
-#. Source the tools environment setup script by using a command like the
+2. Source the tools environment setup script by using a command like the
    following::
 
       $ source /path/to/poky/buildtools/environment-setup-x86_64-pokysdk-linux
+
+   Of course, you need to supply your installation directory and be sure to
+   use the right file (i.e. i586 or x86_64).
 
    After you have sourced the setup script, the tools are added to
    ``PATH`` and any other environment variables required to run the
    tools are initialized. The results are working versions versions of
    Git, tar, Python and ``chrpath``. And in the case of the
-   :term:`buildtools-extended` tarball, additional working versions of tools
+   ``buildtools-extended`` tarball, additional working versions of tools
    including ``gcc``, ``make`` and the other tools included in
    ``packagegroup-core-buildessential``.
 
@@ -316,14 +288,12 @@ Downloading a Pre-Built ``buildtools`` Tarball
 ----------------------------------------------
 
 If you would prefer not to use the ``install-buildtools`` script, you can instead
-download and run a pre-built :term:`buildtools` installer yourself with the following
+download and run a pre-built buildtools installer yourself with the following
 steps:
 
-#. Go to :yocto_dl:`/releases/yocto/yocto-&DISTRO;/buildtools/`, locate and
-   download the ``.sh`` file corresponding to your host architecture
-   and to :term:`buildtools`, :term:`buildtools-extended` or :term:`buildtools-make`.
+1. Locate and download the ``*.sh`` at :yocto_dl:`/releases/yocto/yocto-&DISTRO;/buildtools/`
 
-#. Execute the installation script. Here is an example for the
+2. Execute the installation script. Here is an example for the
    traditional installer::
 
       $ sh ~/Downloads/x86_64-buildtools-nativesdk-standalone-&DISTRO;.sh
@@ -340,40 +310,44 @@ steps:
    installation directory. For example, you could choose the following:
    ``/home/your-username/buildtools``
 
-#. As instructed by the installer script, you will have to source the tools
-   environment setup script::
+3. Source the tools environment setup script by using a command like the
+   following::
 
-      $ source /home/your_username/buildtools/environment-setup-x86_64-pokysdk-linux
+      $ source /home/your_username/buildtools/environment-setup-i586-poky-linux
+
+   Of
+   course, you need to supply your installation directory and be sure to
+   use the right file (i.e. i585 or x86-64).
 
    After you have sourced the setup script, the tools are added to
    ``PATH`` and any other environment variables required to run the
    tools are initialized. The results are working versions versions of
    Git, tar, Python and ``chrpath``. And in the case of the
-   :term:`buildtools-extended` tarball, additional working versions of tools
+   ``buildtools-extended`` tarball, additional working versions of tools
    including ``gcc``, ``make`` and the other tools included in
    ``packagegroup-core-buildessential``.
 
 Building Your Own ``buildtools`` Tarball
 ----------------------------------------
 
-Building and running your own :term:`buildtools` installer applies only when you
+Building and running your own buildtools installer applies only when you
 have a build host that can already run BitBake. In this case, you use
 that machine to build the ``.sh`` file and then take steps to transfer
 and run it on a machine that does not meet the minimal Git, tar, and
 Python (or gcc) requirements.
 
-Here are the steps to take to build and run your own :term:`buildtools`
+Here are the steps to take to build and run your own buildtools
 installer:
 
-#. On the machine that is able to run BitBake, be sure you have set up
+1. On the machine that is able to run BitBake, be sure you have set up
    your build environment with the setup script
    (:ref:`structure-core-script`).
 
-#. Run the BitBake command to build the tarball::
+2. Run the BitBake command to build the tarball::
 
       $ bitbake buildtools-tarball
 
-   or to build the extended tarball::
+   or run the BitBake command to build the extended tarball::
 
       $ bitbake buildtools-extended-tarball
 
@@ -389,21 +363,22 @@ installer:
    Once the build completes, you can find the ``.sh`` file that installs
    the tools in the ``tmp/deploy/sdk`` subdirectory of the
    :term:`Build Directory`. The installer file has the string
-   "buildtools" or "buildtools-extended" in the name.
+   "buildtools" (or "buildtools-extended") in the name.
 
-#. Transfer the ``.sh`` file from the build host to the machine that
+3. Transfer the ``.sh`` file from the build host to the machine that
    does not meet the Git, tar, or Python (or gcc) requirements.
 
-#. On this machine, run the ``.sh`` file to install the tools. Here is an
-   example for the traditional installer::
+4. On the machine that does not meet the requirements, run the ``.sh``
+   file to install the tools. Here is an example for the traditional
+   installer::
 
       $ sh ~/Downloads/x86_64-buildtools-nativesdk-standalone-&DISTRO;.sh
 
-   For the extended installer::
+   Here is an example for the extended installer::
 
       $ sh ~/Downloads/x86_64-buildtools-extended-nativesdk-standalone-&DISTRO;.sh
 
-   And for the make-only installer::
+   or for the make-only installer::
 
       $ sh ~/Downloads/x86_64-buildtools-make-nativesdk-standalone-&DISTRO;.sh
 
@@ -411,15 +386,18 @@ installer:
    installation directory. For example, you could choose the following:
    ``/home/your_username/buildtools``
 
-#. Source the tools environment setup script by using a command like the
+5. Source the tools environment setup script by using a command like the
    following::
 
       $ source /home/your_username/buildtools/environment-setup-x86_64-poky-linux
+
+   Of course, you need to supply your installation directory and be sure to
+   use the right file (i.e. i586 or x86_64).
 
    After you have sourced the setup script, the tools are added to
    ``PATH`` and any other environment variables required to run the
    tools are initialized. The results are working versions versions of
    Git, tar, Python and ``chrpath``. And in the case of the
-   :term:`buildtools-extended` tarball, additional working versions of tools
+   ``buildtools-extended`` tarball, additional working versions of tools
    including ``gcc``, ``make`` and the other tools included in
    ``packagegroup-core-buildessential``.

@@ -1,0 +1,22 @@
+From e646c5d18e35782362ab1093506d9abe39e010cf Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 16 Nov 2022 14:41:48 +0000
+Subject: [PATCH] Be more verbose in case of size error
+
+---
+ socsec/socsec.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/socsec/socsec.py b/socsec/socsec.py
+index 776f4a8e..62066a53 100755
+--- a/socsec/socsec.py
++++ b/socsec/socsec.py
+@@ -1021,7 +1021,7 @@ class Sec(object):
+                 bl1_max_len = 64 * 1024 - 512
+             if bl1_image_len > bl1_max_len:
+                 raise SecError(
+-                    "The maximum size of BL1 image is {} bytes.".format(bl1_max_len))
++                    "The size of BL1 image {} is greater than maximum {} bytes.".format(bl1_image_len, bl1_max_len))
+             if soc_version == '2605' and flash_patch_offset == None:
+                 flash_patch_offset = 0x50
+             else:

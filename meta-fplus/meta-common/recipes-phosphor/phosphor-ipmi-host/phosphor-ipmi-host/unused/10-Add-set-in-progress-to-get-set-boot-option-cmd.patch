@@ -1,0 +1,124 @@
+From 91e334e96dbba9f32eba1480aebf84bd74defa0e Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 11 Aug 2020 14:28:43 +0000
+Subject: [PATCH 1/1] Add set-in-progress to get-set boot option cmd
+
+---
+ chassishandler.cpp | 28 +++++++++++++++++++++++++++-
+ chassishandler.hpp |  3 +++
+ storagehandler.cpp |  4 ++--
+ 3 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/chassishandler.cpp b/chassishandler.cpp
+index 4a07fac..a948bd9 100644
+--- a/chassishandler.cpp
++++ b/chassishandler.cpp
+@@ -1492,6 +1492,10 @@ static ipmi_ret_t setBootMode(const Mode::Modes& mode)
+     return IPMI_CC_OK;
+ }
+ 
++static constexpr uint8_t setComplete = 0x0;
++static constexpr uint8_t setInProgress = 0x1;
++static uint8_t transferStatus = setComplete;
++
+ ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+                                              ipmi_request_t request,
+                                              ipmi_response_t response,
+@@ -1506,6 +1510,17 @@ ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+     get_sys_boot_options_t* reqptr = (get_sys_boot_options_t*)request;
+     IpmiValue bootOption = ipmiDefault;
+ 
++    if (reqptr->parameter ==
++        static_cast<uint8_t>(BootOptionParameter::SET_IN_PROGRESS))
++    {
++        *data_len =
++            static_cast<uint8_t>(BootOptionResponseSize::SET_IN_PROGRESS);
++        resp->version = SET_PARM_VERSION;
++        resp->parm = static_cast<uint8_t>(BootOptionParameter::SET_IN_PROGRESS);
++        resp->data[0] = transferStatus;
++        return IPMI_CC_OK;
++    }
++
+     std::memset(resp, 0, sizeof(*resp));
+     resp->version = SET_PARM_VERSION;
+     resp->parm = 5;
+@@ -1648,6 +1663,18 @@ ipmi_ret_t ipmi_chassis_set_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+     // This IPMI command does not have any resposne data
+     *data_len = 0;
+ 
++    if (reqptr->parameter ==
++        static_cast<uint8_t>(BootOptionParameter::SET_IN_PROGRESS))
++    {
++        if ((transferStatus == setInProgress) &&
++            (reqptr->data[0] != setComplete))
++        {
++            return IPMI_CC_FAIL_SET_IN_PROGRESS;
++        }
++        transferStatus = reqptr->data[0];
++        return IPMI_CC_OK;
++    }
++
+     /*  000101
+      * Parameter #5 means boot flags. Please refer to 28.13 of ipmi doc.
+      * This is the only parameter used by petitboot.
+@@ -1767,7 +1794,6 @@ ipmi_ret_t ipmi_chassis_set_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+         // flags.
+ 
+         rc = IPMI_CC_OK;
+-        
+         log<level::ERR>("Requested parameter",
+                         entry("PARAM=0x%x", reqptr->parameter));
+     }
+diff --git a/chassishandler.hpp b/chassishandler.hpp
+index dcaf06c..353a929 100644
+--- a/chassishandler.hpp
++++ b/chassishandler.hpp
+@@ -25,6 +25,7 @@ enum ipmi_chassis_return_codes
+ {
+     IPMI_OK = 0x0,
+     IPMI_CC_PARM_NOT_SUPPORTED = 0x80,
++    IPMI_CC_FAIL_SET_IN_PROGRESS = 0x81,
+ };
+ 
+ // Generic completion codes,
+@@ -46,6 +47,7 @@ enum ipmi_chassis_control_cmds : uint8_t
+ };
+ enum class BootOptionParameter : size_t
+ {
++    SET_IN_PROGRESS = 0x0,
+     BOOT_INFO = 0x4,
+     BOOT_FLAGS = 0x5,
+     OPAL_NETWORK_SETTINGS = 0x61
+@@ -53,6 +55,7 @@ enum class BootOptionParameter : size_t
+ 
+ enum class BootOptionResponseSize : size_t
+ {
++    SET_IN_PROGRESS = 3,
+     BOOT_FLAGS = 5,
+     OPAL_NETWORK_SETTINGS = 50
+ };
+diff --git a/storagehandler.cpp b/storagehandler.cpp
+index 484892e..03b82a0 100644
+--- a/storagehandler.cpp
++++ b/storagehandler.cpp
+@@ -534,7 +534,7 @@ ipmi::RspType<> ipmiStorageSetSelTime(uint32_t selDeviceTime)
+ {
+     using namespace std::chrono;
+     microseconds usec{seconds(selDeviceTime)};
+-    
++
+     char command[100];
+ 
+     std::stringstream cmd_on;
+@@ -584,7 +584,7 @@ ipmi::RspType<> ipmiStorageSetSelTime(uint32_t selDeviceTime)
+         log<level::ERR>(e.what());
+         return ipmi::responseUnspecifiedError();
+     }
+-    
++
+     cmd_off << "timedatectl set-ntp 1";
+     cmd_str = cmd_off.str();
+     memset(command,0,sizeof(command));
+-- 
+2.7.4
+

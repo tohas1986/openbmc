@@ -43,8 +43,10 @@ RDEPENDS:${PN}-flash = " \
 
 SUMMARY:${PN}-system = "Inventec System"
 RDEPENDS:${PN}-system = " \
+        bmcweb \
         entity-manager \
         dbus-sensors \
+        webui-vue \
         phosphor-snmp \
         phosphor-sel-logger \
         phosphor-gpio-monitor \

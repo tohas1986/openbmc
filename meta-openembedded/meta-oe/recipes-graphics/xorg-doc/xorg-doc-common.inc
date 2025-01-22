@@ -3,11 +3,10 @@ HOMEPAGE = "http://www.x.org"
 SECTION = "x11/docs"
 LICENSE = "MIT"
 
-DEPENDS = "util-macros-native"
+SRC_URI = "${XORG_MIRROR}/individual/doc/${BPN}-${PV}.tar.bz2"
 
-SRC_URI_EXT = "bz2"
-SRC_URI = "${XORG_MIRROR}/individual/doc/${BPN}-${PV}.tar.${SRC_URI_EXT}"
+S = "${WORKDIR}/${BPN}-${PV}"
+
+INC_PR = "r1"
 
 inherit autotools pkgconfig
-
-

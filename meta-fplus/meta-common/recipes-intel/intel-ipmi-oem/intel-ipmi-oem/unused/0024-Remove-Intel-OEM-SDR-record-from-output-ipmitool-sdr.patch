@@ -1,0 +1,47 @@
+From 0dda70fd84d200a404868d880228bf01d3a5b653 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Tue, 22 Sep 2020 11:39:02 +0000
+Subject: [PATCH] Remove Intel OEM SDR record from output (ipmitool sdr)
+
+
+---
+ src/sensorcommands.cpp | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/sensorcommands.cpp b/src/sensorcommands.cpp
+index d24788a..a2b5f17 100644
+--- a/src/sensorcommands.cpp
++++ b/src/sensorcommands.cpp
+@@ -1167,8 +1167,10 @@ ipmi::RspType<uint16_t,            // next record ID
+     }
+ 
+     size_t lastRecord = sensorTree.size() + fruCount +
+-                        ipmi::storage::type12Count +
+-                        ipmi::storage::nmDiscoverySDRCount - 1;
++                        ipmi::storage::type12Count - 1;
++                        // Probably something is wrong with it if NM is not running
++                        // Thus remove this OEM SDR record from output
++                        // + ipmi::storage::nmDiscoverySDRCount;
+     if (recordID == lastRecordIndex)
+     {
+         recordID = lastRecord;
+@@ -1185,7 +1187,7 @@ ipmi::RspType<uint16_t,            // next record ID
+         std::vector<uint8_t> recordData;
+         size_t fruIndex = recordID - sensorTree.size();
+         size_t type12End = fruCount + ipmi::storage::type12Count;
+-
++/*
+         if (fruIndex >= type12End)
+         {
+             // NM discovery SDR
+@@ -1205,7 +1207,9 @@ ipmi::RspType<uint16_t,            // next record ID
+             recordData.insert(recordData.end(), record.begin() + offset,
+                               record.begin() + offset + bytesToRead);
+         }
+-        else if (fruIndex >= fruCount)
++        else
++*/
++        if (fruIndex >= fruCount)
+         {
+             // handle type 12 hardcoded records
+             size_t type12Index = fruIndex - fruCount;

@@ -1,0 +1,21 @@
+From f782bff61f11ee4365c39461a7bf526ea2bf56c1 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 18 May 2021 06:52:23 +0000
+Subject: [PATCH] Set StartLimitBurst
+
+---
+ phosphor-ipmi-net@.service | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/phosphor-ipmi-net@.service b/phosphor-ipmi-net@.service
+index 0f944ab..e313e2d 100644
+--- a/phosphor-ipmi-net@.service
++++ b/phosphor-ipmi-net@.service
+@@ -12,6 +12,7 @@ Restart=always
+ RuntimeDirectory = ipmi
+ RuntimeDirectoryPreserve = yes
+ StateDirectory = ipmi
++StartLimitBurst=9999999
+ 
+ [Install]
+ DefaultInstance=eth0

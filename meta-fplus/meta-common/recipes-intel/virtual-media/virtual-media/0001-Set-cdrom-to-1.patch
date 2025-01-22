@@ -1,0 +1,25 @@
+From 23b02e27a1233f97b5e5e806be05ce9085d4dc3d Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 13 Aug 2020 07:05:56 +0000
+Subject: [PATCH 1/1] Set cdrom to 1
+
+---
+ virtual-media/src/system.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/system.hpp b/src/system.hpp
+index 500630f..74f9b1f 100644
+--- a/src/system.hpp
++++ b/src/system.hpp
+@@ -535,7 +535,7 @@ struct UsbGadget
+                                              massStorageDir);
+                 echoToFile(funcMassStorageDir / "lun.0/removable", "1");
+                 echoToFile(funcMassStorageDir / "lun.0/ro", rw ? "0" : "1");
+-                echoToFile(funcMassStorageDir / "lun.0/cdrom", "0");
++                echoToFile(funcMassStorageDir / "lun.0/cdrom", "1");
+                 echoToFile(funcMassStorageDir / "lun.0/file", path);
+ 
+                 for (const auto& port : fs::directory_iterator(
+-- 
+2.7.4
+

@@ -1,0 +1,30 @@
+From 8c086253ad80de465ded65c90f8e1ca78a249239 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Mon, 24 May 2021 09:06:23 +0000
+Subject: [PATCH] Change multi gpio service options
+
+---
+ phosphor-multi-gpio-monitor.service | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/phosphor-multi-gpio-monitor.service b/phosphor-multi-gpio-monitor.service
+index 619f2da..f7fde4f 100644
+--- a/phosphor-multi-gpio-monitor.service
++++ b/phosphor-multi-gpio-monitor.service
+@@ -2,5 +2,12 @@
+ Description=Phosphor Multi GPIO monitor
+ 
+ [Service]
+-Restart=no
++Type=simple
++Restart=always
++RestartSec=5
++StartLimitInterval=0
+ ExecStart=/usr/bin/phosphor-multi-gpio-monitor --config /usr/share/phosphor-gpio-monitor/phosphor-multi-gpio-monitor.json
++SyslogIdentifier=phosphor-multi-gpio-monitor
++
++[Install]
++WantedBy=multi-user.target
+-- 
+2.7.4
+

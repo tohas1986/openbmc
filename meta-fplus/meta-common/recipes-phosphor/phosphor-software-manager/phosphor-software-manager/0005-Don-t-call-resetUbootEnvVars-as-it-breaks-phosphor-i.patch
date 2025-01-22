@@ -1,0 +1,23 @@
+From 6cd6be98592e90b72df8886a4b61454a5ba83ba7 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 17 Feb 2022 14:44:33 +0000
+Subject: [PATCH] Don't call resetUbootEnvVars as it breaks
+ phosphor-image-updater
+
+---
+ item_updater.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/item_updater.cpp b/item_updater.cpp
+index e226897..aca588e 100644
+--- a/item_updater.cpp
++++ b/item_updater.cpp
+@@ -413,7 +413,7 @@ void ItemUpdater::erase(std::string entryId)
+         iteratorActivations->second->deleteImageManagerObject();
+         this->activations.erase(entryId);
+     }
+-    ItemUpdater::resetUbootEnvVars();
++    //ItemUpdater::resetUbootEnvVars();
+ 
+     if (it != versions.end())
+     {

@@ -1,0 +1,892 @@
+From fc4b246eb5d3024e13ea8094fcd81f9a312418be Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 21 Apr 2020 10:06:04 +0300
+Subject: [PATCH 1/1] Logging
+
+---
+ ipmid-new.cpp                 |  49 +++++++++++-
+ user_channel/channel_mgmt.cpp | 176 +++++++++++++++++++++++-------------------
+ 2 files changed, 144 insertions(+), 81 deletions(-)
+
+diff --git a/ipmid-new.cpp b/ipmid-new.cpp
+index abd0a10..2cc85e4 100644
+--- a/ipmid-new.cpp
++++ b/ipmid-new.cpp
+@@ -134,24 +134,31 @@ namespace impl
+ bool registerHandler(int prio, NetFn netFn, Cmd cmd, Privilege priv,
+                      HandlerBase::ptr handler)
+ {
++
++    std::cerr << "registerHandler Netfn=0x" << std::hex << std::setfill('0') << std::setw(2) << +netFn
++        << " Cmd=0x" << std::hex << std::setfill('0') << std::setw(2) << +cmd << std::endl;
+     // check for valid NetFn: even; 00-0Ch, 30-3Eh
+     if (netFn & 1 || (netFn > netFnTransport && netFn < netFnGroup) ||
+         netFn > netFnOemEight)
+     {
++        std::cerr << "registerHandler: Fail" << std::endl;
+         return false;
+     }
+ 
+     // create key and value for this handler
+     unsigned int netFnCmd = makeCmdKey(netFn, cmd);
++    std::cerr << "registerHandler calculated netFnCmd=0x" << std::hex << std::setfill('0') << std::setw(2) << +netFnCmd << std::endl;
+     HandlerTuple item(prio, priv, handler);
+ 
+     // consult the handler map and look for a match
+     auto& mapCmd = handlerMap[netFnCmd];
+     if (!std::get<HandlerBase::ptr>(mapCmd) || std::get<int>(mapCmd) <= prio)
+     {
++        std::cerr << "registerHandler registered" << std::endl;
+         mapCmd = item;
+         return true;
+     }
++    std::cerr << "registerHandler not registered" << std::endl;
+     return false;
+ }
+ 
+@@ -159,6 +166,10 @@ bool registerHandler(int prio, NetFn netFn, Cmd cmd, Privilege priv,
+ bool registerGroupHandler(int prio, Group group, Cmd cmd, Privilege priv,
+                           HandlerBase::ptr handler)
+ {
++    std::cerr << "registerGroupHandler Group=0x" << std::hex << std::setfill('0') << std::setw(2) << +group
++        << " Cmd=0x" << std::hex << std::setfill('0') << std::setw(2) << +cmd << std::endl;
++
++    // check for valid NetFn: even; 00-0Ch, 30-3Eh
+     // create key and value for this handler
+     unsigned int netFnCmd = makeCmdKey(group, cmd);
+     HandlerTuple item(prio, priv, handler);
+@@ -177,17 +188,23 @@ bool registerGroupHandler(int prio, Group group, Cmd cmd, Privilege priv,
+ bool registerOemHandler(int prio, Iana iana, Cmd cmd, Privilege priv,
+                         HandlerBase::ptr handler)
+ {
++    std::cerr << "registerOemHandler iana=0x" << std::hex << std::setfill('0') << std::setw(2) << +iana
++        << " Cmd=0x" << std::hex << std::setfill('0') << std::setw(2) << +cmd << std::endl;
++
+     // create key and value for this handler
+     unsigned int netFnCmd = makeCmdKey(iana, cmd);
++    std::cerr << "registerOemHandler: Calculated netFnCmd=" << std::hex << std::setfill('0') << std::setw(2) << +netFnCmd << std::endl;
+     HandlerTuple item(prio, priv, handler);
+ 
+     // consult the handler map and look for a match
+     auto& mapCmd = oemHandlerMap[netFnCmd];
+     if (!std::get<HandlerBase::ptr>(mapCmd) || std::get<int>(mapCmd) <= prio)
+     {
++        std::cerr << "registerOemHandler registered" << std::endl;
+         mapCmd = item;
+         return true;
+     }
++    std::cerr << "registerOemHandler not registered" << std::endl;
+     return false;
+ }
+ 
+@@ -215,15 +232,18 @@ message::Response::ptr filterIpmiCommand(message::Request::ptr request)
+     // pass the command through the filter mechanism
+     // This can be the firmware firewall or any OEM mechanism like
+     // whitelist filtering based on operational mode
++    std::cerr << "filterIpmiCommand" << std::endl;
+     for (auto& item : filterList)
+     {
+         FilterBase::ptr filter = std::get<FilterBase::ptr>(item);
+         ipmi::Cc cc = filter->call(request);
+         if (ipmi::ccSuccess != cc)
+         {
++            std::cerr << "filterIpmiCommand fail" << std::endl;
+             return errorResponse(request, cc);
+         }
+     }
++    std::cerr << "filterIpmiCommand success" << std::endl;
+     return message::Response::ptr();
+ }
+ 
+@@ -231,51 +251,69 @@ message::Response::ptr executeIpmiCommandCommon(
+     std::unordered_map<unsigned int, HandlerTuple>& handlers,
+     unsigned int keyCommon, message::Request::ptr request)
+ {
++    std::cerr << "executeIpmiCommandCommon keyCommon=0x" << std::hex << std::setfill('0') << std::setw(2) << +keyCommon << std::endl;
++
+     // filter the command first; a non-null message::Response::ptr
+     // means that the message has been rejected for some reason
+     message::Response::ptr filterResponse = filterIpmiCommand(request);
+ 
+     Cmd cmd = request->ctx->cmd;
+     unsigned int key = makeCmdKey(keyCommon, cmd);
++    std::cerr << "executeIpmiCommandCommon key=0x" << std::hex << std::setfill('0') << std::setw(2) << +key <<
++                 " keyCommon=0x" << std::hex << std::setfill('0') << std::setw(2) << +keyCommon <<
++                 " cmd=0x" << std::hex << std::setfill('0') << std::setw(2) << +cmd << std::endl;
++
+     auto cmdIter = handlers.find(key);
+     if (cmdIter != handlers.end())
+     {
++        std::cerr << "executeIpmiCommandCommon cmdIter != handlers.end()" << std::endl;
+         // only return the filter response if the command is found
+         if (filterResponse)
+         {
++            std::cerr << "executeIpmiCommandCommon filterResponse" << std::endl;
+             return filterResponse;
+         }
+         HandlerTuple& chosen = cmdIter->second;
+         if (request->ctx->priv < std::get<Privilege>(chosen))
+         {
++            std::cerr << "executeIpmiCommandCommon wrong priv" << std::endl;
+             return errorResponse(request, ccInsufficientPrivilege);
+         }
++        std::cerr << "executeIpmiCommandCommon Calling" << std::endl;
+         return std::get<HandlerBase::ptr>(chosen)->call(request);
+     }
+     else
+     {
++        std::cerr << "executeIpmiCommandCommon else" << std::endl;
+         unsigned int wildcard = makeCmdKey(keyCommon, cmdWildcard);
++        std::cerr << "executeIpmiCommandCommon wildcard=0x" << std::hex << std::setfill('0') << std::setw(2) << +wildcard << std::endl;
+         cmdIter = handlers.find(wildcard);
+         if (cmdIter != handlers.end())
+         {
++            std::cerr << "executeIpmiCommandCommon cmdIter != handlers.end()" << std::endl;
+             // only return the filter response if the command is found
+             if (filterResponse)
+             {
++                std::cerr << "executeIpmiCommandCommon filterResponse" << std::endl;
+                 return filterResponse;
+             }
+             HandlerTuple& chosen = cmdIter->second;
+             if (request->ctx->priv < std::get<Privilege>(chosen))
+             {
++                std::cerr << "executeIpmiCommandCommon wrong priv" << std::endl;
+                 return errorResponse(request, ccInsufficientPrivilege);
+             }
++            std::cerr << "executeIpmiCommandCommon Calling" << std::endl;
+             return std::get<HandlerBase::ptr>(chosen)->call(request);
+         }
+     }
++    std::cerr << "executeIpmiCommandCommon default exit" << std::endl;
+     return errorResponse(request, ccInvalidCommand);
+ }
+ 
+ message::Response::ptr executeIpmiGroupCommand(message::Request::ptr request)
+ {
++    std::cerr << "executeIpmiGroupCommand" << std::endl;
+     // look up the group for this request
+     uint8_t bytes;
+     if (0 != request->payload.unpack(bytes))
+@@ -293,13 +331,16 @@ message::Response::ptr executeIpmiGroupCommand(message::Request::ptr request)
+ 
+ message::Response::ptr executeIpmiOemCommand(message::Request::ptr request)
+ {
++    std::cerr << "executeIpmiOemCommand" << std::endl;
+     // look up the iana for this request
+     uint24_t bytes;
+     if (0 != request->payload.unpack(bytes))
+     {
++        std::cerr << "executeIpmiOemCommand failed due to length" << std::endl;
+         return errorResponse(request, ccReqDataLenInvalid);
+     }
+     auto iana = static_cast<Iana>(bytes);
++    std::cerr << "executeIpmiOemCommand iana=0x" << std::hex << std::setfill('0') << std::setw(2) << +iana << std::endl;
+     message::Response::ptr response =
+         executeIpmiCommandCommon(oemHandlerMap, iana, request);
+     ipmi::message::Payload prefix;
+@@ -311,6 +352,7 @@ message::Response::ptr executeIpmiOemCommand(message::Request::ptr request)
+ message::Response::ptr executeIpmiCommand(message::Request::ptr request)
+ {
+     NetFn netFn = request->ctx->netFn;
++    std::cerr << "executeIpmiCommand netFn=0x" << std::hex << std::setfill('0') << std::setw(2) << +netFn << std::endl;
+     if (netFnGroup == netFn)
+     {
+         return executeIpmiGroupCommand(request);
+@@ -541,7 +583,7 @@ auto executionEntry(boost::asio::yield_context yield,
+         }
+     }
+     // check to see if the requested priv/username is valid
+-    log<level::DEBUG>("Set up ipmi context", entry("SENDER=%s", sender.c_str()),
++    log<level::INFO>("Set up ipmi context", entry("SENDER=%s", sender.c_str()),
+                       entry("NETFN=0x%X", netFn), entry("CMD=0x%X", cmd),
+                       entry("CHANNEL=%u", channel), entry("USERID=%u", userId),
+                       entry("SESSIONID=0x%X", sessionId),
+@@ -580,7 +622,7 @@ struct IpmiProvider
+      */
+     explicit IpmiProvider(const char* fname) : addr(nullptr), name(fname)
+     {
+-        log<level::DEBUG>("Open IPMI provider library",
++        log<level::INFO>("Open IPMI provider library",
+                           entry("PROVIDER=%s", name.c_str()));
+         try
+         {
+@@ -735,6 +777,9 @@ class LegacyRouter : public oem::Router
+ 
+     void registerHandler(Number oen, ipmi_cmd_t cmd, Handler handler) override
+     {
++        std::cerr << "LegacyRouter::registerHandler oen=0x" << std::hex << std::setfill('0') << std::setw(2) << +oen
++            << " Cmd=0x" << std::hex << std::setfill('0') << std::setw(2) << +cmd << std::endl;
++
+         auto h = ipmi::makeLegacyHandler(std::forward<Handler>(handler));
+         ipmi::impl::registerOemHandler(ipmi::prioOpenBmcBase, oen, cmd,
+                                        ipmi::Privilege::Admin, h);
+diff --git a/user_channel/channel_mgmt.cpp b/user_channel/channel_mgmt.cpp
+index 759de43..dc4ad4c 100644
+--- a/user_channel/channel_mgmt.cpp
++++ b/user_channel/channel_mgmt.cpp
+@@ -84,8 +84,8 @@ static constexpr const uint8_t defaultProtocolType =
+ static constexpr const uint8_t defaultSessionSupported =
+     static_cast<uint8_t>(EChannelSessSupported::none);
+ static constexpr const uint8_t defaultAuthType =
+-    static_cast<uint8_t>(EAuthType::none);
+-static constexpr const bool defaultIsIpmiState = false;
++    static_cast<uint8_t>(EAuthType::none);
++static constexpr const bool defaultIsIpmiState = false;
+ static constexpr size_t smallChannelSize = 64;
+ 
+ std::unique_ptr<sdbusplus::bus::match_t> chPropertiesSignal
+@@ -141,7 +141,8 @@ std::string ChannelConfig::getChannelName(const uint8_t chNum)
+ {
+     if (!isValidChannel(chNum))
+     {
+-        log<level::ERR>("Invalid channel number.",
++        std::string msg = "getChannelName: Invalid channel number:" + std::to_string(chNum);
++        log<level::ERR>(msg.c_str(),
+                         entry("CHANNEL_ID=%d", chNum));
+         throw std::invalid_argument("Invalid channel number");
+     }
+@@ -159,7 +160,8 @@ int ChannelConfig::convertToChannelNumberFromChannelName(
+             return it.chID;
+         }
+     }
+-    log<level::ERR>("Invalid channel name.",
++    std::string msg = "convertToChannelNumberFromChannelName: Invalid channel name:" + chName;
++    log<level::ERR>(msg.c_str(),
+                     entry("CHANNEL=%s", chName.c_str()));
+     throw std::invalid_argument("Invalid channel name");
+ 
+@@ -173,7 +175,8 @@ std::string ChannelConfig::getChannelNameFromPath(const std::string& path)
+     if (((length + 1) >= path.size()) ||
+         path.compare(0, length, networkIntfObjectBasePath))
+     {
+-        log<level::ERR>("Invalid object path.", entry("PATH=%s", path.c_str()));
++        std::string msg = "Invalid object path: " + path;
++        log<level::ERR>(msg.c_str(), entry("PATH=%s", path.c_str()));
+         throw std::invalid_argument("Invalid object path");
+     }
+     std::string chName(path, length + 1);
+@@ -216,7 +219,8 @@ void ChannelConfig::processChAccessPropChange(
+ 
+     if (intfPrivStr.empty())
+     {
+-        log<level::ERR>("Invalid privilege string.",
++        std::string msg = "Invalid privilege string: " + chName;
++        log<level::ERR>(msg.c_str(),
+                         entry("INTF=%s", chName.c_str()));
+         return;
+     }
+@@ -240,7 +244,7 @@ void ChannelConfig::processChAccessPropChange(
+     if (signalFlag & (1 << chNum))
+     {
+         signalFlag &= ~(1 << chNum);
+-        log<level::DEBUG>("Request originated from IPMI so ignoring signal");
++        log<level::ERR>("Request originated from IPMI so ignoring signal");
+         return;
+     }
+ 
+@@ -296,7 +300,7 @@ ChannelConfig::ChannelConfig() : bus(ipmid_get_sd_bus_connection())
+                           std::ofstream::out | std::ofstream::app);
+     if (!mutexCleanUpFile.good())
+     {
+-        log<level::DEBUG>("Unable to open mutex cleanup file");
++        log<level::ERR>("Unable to open mutex cleanup file");
+         return;
+     }
+     mutexCleanUpFile.close();
+@@ -325,7 +329,7 @@ ChannelConfig::ChannelConfig() : bus(ipmid_get_sd_bus_connection())
+     // host-ipmid
+     if (chPropertiesSignal == nullptr && sigHndlrLock.try_lock())
+     {
+-        log<level::DEBUG>("Registering channel signal handler.");
++        log<level::INFO>("Registering channel signal handler.");
+         chPropertiesSignal = std::make_unique<sdbusplus::bus::match_t>(
+             bus,
+             sdbusplus::bus::match::rules::path_namespace(
+@@ -350,13 +354,13 @@ bool ChannelConfig::isValidChannel(const uint8_t chNum)
+ {
+     if (chNum > maxIpmiChannels)
+     {
+-        log<level::DEBUG>("Invalid channel ID - Out of range");
++        log<level::ERR>("isValidChannel: Invalid channel ID - Out of range");
+         return false;
+     }
+ 
+     if (channelData[chNum].isChValid == false)
+     {
+-        log<level::DEBUG>("Channel is not valid");
++        log<level::ERR>("isValidChannel: Channel is not valid");
+     }
+ 
+     return channelData[chNum].isChValid;
+@@ -375,14 +379,14 @@ bool ChannelConfig::isValidAuthType(const uint8_t chNum,
+ {
+     if ((authType < EAuthType::md2) || (authType > EAuthType::oem))
+     {
+-        log<level::DEBUG>("Invalid authentication type");
++        log<level::ERR>("isValidAuthType: Invalid authentication type");
+         return false;
+     }
+ 
+     uint8_t authTypeSupported = channelData[chNum].chInfo.authTypeSupported;
+     if (!(authTypeSupported & (1 << static_cast<uint8_t>(authType))))
+     {
+-        log<level::DEBUG>("Authentication type is not supported.");
++        log<level::ERR>("isValidAuthType: Authentication type is not supported.");
+         return false;
+     }
+ 
+@@ -409,7 +413,7 @@ ipmi_ret_t ChannelConfig::getChannelInfo(const uint8_t chNum,
+ {
+     if (!isValidChannel(chNum))
+     {
+-        log<level::DEBUG>("Invalid channel");
++        log<level::ERR>("getChannelInfo: Invalid channel");
+         return IPMI_CC_INVALID_FIELD_REQUEST;
+     }
+ 
+@@ -425,13 +429,13 @@ ipmi_ret_t ChannelConfig::getChannelAccessData(const uint8_t chNum,
+ {
+     if (!isValidChannel(chNum))
+     {
+-        log<level::DEBUG>("Invalid channel");
++        log<level::ERR>("getChannelAccessData: Invalid channel");
+         return IPMI_CC_INVALID_FIELD_REQUEST;
+     }
+ 
+     if (getChannelSessionSupport(chNum) == EChannelSessSupported::none)
+     {
+-        log<level::DEBUG>("Session-less channel doesn't have access data.");
++        log<level::ERR>("getChannelAccessData: Session-less channel doesn't have access data.");
+         return IPMI_CC_ACTION_NOT_SUPPORTED_FOR_CHANNEL;
+     }
+ 
+@@ -455,13 +459,13 @@ ipmi_ret_t
+ {
+     if (!isValidChannel(chNum))
+     {
+-        log<level::DEBUG>("Invalid channel");
++        log<level::ERR>("setChannelAccessData: Invalid channel");
+         return IPMI_CC_INVALID_FIELD_REQUEST;
+     }
+ 
+     if (getChannelSessionSupport(chNum) == EChannelSessSupported::none)
+     {
+-        log<level::DEBUG>("Session-less channel doesn't have access data.");
++        log<level::ERR>("setChannelAccessData: Session-less channel doesn't have access data.");
+         return IPMI_CC_ACTION_NOT_SUPPORTED_FOR_CHANNEL;
+     }
+ 
+@@ -470,7 +474,7 @@ ipmi_ret_t
+         ((setFlag & setPrivLimit) &&
+          (!isValidPrivLimit(chAccessData.privLimit))))
+     {
+-        log<level::DEBUG>("Invalid access mode / privilege limit specified");
++        log<level::ERR>("setChannelAccessData: Invalid access mode / privilege limit specified");
+         return IPMI_CC_INVALID_FIELD_REQUEST;
+     }
+ 
+@@ -511,7 +515,7 @@ ipmi_ret_t
+     // Write Volatile data to file
+     if (writeChannelVolatileData() != 0)
+     {
+-        log<level::DEBUG>("Failed to update the channel volatile data");
++        log<level::ERR>("setChannelAccessData: Failed to update the channel volatile data");
+         return IPMI_CC_UNSPECIFIED_ERROR;
+     }
+     return IPMI_CC_OK;
+@@ -523,13 +527,13 @@ ipmi_ret_t
+ {
+     if (!isValidChannel(chNum))
+     {
+-        log<level::DEBUG>("Invalid channel");
++        log<level::ERR>("getChannelAccessPersistData: Invalid channel");
+         return IPMI_CC_INVALID_FIELD_REQUEST;
+     }
+ 
+     if (getChannelSessionSupport(chNum) == EChannelSessSupported::none)
+     {
+-        log<level::DEBUG>("Session-less channel doesn't have access data.");
++        log<level::ERR>("getChannelAccessPersistData: Session-less channel doesn't have access data.");
+         return IPMI_CC_ACTION_NOT_SUPPORTED_FOR_CHANNEL;
+     }
+ 
+@@ -552,13 +556,13 @@ ipmi_ret_t ChannelConfig::setChannelAccessPersistData(
+ {
+     if (!isValidChannel(chNum))
+     {
+-        log<level::DEBUG>("Invalid channel");
++        log<level::ERR>("setChannelAccessPersistData: Invalid channel");
+         return IPMI_CC_INVALID_FIELD_REQUEST;
+     }
+ 
+     if (getChannelSessionSupport(chNum) == EChannelSessSupported::none)
+     {
+-        log<level::DEBUG>("Session-less channel doesn't have access data.");
++        log<level::ERR>("setChannelAccessPersistData: Session-less channel doesn't have access data.");
+         return IPMI_CC_ACTION_NOT_SUPPORTED_FOR_CHANNEL;
+     }
+ 
+@@ -567,7 +571,7 @@ ipmi_ret_t ChannelConfig::setChannelAccessPersistData(
+         ((setFlag & setPrivLimit) &&
+          (!isValidPrivLimit(chAccessData.privLimit))))
+     {
+-        log<level::DEBUG>("Invalid access mode / privilege limit specified");
++        log<level::ERR>("setChannelAccessPersistData: Invalid access mode / privilege limit specified");
+         return IPMI_CC_INVALID_FIELD_REQUEST;
+     }
+ 
+@@ -611,15 +615,17 @@ ipmi_ret_t ChannelConfig::setChannelAccessPersistData(
+                                      networkChConfigIntfName,
+                                      privilegePropertyString, privStr))
+             {
+-                log<level::DEBUG>(
+-                    "Network interface does not exist",
++                std::string msg = "setChannelAccessPersistData: Network interface does not exist:" + channelData[chNum].chName;
++                msg += " networkIntfObj,networkIntfObj:" + networkIntfObj;
++                log<level::ERR>(
++                    msg.c_str(),
+                     entry("INTERFACE=%s", channelData[chNum].chName.c_str()));
+                 return IPMI_CC_UNSPECIFIED_ERROR;
+             }
+         }
+         catch (const sdbusplus::exception::SdBusError& e)
+         {
+-            log<level::ERR>("Exception: Network interface does not exist");
++            log<level::ERR>("setChannelAccessPersistData: Exception: Network interface does not exist");
+             return IPMI_CC_INVALID_FIELD_REQUEST;
+         }
+         signalFlag |= (1 << chNum);
+@@ -630,7 +636,7 @@ ipmi_ret_t ChannelConfig::setChannelAccessPersistData(
+     // Write persistent data to file
+     if (writeChannelPersistData() != 0)
+     {
+-        log<level::DEBUG>("Failed to update the presist data file");
++        log<level::ERR>("setChannelAccessPersistData: Failed to update the presist data file");
+         return IPMI_CC_UNSPECIFIED_ERROR;
+     }
+     return IPMI_CC_OK;
+@@ -642,7 +648,7 @@ ipmi_ret_t
+ {
+     if (!isValidChannel(chNum))
+     {
+-        log<level::DEBUG>("Invalid channel");
++        log<level::ERR>("getChannelAuthTypeSupported: Invalid channel");
+         return IPMI_CC_INVALID_FIELD_REQUEST;
+     }
+ 
+@@ -656,24 +662,24 @@ ipmi_ret_t ChannelConfig::getChannelEnabledAuthType(const uint8_t chNum,
+ {
+     if (!isValidChannel(chNum))
+     {
+-        log<level::DEBUG>("Invalid channel");
++        log<level::ERR>("getChannelEnabledAuthType: Invalid channel");
+         return IPMI_CC_INVALID_FIELD_REQUEST;
+     }
+ 
+     if (getChannelSessionSupport(chNum) == EChannelSessSupported::none)
+     {
+-        log<level::DEBUG>("Sessionless channel doesn't have access data.");
++        log<level::ERR>("getChannelEnabledAuthType: Sessionless channel doesn't have access data.");
+         return IPMI_CC_INVALID_FIELD_REQUEST;
+     }
+ 
+     if (!isValidPrivLimit(priv))
+     {
+-        log<level::DEBUG>("Invalid privilege specified.");
++        log<level::ERR>("getChannelEnabledAuthType: Invalid privilege specified.");
+         return IPMI_CC_INVALID_FIELD_REQUEST;
+     }
+ 
+     // TODO: Hardcoded for now. Need to implement.
+-    authType = EAuthType::none;
++    authType = EAuthType::md5;
+ 
+     return IPMI_CC_OK;
+ }
+@@ -683,7 +689,7 @@ std::time_t ChannelConfig::getUpdatedFileTime(const std::string& fileName)
+     struct stat fileStat;
+     if (stat(fileName.c_str(), &fileStat) != 0)
+     {
+-        log<level::DEBUG>("Error in getting last updated time stamp");
++        log<level::ERR>("getUpdatedFileTime: Error in getting last updated time stamp");
+         return -EIO;
+     }
+     return fileStat.st_mtime;
+@@ -695,7 +701,7 @@ EChannelAccessMode
+     auto iter = std::find(accessModeList.begin(), accessModeList.end(), mode);
+     if (iter == accessModeList.end())
+     {
+-        log<level::ERR>("Invalid access mode.",
++        log<level::ERR>("convertToAccessModeIndex: Invalid access mode.",
+                         entry("MODE_STR=%s", mode.c_str()));
+         throw std::invalid_argument("Invalid access mode.");
+     }
+@@ -708,7 +714,7 @@ std::string ChannelConfig::convertToAccessModeString(const uint8_t value)
+ {
+     if (accessModeList.size() <= value)
+     {
+-        log<level::ERR>("Invalid access mode.", entry("MODE_IDX=%d", value));
++        log<level::ERR>("convertToAccessModeString: Invalid access mode.", entry("MODE_IDX=%d", value));
+         throw std::invalid_argument("Invalid access mode.");
+     }
+ 
+@@ -721,7 +727,8 @@ CommandPrivilege
+     auto iter = std::find(privList.begin(), privList.end(), value);
+     if (iter == privList.end())
+     {
+-        log<level::ERR>("Invalid privilege.",
++        std::string msg = "convertToPrivLimitIndex: Invalid privilege:" + value;
++        log<level::ERR>(msg.c_str(),
+                         entry("PRIV_STR=%s", value.c_str()));
+         throw std::invalid_argument("Invalid privilege.");
+     }
+@@ -733,7 +740,8 @@ std::string ChannelConfig::convertToPrivLimitString(const uint8_t value)
+ {
+     if (privList.size() <= value)
+     {
+-        log<level::ERR>("Invalid privilege.", entry("PRIV_IDX=%d", value));
++        std::string msg = "convertToPrivLimitString: Invalid privilege" + std::to_string(value);
++        log<level::ERR>(msg.c_str(), entry("PRIV_IDX=%d", value));
+         throw std::invalid_argument("Invalid privilege.");
+     }
+ 
+@@ -747,7 +755,8 @@ EChannelSessSupported
+         std::find(sessionSupportList.begin(), sessionSupportList.end(), value);
+     if (iter == sessionSupportList.end())
+     {
+-        log<level::ERR>("Invalid session supported.",
++        std::string msg = "convertToSessionSupportIndex: Invalid session supported:" + value;
++        log<level::ERR>(msg.c_str(),
+                         entry("SESS_STR=%s", value.c_str()));
+         throw std::invalid_argument("Invalid session supported.");
+     }
+@@ -791,7 +800,8 @@ Json ChannelConfig::readJsonFile(const std::string& configFile)
+     std::ifstream jsonFile(configFile);
+     if (!jsonFile.good())
+     {
+-        log<level::INFO>("JSON file not found",
++        std::string msg = "JSON file not found " + configFile;
++        log<level::INFO>(msg.c_str(),
+                          entry("FILE_NAME=%s", configFile.c_str()));
+         return nullptr;
+     }
+@@ -803,7 +813,7 @@ Json ChannelConfig::readJsonFile(const std::string& configFile)
+     }
+     catch (Json::parse_error& e)
+     {
+-        log<level::DEBUG>("Corrupted channel config.",
++        log<level::ERR>("Corrupted channel config.",
+                           entry("MSG=%s", e.what()));
+         throw std::runtime_error("Corrupted channel config file");
+     }
+@@ -867,7 +877,7 @@ int ChannelConfig::loadChannelConfig()
+     Json data = readJsonFile(channelConfigDefaultFilename);
+     if (data.empty())
+     {
+-        log<level::DEBUG>("Error in opening IPMI Channel data file");
++        log<level::ERR>("loadChannelConfig: Error in opening default IPMI Channel data file");
+         return -EIO;
+     }
+ 
+@@ -882,7 +892,7 @@ int ChannelConfig::loadChannelConfig()
+             if (jsonChData.is_null())
+             {
+                 log<level::WARNING>(
+-                    "Channel not configured so loading default.",
++                    "loadChannelConfig: Channel not configured so loading default.",
+                     entry("CHANNEL_NUM=%d", chNum));
+                 // If user didn't want to configure specific channel (say
+                 // reserved channel), then load that index with default values.
+@@ -892,7 +902,7 @@ int ChannelConfig::loadChannelConfig()
+             Json jsonChInfo = jsonChData[channelInfoString].get<Json>();
+             if (jsonChInfo.is_null())
+             {
+-                log<level::ERR>("Invalid/corrupted channel config file");
++                log<level::ERR>("loadChannelConfig: Invalid/corrupted channel config file");
+                 return -EBADMSG;
+             }
+ 
+@@ -920,13 +930,13 @@ int ChannelConfig::loadChannelConfig()
+         }
+         catch (const Json::exception& e)
+         {
+-            log<level::DEBUG>("Json Exception caught.",
++            log<level::ERR>("loadChannelConfig: Json Exception caught.",
+                               entry("MSG=%s", e.what()));
+             return -EBADMSG;
+         }
+         catch (const std::invalid_argument& e)
+         {
+-            log<level::ERR>("Corrupted config.", entry("MSG=%s", e.what()));
++            log<level::ERR>("loadChannelConfig: Corrupted config.", entry("MSG=%s", e.what()));
+             return -EBADMSG;
+         }
+     }
+@@ -942,7 +952,7 @@ int ChannelConfig::readChannelVolatileData()
+     Json data = readJsonFile(channelVolatileDataFilename);
+     if (data == nullptr)
+     {
+-        log<level::DEBUG>("Error in opening IPMI Channel data file");
++        log<level::ERR>("readChannelVolatileData: Error in opening IPMI Channel data file");
+         return -EIO;
+     }
+     try
+@@ -954,8 +964,8 @@ int ChannelConfig::readChannelVolatileData()
+             uint8_t chNum = std::stoi(chKey, nullptr, 10);
+             if ((chNum < 0) || (chNum > maxIpmiChannels))
+             {
+-                log<level::DEBUG>(
+-                    "Invalid channel access entry in config file");
++                log<level::ERR>(
++                    "readChannelVolatileData: Invalid channel access entry in config file");
+                 throw std::out_of_range("Out of range - channel number");
+             }
+             Json jsonChData = it.value();
+@@ -979,7 +989,7 @@ int ChannelConfig::readChannelVolatileData()
+             else
+             {
+                 log<level::ERR>(
+-                    "Invalid/corrupted volatile channel access file",
++                    "readChannelVolatileData: Invalid/corrupted volatile channel access file",
+                     entry("FILE=%s", channelVolatileDataFilename));
+                 throw std::runtime_error(
+                     "Corrupted volatile channel access file");
+@@ -988,12 +998,12 @@ int ChannelConfig::readChannelVolatileData()
+     }
+     catch (const Json::exception& e)
+     {
+-        log<level::DEBUG>("Json Exception caught.", entry("MSG=%s", e.what()));
++        log<level::ERR>("readChannelVolatileData: Json Exception caught.", entry("MSG=%s", e.what()));
+         throw std::runtime_error("Corrupted volatile channel access file");
+     }
+     catch (const std::invalid_argument& e)
+     {
+-        log<level::ERR>("Corrupted config.", entry("MSG=%s", e.what()));
++        log<level::ERR>("readChannelVolatileData: Corrupted config.", entry("MSG=%s", e.what()));
+         throw std::runtime_error("Corrupted volatile channel access file");
+     }
+ 
+@@ -1010,7 +1020,7 @@ int ChannelConfig::readChannelPersistData()
+     Json data = readJsonFile(channelNvDataFilename);
+     if (data == nullptr)
+     {
+-        log<level::DEBUG>("Error in opening IPMI Channel data file");
++        log<level::ERR>("readChannelPersistData: Error in opening IPMI Channel data file");
+         return -EIO;
+     }
+     try
+@@ -1022,8 +1032,8 @@ int ChannelConfig::readChannelPersistData()
+             uint8_t chNum = std::stoi(chKey, nullptr, 10);
+             if ((chNum < 0) || (chNum > maxIpmiChannels))
+             {
+-                log<level::DEBUG>(
+-                    "Invalid channel access entry in config file");
++                log<level::ERR>(
++                    "readChannelPersistData: Invalid channel access entry in config file");
+                 throw std::out_of_range("Out of range - channel number");
+             }
+             Json jsonChData = it.value();
+@@ -1047,7 +1057,7 @@ int ChannelConfig::readChannelPersistData()
+             }
+             else
+             {
+-                log<level::ERR>("Invalid/corrupted nv channel access file",
++                log<level::ERR>("readChannelPersistData: Invalid/corrupted nv channel access file",
+                                 entry("FILE=%s", channelNvDataFilename));
+                 throw std::runtime_error("Corrupted nv channel access file");
+             }
+@@ -1055,12 +1065,12 @@ int ChannelConfig::readChannelPersistData()
+     }
+     catch (const Json::exception& e)
+     {
+-        log<level::DEBUG>("Json Exception caught.", entry("MSG=%s", e.what()));
++        log<level::ERR>("readChannelPersistData: Json Exception caught.", entry("MSG=%s", e.what()));
+         throw std::runtime_error("Corrupted nv channel access file");
+     }
+     catch (const std::invalid_argument& e)
+     {
+-        log<level::ERR>("Corrupted config.", entry("MSG=%s", e.what()));
++        log<level::ERR>("readChannelPersistData: Corrupted config.", entry("MSG=%s", e.what()));
+         throw std::runtime_error("Corrupted nv channel access file");
+     }
+ 
+@@ -1103,13 +1113,13 @@ int ChannelConfig::writeChannelVolatileData()
+     }
+     catch (const std::invalid_argument& e)
+     {
+-        log<level::ERR>("Corrupted config.", entry("MSG=%s", e.what()));
++        log<level::ERR>("writeChannelVolatileData: Corrupted config.", entry("MSG=%s", e.what()));
+         return -EINVAL;
+     }
+ 
+     if (writeJsonFile(channelVolatileDataFilename, outData) != 0)
+     {
+-        log<level::DEBUG>("Error in write JSON data to file");
++        log<level::ERR>("writeChannelVolatileData: Error in write JSON data to file");
+         return -EIO;
+     }
+ 
+@@ -1154,13 +1164,13 @@ int ChannelConfig::writeChannelPersistData()
+     }
+     catch (const std::invalid_argument& e)
+     {
+-        log<level::ERR>("Corrupted config.", entry("MSG=%s", e.what()));
++        log<level::ERR>("writeChannelPersistData: Corrupted config.", entry("MSG=%s", e.what()));
+         return -EINVAL;
+     }
+ 
+     if (writeJsonFile(channelNvDataFilename, outData) != 0)
+     {
+-        log<level::DEBUG>("Error in write JSON data to file");
++        log<level::ERR>("writeChannelPersistData: Error in write JSON data to file");
+         return -EIO;
+     }
+ 
+@@ -1181,7 +1191,7 @@ int ChannelConfig::checkAndReloadNVData()
+         }
+         catch (const std::exception& e)
+         {
+-            log<level::ERR>("Exception caught in readChannelPersistData.",
++            log<level::ERR>("checkAndReloadNVData: Exception caught in readChannelPersistData.",
+                             entry("MSG=%s", e.what()));
+             ret = -EIO;
+         }
+@@ -1201,7 +1211,7 @@ int ChannelConfig::checkAndReloadVolatileData()
+         }
+         catch (const std::exception& e)
+         {
+-            log<level::ERR>("Exception caught in readChannelVolatileData.",
++            log<level::ERR>("checkAndReloadVolatileData: Exception caught in readChannelVolatileData.",
+                             entry("MSG=%s", e.what()));
+             ret = -EIO;
+         }
+@@ -1217,6 +1227,9 @@ int ChannelConfig::setDbusProperty(const std::string& service,
+ {
+     try
+     {
++        std::string msg = "set-property svc:" + service + " obj:" + objPath + " iface:" + interface + " prop:" + property;
++        log<level::INFO>(msg.c_str());
++
+         auto method =
+             bus.new_method_call(service.c_str(), objPath.c_str(),
+                                 "org.freedesktop.DBus.Properties", "Set");
+@@ -1227,7 +1240,8 @@ int ChannelConfig::setDbusProperty(const std::string& service,
+     }
+     catch (const sdbusplus::exception::SdBusError& e)
+     {
+-        log<level::DEBUG>("set-property failed",
++        std::string msg = "set-property failed svc:" + service + " obj:" + objPath + " iface:" + interface + " prop:" + property;
++        log<level::ERR>(msg.c_str(),
+                           entry("SERVICE=%s", service.c_str()),
+                           entry("OBJPATH=%s", objPath.c_str()),
+                           entry("INTERFACE=%s", interface.c_str()),
+@@ -1246,6 +1260,8 @@ int ChannelConfig::getDbusProperty(const std::string& service,
+ {
+     try
+     {
++        std::string msg = "get-property svc:" + service + " obj:" + objPath + " iface:" + interface + " prop:" + property;
++        log<level::ERR>(msg.c_str());
+         auto method =
+             bus.new_method_call(service.c_str(), objPath.c_str(),
+                                 "org.freedesktop.DBus.Properties", "Get");
+@@ -1257,7 +1273,8 @@ int ChannelConfig::getDbusProperty(const std::string& service,
+     }
+     catch (const sdbusplus::exception::SdBusError& e)
+     {
+-        log<level::DEBUG>("get-property failed",
++        std::string msg = "get-property failed svc:" + service + " obj:" + objPath + " iface:" + interface + " prop:" + property;
++        log<level::ERR>(msg.c_str(),
+                           entry("SERVICE=%s", service.c_str()),
+                           entry("OBJPATH=%s", objPath.c_str()),
+                           entry("INTERFACE=%s", interface.c_str()),
+@@ -1287,7 +1304,8 @@ int ChannelConfig::syncNetworkChannelConfig()
+                                          networkChConfigIntfName,
+                                          privilegePropertyString, variant))
+                 {
+-                    log<level::DEBUG>("Network interface does not exist",
++                    std::string msg = "syncNetworkChannelConfig: Network interface does not exist" + channelData[chNum].chName;
++                    log<level::ERR>(msg.c_str(),
+                                       entry("INTERFACE=%s",
+                                             channelData[chNum].chName.c_str()));
+                     continue;
+@@ -1296,14 +1314,14 @@ int ChannelConfig::syncNetworkChannelConfig()
+             }
+             catch (const std::bad_variant_access& e)
+             {
+-                log<level::DEBUG>(
+-                    "exception: Network interface does not exist");
++                log<level::ERR>(
++                    "syncNetworkChannelConfig: exception: Network interface does not exist");
+                 continue;
+             }
+             catch (const sdbusplus::exception::SdBusError& e)
+             {
+-                log<level::DEBUG>(
+-                    "exception: Network interface does not exist");
++                log<level::ERR>(
++                    "syncNetworkChannelConfig: exception: Network interface does not exist");
+                 continue;
+             }
+ 
+@@ -1325,13 +1343,13 @@ int ChannelConfig::syncNetworkChannelConfig()
+         // Write persistent data to file
+         if (writeChannelPersistData() != 0)
+         {
+-            log<level::DEBUG>("Failed to update the persistent data file");
++            log<level::ERR>("Failed to update the persistent data file");
+             return -EIO;
+         }
+         // Write Volatile data to file
+         if (writeChannelVolatileData() != 0)
+         {
+-            log<level::DEBUG>("Failed to update the channel volatile data");
++            log<level::ERR>("Failed to update the channel volatile data");
+             return -EIO;
+         }
+     }
+@@ -1347,7 +1365,7 @@ void ChannelConfig::initChannelPersistData()
+     /* Always read the channel config */
+     if (loadChannelConfig() != 0)
+     {
+-        log<level::ERR>("Failed to read channel config file");
++        log<level::ERR>("initChannelPersistData: Failed to read channel config file");
+         throw std::ios_base::failure("Failed to load channel configuration");
+     }
+ 
+@@ -1361,7 +1379,7 @@ void ChannelConfig::initChannelPersistData()
+         // Load the channel access NV data
+         if (readChannelPersistData() != 0)
+         {
+-            log<level::ERR>("Failed to read channel access NV data");
++            log<level::ERR>("initChannelPersistData: Failed to read channel access NV data");
+             throw std::ios_base::failure(
+                 "Failed to read channel access NV configuration");
+         }
+@@ -1379,7 +1397,7 @@ void ChannelConfig::initChannelPersistData()
+         // Load the channel access volatile data
+         if (readChannelVolatileData() != 0)
+         {
+-            log<level::ERR>("Failed to read channel access volatile data");
++            log<level::ERR>("initChannelPersistData: Failed to read channel access volatile data");
+             throw std::ios_base::failure(
+                 "Failed to read channel access volatile configuration");
+         }
+@@ -1390,12 +1408,12 @@ void ChannelConfig::initChannelPersistData()
+     if (syncNetworkChannelConfig() != 0)
+     {
+         log<level::ERR>(
+-            "Failed to synchronize data with network channel config over dbus");
++            "initChannelPersistData: Failed to synchronize data with network channel config over dbus");
+         throw std::ios_base::failure(
+             "Failed to synchronize data with network channel config over dbus");
+     }
+ 
+-    log<level::DEBUG>("Successfully completed channel data initialization.");
++    log<level::ERR>("initChannelPersistData: Successfully completed channel data initialization.");
+     return;
+ }
+ 
+-- 
+1.9.1
+

@@ -17,22 +17,18 @@
 
 : "${GBMC_UPGRADE_SIG=/tmp/bmc.sig}"
 
-GBMC_UPGRADE_UNPACK_FILES=()
-# shellcheck disable=SC2034
-GBMC_UPGRADE_HOOKS=(gbmc_upgrade_internal)
+gbmc_upgrade_hook() {
+  [ -n "${bootfile_url-}" ] || return 0
 
-if machine="$(source /etc/os-release && echo "$GBMC_TARGET_MACHINE")"; then
-  GBMC_UPGRADE_UNPACK_FILES+=("*/firmware-gbmc/$machine")
-else
-  echo 'Failed to find GBMC machine type from /etc/os-release' >&2
-fi
+  local tmpdir
+  tmpdir="$(mktemp -d)" || return
+  gbmc_upgrade_internal || true
+  # SC doesn't know our variable is defined elsewhere
+  # shellcheck disable=SC2153
+  rm -rf -- "$tmpdir" "$GBMC_UPGRADE_SIG" "$GBMC_UPGRADE_IMG"
+}
 
-gbmc_upgrade_dl_unpack() {
-  if [ -z "${bootfile_url-}" ]; then
-    echo "bootfile_url is empty" >&2
-    return 1
-  fi
-
+gbmc_upgrade_fetch() (
   echo "Fetching $bootfile_url" >&2
 
   # We only support tarballs at the moment, our URLs will always denote
@@ -46,6 +42,11 @@ gbmc_upgrade_dl_unpack() {
     return 1
   fi
 
+  # Determine the path of the image file for the correct machine
+  # Our netboot can serve us images for multiple models
+  local machine
+  machine="$(source /etc/os-release && echo "$OPENBMC_TARGET_MACHINE")" || return
+
   # Ensure some sane output file limit
   # Currently no BMC image is larger than 64M
   # We want to allow 2 images and a small amount of metadata (2*64+2)M
@@ -55,15 +56,13 @@ gbmc_upgrade_dl_unpack() {
   stime=5
   while true; do
     local st=()
-    update-dhcp-status 'ONGOING' "downloading and unpacking from ${bootfile_url}, remaining time $(( timeout - SECONDS ))"
     curl -LSsk --max-time $((timeout - SECONDS)) "$bootfile_url" |
-      tar "${tflags[@]}" --wildcards --warning=none -xC "$tmpdir" "${GBMC_UPGRADE_UNPACK_FILES[@]}" 2>"$tmpdir"/tarerr \
+      tar "${tflags[@]}" --wildcards -xC "$tmpdir" "*/firmware-gbmc/$machine" \
       && st=("${PIPESTATUS[@]}") || st=("${PIPESTATUS[@]}")
     # Curl failures should continue
     if (( st[0] == 0 )); then
       # Tar failures when curl succeeds are hard errors to start over.
-      # shellcheck disable=SC2143
-      if (( st[1] != 0 )) && [[ -n $(grep -v '\(Exiting with failure status\|Not found in archive\|Cannot hard link\)' "$tmpdir"/tarerr) ]]; then
+      if (( st[1] != 0 )); then
         echo 'Unpacking failed' >&2
         return 1
       fi
@@ -77,24 +76,7 @@ gbmc_upgrade_dl_unpack() {
     (shopt -s nullglob dotglob; rm -rf -- "${tmpdir:?}"/*)
     sleep $stime
   done
-}
 
-gbmc_upgrade_hook() {
-  local tmpdir
-  tmpdir="$(mktemp -d)" || return
-  if ! gbmc_upgrade_dl_unpack; then
-    echo 'upgrade unpack failed' >&2
-    # shellcheck disable=SC2153
-    rm -rf -- "$tmpdir" "$GBMC_UPGRADE_SIG" "$GBMC_UPGRADE_IMG"
-    return 1
-  fi
-  # shellcheck disable=SC2015
-  gbmc_br_run_hooks GBMC_UPGRADE_HOOKS || true
-  # shellcheck disable=SC2153
-  rm -rf -- "$tmpdir" "$GBMC_UPGRADE_SIG" "$GBMC_UPGRADE_IMG"
-}
-
-gbmc_upgrade_fetch() (
   local sig
   sig="$(find "$tmpdir" -name 'image-*.sig' | head -n 1)" || return
   local img="${sig%.sig}"

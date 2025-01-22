@@ -1,0 +1,143 @@
+From ad57c80447570daae770739b9b79df51ac6175f6 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 2 Apr 2021 08:31:04 +0000
+Subject: [PATCH] psusensor-Re-setup-polling-cycle-in-case-of-FD-error
+
+---
+ src/PSUSensor.cpp | 90 +++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 64 insertions(+), 26 deletions(-)
+
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index 7cb6644..bdca038 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -137,6 +137,36 @@ void PSUSensor::setupRead(void)
+         updateValue(std::numeric_limits<double>::quiet_NaN());
+         waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollPowerOffMs));
+         std::weak_ptr<PSUSensor> weakRef = weak_from_this();
++        /* Check inputDev and open it if needed */
++        if (! inputDev.is_open())
++        {
++            std::cerr << __FUNCTION__ << " inputDev is not open, opening\n";
++            fd = open(path.c_str(), O_RDONLY);
++            if (fd > 0)
++            {
++                inputDev.assign(fd);
++            }
++            else
++            {
++                updateValue(std::numeric_limits<double>::quiet_NaN());
++                waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollMs));
++                std::weak_ptr<PSUSensor> weakRef = weak_from_this();
++                waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
++                    std::shared_ptr<PSUSensor> self = weakRef.lock();
++                    if (ec == boost::asio::error::operation_aborted)
++                    {
++                        // TODO FIXME Silent exit
++                        return; // we're being canceled
++                    }
++                    if (self)
++                    {
++                        self->setupRead();
++                    }
++                });
++                return;
++            }
++        }
++
+         waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+             std::shared_ptr<PSUSensor> self = weakRef.lock();
+             if (ec == boost::asio::error::operation_aborted)
+@@ -169,6 +199,7 @@ void PSUSensor::setupRead(void)
+                 std::shared_ptr<PSUSensor> self = weakRef.lock();
+                 if (ec == boost::asio::error::operation_aborted)
+                 {
++                    // TODO FIXME Silent exit
+                     return; // we're being canceled
+                 }
+ 
+@@ -230,6 +261,7 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+             std::shared_ptr<PSUSensor> self = weakRef.lock();
+             if (ec == boost::asio::error::operation_aborted)
+             {
++                // TODO FIXME Silent exit
+                 return;
+             }
+             if (self)
+@@ -244,44 +276,50 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+         (err == boost::asio::error::misc_errors::not_found))
+     {
+         //std::cerr << "Bad file descriptor from\n";
+-        return;
++        /* Dilemma here:
++         * We can detect error and re-open device, but what to do if
++         * open fails? */
++        if (DEBUG) std::cerr << __FUNCTION__ << "Reading error occured " << err << "\n";
++        inputDev.close();
+     }
+-    std::istream responseStream(readBuf.get());
+-    if (!err)
++    else
+     {
+-        std::string response;
+-        try
++        std::istream responseStream(readBuf.get());
++        if (!err)
+         {
+-            std::getline(responseStream, response);
+-            rawValue = std::stod(response);
+-            responseStream.clear();
+-            double nvalue = rawValue / sensorFactor;
+-
+-            updateValue(nvalue);
++            std::string response;
++            try
++            {
++                std::getline(responseStream, response);
++                rawValue = std::stod(response);
++                responseStream.clear();
++                double nvalue = rawValue / sensorFactor;
++                
++                updateValue(nvalue);
+ 
+-            if (minMaxReadCounter++ % 8 == 0)
++                if (minMaxReadCounter++ % 8 == 0)
++                {
++                    updateMinMaxValues();
++                }
++            }
++            catch (const std::invalid_argument&)
+             {
+-                updateMinMaxValues();
++                std::cerr << "Could not parse " << response << "\n";
++                incrementError();
+             }
+         }
+-        catch (const std::invalid_argument&)
++        else
+         {
+-            std::cerr << "Could not parse " << response << "\n";
+             incrementError();
+         }
+-    }
+-    else
+-    {
+-        std::cerr << "System error " << err << "\n";
+-        incrementError();
+-    }
+ 
+-    if (bridgeGpio.has_value())
+-    {
+-        (*bridgeGpio).release();
+-    }
++        if (bridgeGpio.has_value())
++        {
++            (*bridgeGpio).release();
++        }
+ 
+-    lseek(fd, 0, SEEK_SET);
++        lseek(fd, 0, SEEK_SET);
++    }
+     waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollMs));
+ 
+     std::weak_ptr<PSUSensor> weakRef = weak_from_this();

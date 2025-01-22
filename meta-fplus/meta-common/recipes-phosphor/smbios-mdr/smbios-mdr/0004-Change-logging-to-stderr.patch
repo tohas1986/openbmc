@@ -1,0 +1,259 @@
+From 64a8786234f11a1ca7ab19f5774491a24956e0c6 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 1 Feb 2022 08:06:06 +0000
+Subject: [PATCH] Change logging to stderr
+
+---
+ src/mdrv2.cpp | 87 +++++++++++++++++++++++----------------------------
+ 1 file changed, 40 insertions(+), 47 deletions(-)
+
+diff --git a/src/mdrv2.cpp b/src/mdrv2.cpp
+index ba8033a..681b32e 100644
+--- a/src/mdrv2.cpp
++++ b/src/mdrv2.cpp
+@@ -25,6 +25,7 @@
+ #include <xyz/openbmc_project/Smbios/MDR_V2/error.hpp>
+ 
+ #include <fstream>
++#include <iostream>
+ 
+ namespace phosphor
+ {
+@@ -38,8 +39,8 @@ std::vector<uint8_t> MDR_V2::getDirectoryInformation(uint8_t dirIndex)
+     std::ifstream smbiosFile(mdrType2File, std::ios_base::binary);
+     if (!smbiosFile.good())
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Read data from flash error - Open MDRV2 table file failure");
++        std::cerr << __FUNCTION__ <<
++            " Read data from flash error - Open MDRV2 table file failure\n";
+         throw sdbusplus::xyz::openbmc_project::Smbios::MDR_V2::Error::
+             InvalidParameter();
+     }
+@@ -126,8 +127,7 @@ std::vector<uint8_t> MDR_V2::getDataOffer()
+     }
+     else
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "smbios is not ready for update");
++        std::cerr << __FUNCTION__ << " smbios is not ready for update\n";
+         throw sdbusplus::xyz::openbmc_project::Smbios::MDR_V2::Error::
+             UpdateInProgress();
+     }
+@@ -206,21 +206,21 @@ bool MDR_V2::readDataFromFlash(MDRSMBIOSHeader* mdrHdr, uint8_t* data)
+ {
+     if (mdrHdr == nullptr)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Read data from flash error - Invalid mdr header");
++        std::cerr << __FUNCTION__ <<
++            " Read data from flash error - Invalid mdr header\n";
+         return false;
+     }
+     if (data == nullptr)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Read data from flash error - Invalid data point");
++        std::cerr << __FUNCTION__ <<
++            " Read data from flash error - Invalid data point\n";
+         return false;
+     }
+     std::ifstream smbiosFile(mdrType2File, std::ios_base::binary);
+     if (!smbiosFile.good())
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Read data from flash error - Open MDRV2 table file failure");
++        std::cerr << __FUNCTION__ <<
++            " Read data from flash error - Open MDRV2 table file failure\n";
+         return false;
+     }
+     smbiosFile.clear();
+@@ -229,15 +229,15 @@ bool MDR_V2::readDataFromFlash(MDRSMBIOSHeader* mdrHdr, uint8_t* data)
+     smbiosFile.seekg(0, std::ios_base::beg);
+     if (fileLength < sizeof(MDRSMBIOSHeader))
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "MDR V2 file size is smaller than mdr header");
++        std::cerr << __FUNCTION__ <<
++            " MDR V2 file size is smaller than mdr header\n";
+         return false;
+     }
+     smbiosFile.read(reinterpret_cast<char*>(mdrHdr), sizeof(MDRSMBIOSHeader));
+     if (mdrHdr->dataSize > smbiosTableStorageSize)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Data size out of limitation");
++        std::cerr << __FUNCTION__ <<
++            " Data size out of limitation\n";
+         smbiosFile.close();
+         return false;
+     }
+@@ -262,16 +262,16 @@ bool MDR_V2::sendDirectoryInformation(uint8_t dirVersion, uint8_t dirIndex,
+     bool teminate = false;
+     if ((dirIndex >= maxDirEntries) || (returnedEntries < 1))
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Send Dir info failed - input parameter invalid");
++        std::cerr << __FUNCTION__ <<
++            " Send Dir info failed - input parameter invalid\n";
+         throw sdbusplus::xyz::openbmc_project::Smbios::MDR_V2::Error::
+             InvalidParameter();
+     }
+     if ((static_cast<size_t>(returnedEntries) * sizeof(DataIdStruct)) !=
+         dirEntry.size())
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Directory size invalid");
++        std::cerr << __FUNCTION__ <<
++            " Directory size invalid\n";
+         throw sdbusplus::xyz::openbmc_project::Smbios::MDR_V2::Error::
+             InvalidParameter();
+     }
+@@ -347,8 +347,7 @@ int MDR_V2::findIdIndex(std::vector<uint8_t> dataInfo)
+ {
+     if (dataInfo.size() != sizeof(DataIdStruct))
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Length of dataInfo invalid");
++        std::cerr << __FUNCTION__ << " Length of dataInfo invalid\n";
+         throw sdbusplus::xyz::openbmc_project::Smbios::MDR_V2::Error::
+             InvalidId();
+     }
+@@ -380,8 +379,8 @@ uint8_t MDR_V2::directoryEntries(uint8_t value)
+     std::ifstream smbiosFile(mdrType2File, std::ios_base::binary);
+     if (!smbiosFile.good())
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Read data from flash error - Open MDRV2 table file failure");
++        std::cerr << __FUNCTION__ <<
++            " Read data from flash error - Open MDRV2 table file failure\n";
+         value = 0;
+     }
+     else
+@@ -406,17 +405,15 @@ void MDR_V2::systemInfoUpdate()
+     }
+     catch (const sdbusplus::exception_t& e)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Failed to query system motherboard",
+-            phosphor::logging::entry("ERROR=%s", e.what()));
++        std::cerr << __FUNCTION__ <<
++            " Failed to query system motherboard:" << e.what() << "\n";
+     }
+ 
+     cpus.clear();
+     int num = getTotalCpuSlot();
+     if (num == -1)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "get cpu total slot failed");
++        std::cerr << __FUNCTION__ << " get cpu total slot failed\n";
+         return;
+     }
+ 
+@@ -435,8 +432,7 @@ void MDR_V2::systemInfoUpdate()
+     num = getTotalDimmSlot();
+     if (num == -1)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "get dimm total slot failed");
++        std::cerr << __FUNCTION__ << " get dimm total slot failed\n";
+         return;
+     }
+ 
+@@ -454,8 +450,7 @@ void MDR_V2::systemInfoUpdate()
+     num = getTotalPcieSlot();
+     if (num == -1)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "get pcie total slot failed");
++        std::cerr << __FUNCTION__ << " get pcie total slot failed\n";
+         return;
+     }
+ 
+@@ -475,8 +470,7 @@ void MDR_V2::systemInfoUpdate()
+     num = getRecordsNumByType(oemNICType);
+     if (num == -1)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "get oem nic records failed");
++        std::cerr << __FUNCTION__ << " get oem nic records failed\n";
+     }
+ 
+     for (int index = 0; index < num; index++)
+@@ -490,8 +484,7 @@ void MDR_V2::systemInfoUpdate()
+     num = getRecordsNumByType(oemDriveType);
+     if (num == -1)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "get oem drive records failed");
++        std::cerr << __FUNCTION__ << " get oem drive records failed\n";
+     }
+ 
+     for (int index = 0; index < num; index++)
+@@ -509,8 +502,8 @@ int MDR_V2::getTotalCpuSlot()
+ 
+     if (dataIn == nullptr)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "get cpu total slot failed - no storage data");
++        std::cerr << __FUNCTION__ <<
++            " get cpu total slot failed - no storage data\n";
+         return -1;
+     }
+ 
+@@ -543,8 +536,8 @@ int MDR_V2::getRecordsNumByType(uint8_t type)
+ 
+     if (dataIn == nullptr)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Fail to get records number - no storage data");
++        std::cerr << __FUNCTION__ <<
++            " Fail to get records number - no storage data\n";
+         return -1;
+     }
+ 
+@@ -577,8 +570,8 @@ int MDR_V2::getTotalDimmSlot()
+ 
+     if (dataIn == nullptr)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Fail to get dimm total slot - no storage data");
++        std::cerr << __FUNCTION__ <<
++            " Fail to get dimm total slot - no storage data\n";
+         return -1;
+     }
+ 
+@@ -611,8 +604,9 @@ int MDR_V2::getTotalPcieSlot()
+ 
+     if (dataIn == nullptr)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "Fail to get total system slot - no storage data");
++        std::cerr << __FUNCTION__ <<
++            " Fail to get total system slot - no storage data\n";
++
+         return -1;
+     }
+ 
+@@ -724,8 +718,8 @@ bool MDR_V2::agentSynchronizeData()
+                                     smbiosDir.dir[smbiosDirIndex].dataStorage);
+     if (!status)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
+-            "agent data sync failed - read data from flash failed");
++        std::cerr << __FUNCTION__ <<
++            " agent data sync failed - read data from flash failed\n";
+         return false;
+     }
+ 
+@@ -761,8 +755,7 @@ std::vector<uint32_t> MDR_V2::synchronizeDirectoryCommonData(uint8_t idIndex,
+     timer.async_wait([this](boost::system::error_code ec) {
+         if (ec || this == nullptr)
+         {
+-            phosphor::logging::log<phosphor::logging::level::ERR>(
+-                "Timer Error!");
++            std::cerr << __FUNCTION__ << " Timer Error!\n";
+             return;
+         }
+         agentSynchronizeData();

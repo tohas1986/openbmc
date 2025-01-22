@@ -6,7 +6,7 @@ LICENSE = "MIT"
 DEPENDS = "util-macros"
 
 XORG_PN = "${BPN}"
-XORG_EXT ?= "tar.xz"
+XORG_EXT ?= "tar.bz2"
 
 SRC_URI = "${XORG_MIRROR}/individual/lib/${XORG_PN}-${PV}.${XORG_EXT}"
 

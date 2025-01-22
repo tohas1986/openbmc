@@ -106,7 +106,7 @@ class Rootfs(object, metaclass=ABCMeta):
     def _cleanup(self):
         pass
 
-    def _setup_dbg_rootfs(self, package_paths):
+    def _setup_dbg_rootfs(self, dirs):
         gen_debugfs = self.d.getVar('IMAGE_GEN_DEBUGFS') or '0'
         if gen_debugfs != '1':
            return
@@ -122,12 +122,11 @@ class Rootfs(object, metaclass=ABCMeta):
         bb.utils.mkdirhier(self.image_rootfs)
 
         bb.note("  Copying back package database...")
-        for path in package_paths:
-            bb.utils.mkdirhier(self.image_rootfs + os.path.dirname(path))
-            if os.path.isdir(self.image_rootfs + '-orig' + path):
-                shutil.copytree(self.image_rootfs + '-orig' + path, self.image_rootfs + path, symlinks=True)
-            elif os.path.isfile(self.image_rootfs + '-orig' + path):
-                shutil.copyfile(self.image_rootfs + '-orig' + path, self.image_rootfs + path)
+        for dir in dirs:
+            if not os.path.isdir(self.image_rootfs + '-orig' + dir):
+                continue
+            bb.utils.mkdirhier(self.image_rootfs + os.path.dirname(dir))
+            shutil.copytree(self.image_rootfs + '-orig' + dir, self.image_rootfs + dir, symlinks=True)
 
         # Copy files located in /usr/lib/debug or /usr/src/debug
         for dir in ["/usr/lib/debug", "/usr/src/debug"]:
@@ -163,13 +162,6 @@ class Rootfs(object, metaclass=ABCMeta):
             bb.note("  Install extra debug packages...")
             self.pm.install(extra_debug_pkgs.split(), True)
 
-        bb.note("  Removing package database...")
-        for path in package_paths:
-            if os.path.isdir(self.image_rootfs + path):
-                shutil.rmtree(self.image_rootfs + path)
-            elif os.path.isfile(self.image_rootfs + path):
-                os.remove(self.image_rootfs + path)
-
         bb.note("  Rename debug rootfs...")
         try:
             shutil.rmtree(self.image_rootfs + '-dbg')
@@ -193,18 +185,6 @@ class Rootfs(object, metaclass=ABCMeta):
         pre_process_cmds = self.d.getVar("ROOTFS_PREPROCESS_COMMAND")
         post_process_cmds = self.d.getVar("ROOTFS_POSTPROCESS_COMMAND")
         rootfs_post_install_cmds = self.d.getVar('ROOTFS_POSTINSTALL_COMMAND')
-
-        def make_last(command, commands):
-            commands = commands.split()
-            if command in commands:
-                commands.remove(command)
-                commands.append(command)
-            return "".join(commands)
-
-        # We want this to run as late as possible, in particular after
-        # systemd_sysusers_create and set_user_group. Using :append is not enough
-        make_last("tidy_shadowutils_files", post_process_cmds)
-        make_last("rootfs_reproducible", post_process_cmds)
 
         execute_pre_post_process(self.d, pre_process_cmds)
 
@@ -361,8 +341,7 @@ class Rootfs(object, metaclass=ABCMeta):
             bb.utils.mkdirhier(versioned_modules_dir)
 
             bb.note("Running depmodwrapper for %s ..." % versioned_modules_dir)
-            if self._exec_shell_cmd(['depmodwrapper', '-a', '-b', self.image_rootfs, kernel_ver, kernel_package_name]):
-                bb.fatal("Kernel modules dependency generation failed")
+            self._exec_shell_cmd(['depmodwrapper', '-a', '-b', self.image_rootfs, kernel_ver, kernel_package_name])
 
     """
     Create devfs:

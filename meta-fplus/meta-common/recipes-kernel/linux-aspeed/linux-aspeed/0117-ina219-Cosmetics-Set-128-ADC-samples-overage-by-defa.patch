@@ -1,0 +1,202 @@
+From 4dc9ae995c196c5abdf82c269b8c304918cd8e24 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 25 Sep 2020 07:12:10 +0000
+Subject: [PATCH 1/1] ina219: Cosmetics; Set 128 ADC samples overage by default
+
+---
+ drivers/hwmon/ina2xx.c | 135 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 67 insertions(+), 68 deletions(-)
+
+diff --git a/drivers/hwmon/ina2xx.c b/drivers/hwmon/ina2xx.c
+index c81cba1..57c336c 100644
+--- a/drivers/hwmon/ina2xx.c
++++ b/drivers/hwmon/ina2xx.c
+@@ -40,109 +40,108 @@
+ #include <linux/platform_data/ina2xx.h>
+ 
+ /* common register definitions */
+-#define INA2XX_CONFIG			0x00
+-#define INA2XX_SHUNT_VOLTAGE		0x01 /* readonly */
+-#define INA2XX_BUS_VOLTAGE		0x02 /* readonly */
+-#define INA2XX_POWER			0x03 /* readonly */
+-#define INA2XX_CURRENT			0x04 /* readonly */
+-#define INA2XX_CALIBRATION		0x05
++#define INA2XX_CONFIG					0x00
++#define INA2XX_SHUNT_VOLTAGE			0x01 /* readonly */
++#define INA2XX_BUS_VOLTAGE				0x02 /* readonly */
++#define INA2XX_POWER					0x03 /* readonly */
++#define INA2XX_CURRENT					0x04 /* readonly */
++#define INA2XX_CALIBRATION				0x05
+ 
+ /* INA226 register definitions */
+-#define INA226_MASK_ENABLE		0x06
+-#define INA226_ALERT_LIMIT		0x07
+-#define INA226_DIE_ID			0xFF
++#define INA226_MASK_ENABLE				0x06
++#define INA226_ALERT_LIMIT				0x07
++#define INA226_DIE_ID					0xFF
+ 
+ /* register count */
+-#define INA219_REGISTERS		6
+-#define INA226_REGISTERS		8
++#define INA219_REGISTERS				6
++#define INA226_REGISTERS				8
+ 
+-#define INA2XX_MAX_REGISTERS		8
++#define INA2XX_MAX_REGISTERS			8
+ 
+ /* settings - depend on use case */
+-#define INA219_CONFIG_DEFAULT		0x399F	/* PGA=8 */
+-#define INA226_CONFIG_DEFAULT		0x4527	/* averages=16 */
++#define INA226_CONFIG_DEFAULT			0x4527	/* averages=16 */
+ 
+ /* INA219 config register bits */
+-#define INA219_CONFIG_RST		( 1 << 15 )
+-#define INA219_CONFIG_RST_MASK		( 1 << 15 )
++#define INA219_CONFIG_RST				( 1 << 15 )
++#define INA219_CONFIG_RST_MASK			( 1 << 15 )
+ 
+ /* Bus voltage range */
+-#define INA219_CONFIG_BRNG_16V		( 0 << 13 )
+-#define INA219_CONFIG_BRNG_32V		( 1 << 13 )
+-#define INA219_CONFIG_BRNG_MASK		( 1 << 13 )
++#define INA219_CONFIG_BRNG_16V			( 0 << 13 )
++#define INA219_CONFIG_BRNG_32V			( 1 << 13 )
++#define INA219_CONFIG_BRNG_MASK			( 1 << 13 )
+ 
+ /* Shunt voltage ADC preamp divider */
+-#define INA219_CONFIG_PGA_1		( 0 << 11 )
+-#define INA219_CONFIG_PGA_2		( 1 << 11 )
+-#define INA219_CONFIG_PGA_4		( 2 << 11 )
+-#define INA219_CONFIG_PGA_8		( 3 << 11 )
+-#define INA219_CONFIG_PGA_MASK		( 3 << 11 )
++#define INA219_CONFIG_PGA_1				( 0 << 11 )
++#define INA219_CONFIG_PGA_2				( 1 << 11 )
++#define INA219_CONFIG_PGA_4				( 2 << 11 )
++#define INA219_CONFIG_PGA_8				( 3 << 11 )
++#define INA219_CONFIG_PGA_MASK			( 3 << 11 )
+ 
+ /* Bus ADC resolution and averaging */
+-#define INA219_CONFIG_BADC_9B_1S	( 0 << 7 )
+-#define INA219_CONFIG_BADC_10B_1S	( 1 << 7 )
+-#define INA219_CONFIG_BADC_11B_1S	( 2 << 7 )
+-#define INA219_CONFIG_BADC_12B_1S	( 3 << 7 )
+-#define INA219_CONFIG_BADC_12B_2S	( 9 << 7 )
+-#define INA219_CONFIG_BADC_12B_4S	( 10 << 7 )
+-#define INA219_CONFIG_BADC_12B_8S	( 11 << 7 )
+-#define INA219_CONFIG_BADC_12B_16S	( 12 << 7 )
+-#define INA219_CONFIG_BADC_12B_32S	( 13 << 7 )
+-#define INA219_CONFIG_BADC_12B_64S	( 14 << 7 )
+-#define INA219_CONFIG_BADC_12B_128S	( 15 << 7 )
+-#define INA219_CONFIG_BADC_MASK		( 15 << 7 )
++#define INA219_CONFIG_BADC_9B_1S		( 0 << 7 )
++#define INA219_CONFIG_BADC_10B_1S		( 1 << 7 )
++#define INA219_CONFIG_BADC_11B_1S		( 2 << 7 )
++#define INA219_CONFIG_BADC_12B_1S		( 3 << 7 )
++#define INA219_CONFIG_BADC_12B_2S		( 9 << 7 )
++#define INA219_CONFIG_BADC_12B_4S		( 10 << 7 )
++#define INA219_CONFIG_BADC_12B_8S		( 11 << 7 )
++#define INA219_CONFIG_BADC_12B_16S		( 12 << 7 )
++#define INA219_CONFIG_BADC_12B_32S		( 13 << 7 )
++#define INA219_CONFIG_BADC_12B_64S		( 14 << 7 )
++#define INA219_CONFIG_BADC_12B_128S		( 15 << 7 )
++#define INA219_CONFIG_BADC_MASK			( 15 << 7 )
+ 
+ /* Shunt ADC resolution and averaging */
+-#define INA219_CONFIG_SADC_9B_1S	( 0 << 3 )
+-#define INA219_CONFIG_SADC_10B_1S	( 1 << 3 )
+-#define INA219_CONFIG_SADC_11B_1S	( 2 << 3 )
+-#define INA219_CONFIG_SADC_12B_1S	( 3 << 3 )
+-#define INA219_CONFIG_SADC_12B_2S	( 9 << 3 )
+-#define INA219_CONFIG_SADC_12B_4S	( 10 << 3 )
+-#define INA219_CONFIG_SADC_12B_8S	( 11 << 3 )
+-#define INA219_CONFIG_SADC_12B_16S	( 12 << 3 )
+-#define INA219_CONFIG_SADC_12B_32S	( 13 << 3 )
+-#define INA219_CONFIG_SADC_12B_64S	( 14 << 3 )
+-#define INA219_CONFIG_SADC_12B_128S	( 15 << 3 )
+-#define INA219_CONFIG_SADC_MASK		( 15 << 3 )
++#define INA219_CONFIG_SADC_9B_1S		( 0 << 3 )
++#define INA219_CONFIG_SADC_10B_1S		( 1 << 3 )
++#define INA219_CONFIG_SADC_11B_1S		( 2 << 3 )
++#define INA219_CONFIG_SADC_12B_1S		( 3 << 3 )
++#define INA219_CONFIG_SADC_12B_2S		( 9 << 3 )
++#define INA219_CONFIG_SADC_12B_4S		( 10 << 3 )
++#define INA219_CONFIG_SADC_12B_8S		( 11 << 3 )
++#define INA219_CONFIG_SADC_12B_16S		( 12 << 3 )
++#define INA219_CONFIG_SADC_12B_32S		( 13 << 3 )
++#define INA219_CONFIG_SADC_12B_64S		( 14 << 3 )
++#define INA219_CONFIG_SADC_12B_128S		( 15 << 3 )
++#define INA219_CONFIG_SADC_MASK			( 15 << 3 )
+ 
+ /* Modes of operation */
+-#define INA219_CONFIG_MODE_PWRDWN	( 0 << 0 )
++#define INA219_CONFIG_MODE_PWRDWN		( 0 << 0 )
+ #define INA219_CONFIG_MODE_SHUNT_TRG	( 1 << 0 )
+-#define INA219_CONFIG_MODE_BUS_TRG	( 2 << 0 )
+-#define INA219_CONFIG_MODE_ALL_TRG	( 3 << 0 )
+-#define INA219_CONFIG_MODE_ADC_OFF	( 4 << 0 )
++#define INA219_CONFIG_MODE_BUS_TRG		( 2 << 0 )
++#define INA219_CONFIG_MODE_ALL_TRG		( 3 << 0 )
++#define INA219_CONFIG_MODE_ADC_OFF		( 4 << 0 )
+ #define INA219_CONFIG_MODE_SHUNT_CONT	( 5 << 0 )
+-#define INA219_CONFIG_MODE_BUS_CONT	( 6 << 0 )
+-#define INA219_CONFIG_MODE_ALL_CONT	( 7 << 0 )
+-#define INA219_CONFIG_MODE_MASK		( 7 << 0 )
++#define INA219_CONFIG_MODE_BUS_CONT		( 6 << 0 )
++#define INA219_CONFIG_MODE_ALL_CONT		( 7 << 0 )
++#define INA219_CONFIG_MODE_MASK			( 7 << 0 )
+ 
+ 
+ /* worst case is 68.10 ms (~14.6Hz, ina219) */
+-#define INA2XX_CONVERSION_RATE		15
+-#define INA2XX_MAX_DELAY		69 /* worst case delay in ms */
++#define INA2XX_CONVERSION_RATE			15
++#define INA2XX_MAX_DELAY				69 /* worst case delay in ms */
+ 
+-#define INA2XX_RSHUNT_DEFAULT		10000
++#define INA2XX_RSHUNT_DEFAULT			10000
+ 
+ /* bit mask for reading the averaging setting in the configuration register */
+-#define INA226_AVG_RD_MASK		0x0E00
++#define INA226_AVG_RD_MASK				0x0E00
+ 
+-#define INA226_READ_AVG(reg)		(((reg) & INA226_AVG_RD_MASK) >> 9)
+-#define INA226_SHIFT_AVG(val)		((val) << 9)
++#define INA226_READ_AVG(reg)			(((reg) & INA226_AVG_RD_MASK) >> 9)
++#define INA226_SHIFT_AVG(val)			((val) << 9)
+ 
+ /* bit number of alert functions in Mask/Enable Register */
+ #define INA226_SHUNT_OVER_VOLTAGE_BIT	15
+ #define INA226_SHUNT_UNDER_VOLTAGE_BIT	14
+-#define INA226_BUS_OVER_VOLTAGE_BIT	13
++#define INA226_BUS_OVER_VOLTAGE_BIT		13
+ #define INA226_BUS_UNDER_VOLTAGE_BIT	12
+-#define INA226_POWER_OVER_LIMIT_BIT	11
++#define INA226_POWER_OVER_LIMIT_BIT		11
+ 
+ /* bit mask for alert config bits of Mask/Enable Register */
+-#define INA226_ALERT_CONFIG_MASK	0xFC00
+-#define INA226_ALERT_FUNCTION_FLAG	BIT(4)
++#define INA226_ALERT_CONFIG_MASK		0xFC00
++#define INA226_ALERT_FUNCTION_FLAG		BIT(4)
+ 
+ /* common attrs, ina226 attrs and NULL */
+-#define INA2XX_MAX_ATTRIBUTE_GROUPS	3
++#define INA2XX_MAX_ATTRIBUTE_GROUPS		3
+ 
+ /*
+  * Both bus voltage and shunt voltage conversion times for ina226 are set
+@@ -185,8 +184,8 @@ static const struct ina2xx_config ina2xx_config[] = {
+ 	[ina219] = {
+ 		.config_default =	INA219_CONFIG_BRNG_32V | \
+ 					INA219_CONFIG_PGA_8 | \
+-					INA219_CONFIG_BADC_12B_8S | \
+-					INA219_CONFIG_SADC_12B_8S | \
++					INA219_CONFIG_BADC_12B_128S | \
++					INA219_CONFIG_SADC_12B_128S | \
+ 					INA219_CONFIG_MODE_ALL_CONT,
+ 		.calibration_value = 4096,
+ 		.registers = INA219_REGISTERS,
+-- 
+2.7.4
+

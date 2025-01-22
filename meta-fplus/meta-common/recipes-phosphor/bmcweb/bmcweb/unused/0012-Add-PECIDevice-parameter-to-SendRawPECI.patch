@@ -1,0 +1,58 @@
+From 1cae61aa2e69720f8f7c6a58a843497593412ed2 Mon Sep 17 00:00:00 2001
+From: Krzysztof Grobelny <krzysztof.grobelny@intel.com>
+Date: Wed, 14 Jul 2021 14:03:59 +0000
+Subject: [PATCH] Add PECIDevice parameter to SendRawPECI
+
+This adds a new "PECIDevice" parameter to the SendRawPECI
+Redfish interface to override the PECI device for the command and
+reset the PECI device back to default when complete.
+
+Tested:
+Confirmed that the raw PECI command uses the given device when
+"PECIDevice" is provided and peci-default when it is not.
+
+Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
+---
+ redfish-core/lib/log_services.hpp | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/redfish-core/lib/log_services.hpp b/redfish-core/lib/log_services.hpp
+index ec9f17c..5f934c8 100644
+--- a/redfish-core/lib/log_services.hpp
++++ b/redfish-core/lib/log_services.hpp
+@@ -3041,10 +3041,11 @@ inline void requestRoutesSendRawPECI(App& app)
+                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                 std::vector<std::vector<uint8_t>> peciCommands;
+                 std::optional<std::vector<int32_t>> peciTiming;
++                std::optional<std::string> peciDev;
+ 
+                 if (!json_util::readJson(req, asyncResp->res, "PECICommands",
+                                          peciCommands, "RetryTimingUs",
+-                                         peciTiming))
++                                         peciTiming, "PECIDevice", peciDev))
+                 {
+                     return;
+                 }
+@@ -3052,6 +3053,10 @@ inline void requestRoutesSendRawPECI(App& app)
+                 {
+                     peciTiming = {-1, -1, -1};
+                 }
++                if (!peciDev)
++                {
++                    peciDev = "/dev/peci-default";
++                }
+ 
+                 uint32_t idx = 0;
+                 for (auto const& cmd : peciCommands)
+@@ -3105,7 +3110,7 @@ inline void requestRoutesSendRawPECI(App& app)
+                 crow::connections::systemBus->async_method_call(
+                     std::move(sendRawPECICallback), crashdumpObject,
+                     crashdumpPath, "com.intel.crashdump.SendRawPeci",
+-                    "SendRawPeci", peciCommands, *peciTiming);
++                    "SendRawPeci", *peciDev, peciCommands, *peciTiming);
+             });
+ }
+ 
+-- 
+2.25.1
+

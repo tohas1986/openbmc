@@ -79,33 +79,33 @@ def get_patched_cves(d):
     import re
     import oe.patch
 
-    cve_match = re.compile(r"CVE:( CVE-\d{4}-\d+)+")
+    pn = d.getVar("PN")
+    cve_match = re.compile("CVE:( CVE\-\d{4}\-\d+)+")
 
     # Matches the last "CVE-YYYY-ID" in the file name, also if written
     # in lowercase. Possible to have multiple CVE IDs in a single
     # file name, but only the last one will be detected from the file name.
     # However, patch files contents addressing multiple CVE IDs are supported
     # (cve_match regular expression)
-    cve_file_name_match = re.compile(r".*(CVE-\d{4}-\d+)", re.IGNORECASE)
+
+    cve_file_name_match = re.compile(".*([Cc][Vv][Ee]\-\d{4}\-\d+)")
 
     patched_cves = set()
-    patches = oe.patch.src_patches(d)
-    bb.debug(2, "Scanning %d patches for CVEs" % len(patches))
-    for url in patches:
+    bb.debug(2, "Looking for patches that solves CVEs for %s" % pn)
+    for url in oe.patch.src_patches(d):
         patch_file = bb.fetch.decodeurl(url)[2]
+
+        # Remote compressed patches may not be unpacked, so silently ignore them
+        if not os.path.isfile(patch_file):
+            bb.warn("%s does not exist, cannot extract CVE list" % patch_file)
+            continue
 
         # Check patch file name for CVE ID
         fname_match = cve_file_name_match.search(patch_file)
         if fname_match:
             cve = fname_match.group(1).upper()
             patched_cves.add(cve)
-            bb.debug(2, "Found %s from patch file name %s" % (cve, patch_file))
-
-        # Remote patches won't be present and compressed patches won't be
-        # unpacked, so say we're not scanning them
-        if not os.path.isfile(patch_file):
-            bb.note("%s is remote or compressed, not scanning content" % patch_file)
-            continue
+            bb.debug(2, "Found CVE %s from patch file name %s" % (cve, patch_file))
 
         with open(patch_file, "r", encoding="utf-8") as f:
             try:
@@ -130,13 +130,6 @@ def get_patched_cves(d):
         if not fname_match and not text_match:
             bb.debug(2, "Patch %s doesn't solve CVEs" % patch_file)
 
-    # Search for additional patched CVEs
-    for cve in (d.getVarFlags("CVE_STATUS") or {}):
-        decoded_status, _, _ = decode_cve_status(d, cve)
-        if decoded_status == "Patched":
-            bb.debug(2, "CVE %s is additionally patched" % cve)
-            patched_cves.add(cve)
-
     return patched_cves
 
 
@@ -156,7 +149,7 @@ def get_cpe_ids(cve_product, version):
         else:
             vendor = "*"
 
-        cpe_id = 'cpe:2.3:*:{}:{}:{}:*:*:*:*:*:*:*'.format(vendor, product, version)
+        cpe_id = 'cpe:2.3:a:{}:{}:{}:*:*:*:*:*:*:*'.format(vendor, product, version)
         cpe_ids.append(cpe_id)
 
     return cpe_ids
@@ -172,7 +165,7 @@ def cve_check_merge_jsons(output, data):
 
     for product in output["package"]:
         if product["name"] == data["package"][0]["name"]:
-            bb.error("Error adding the same package %s twice" % product["name"])
+            bb.error("Error adding the same package twice")
             return
 
     output["package"].append(data["package"][0])
@@ -186,60 +179,3 @@ def update_symlinks(target_path, link_path):
         if os.path.exists(os.path.realpath(link_path)):
             os.remove(link_path)
         os.symlink(os.path.basename(target_path), link_path)
-
-
-def convert_cve_version(version):
-    """
-    This function converts from CVE format to Yocto version format.
-    eg 8.3_p1 -> 8.3p1, 6.2_rc1 -> 6.2-rc1
-
-    Unless it is redefined using CVE_VERSION in the recipe,
-    cve_check uses the version in the name of the recipe (${PV})
-    to check vulnerabilities against a CVE in the database downloaded from NVD.
-
-    When the version has an update, i.e.
-    "p1" in OpenSSH 8.3p1,
-    "-rc1" in linux kernel 6.2-rc1,
-    the database stores the version as version_update (8.3_p1, 6.2_rc1).
-    Therefore, we must transform this version before comparing to the
-    recipe version.
-
-    In this case, the parameter of the function is 8.3_p1.
-    If the version uses the Release Candidate format, "rc",
-    this function replaces the '_' by '-'.
-    If the version uses the Update format, "p",
-    this function removes the '_' completely.
-    """
-    import re
-
-    matches = re.match('^([0-9.]+)_((p|rc)[0-9]+)$', version)
-
-    if not matches:
-        return version
-
-    version = matches.group(1)
-    update = matches.group(2)
-
-    if matches.group(3) == "rc":
-        return version + '-' + update
-
-    return version + update
-
-def decode_cve_status(d, cve):
-    """
-    Convert CVE_STATUS into status, detail and description.
-    """
-    status = d.getVarFlag("CVE_STATUS", cve)
-    if not status:
-        return ("", "", "")
-
-    status_split = status.split(':', 1)
-    detail = status_split[0]
-    description = status_split[1].strip() if (len(status_split) > 1) else ""
-
-    status_mapping = d.getVarFlag("CVE_CHECK_STATUSMAP", detail)
-    if status_mapping is None:
-        bb.warn('Invalid detail "%s" for CVE_STATUS[%s] = "%s", fallback to Unpatched' % (detail, cve, status))
-        status_mapping = "Unpatched"
-
-    return (status_mapping, detail, description)

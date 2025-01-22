@@ -1,0 +1,63 @@
+From ccb9fc66c1ed1c3607d657cdc8a75f9f28aaea75 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 14 Dec 2021 12:40:12 +0000
+Subject: [PATCH] Add smbios-mdrv2 required CPU attributes
+
+---
+ .../Inventory/Item/Cpu.interface.yaml         | 40 +++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+
+diff --git a/yaml/xyz/openbmc_project/Inventory/Item/Cpu.interface.yaml b/yaml/xyz/openbmc_project/Inventory/Item/Cpu.interface.yaml
+index 53eca3e6..a2b7a2ce 100644
+--- a/yaml/xyz/openbmc_project/Inventory/Item/Cpu.interface.yaml
++++ b/yaml/xyz/openbmc_project/Inventory/Item/Cpu.interface.yaml
+@@ -1,6 +1,46 @@
+ description: >
+     Implement to provide CPU attributes.
+ properties:
++    - name: ProcessorSocket
++      type: string
++      description: >
++          Processor Socket on MotherBoard
++    - name: ProcessorType
++      type: string
++      description: >
++          Processor Type of CPU
++    - name: ProcessorFamily
++      type: string
++      description: >
++          Processor Family of CPU
++    - name: ProcessorManufacturer
++      type: string
++      description: >
++          Processor Manufacturer of CPU
++    - name: ProcessorId
++      type: uint32
++      description: >
++          Processor ID of CPU
++    - name: ProcessorVersion
++      type: string
++      description: >
++          Processor Version of CPU
++    - name: ProcessorMaxSpeed
++      type: uint16
++      description: >
++          Max Speed CPU Can Support
++    - name: ProcessorCharacteristics
++      type: string
++      description: >
++          The Characteristics CPU Has
++    - name: ProcessorCoreCount
++      type: uint16
++      description: >
++          The Count of Core in CPU
++    - name: ProcessorThreadCount
++      type: uint16
++      description: >
++          The Count of Thread CPU Can Support
+     - name: Socket
+       type: string
+       description: >
+-- 
+2.33.1
+

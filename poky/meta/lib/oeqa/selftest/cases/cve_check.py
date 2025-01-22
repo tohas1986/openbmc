@@ -54,25 +54,6 @@ class CVECheck(OESelftestTestCase):
         self.assertTrue( result ,msg="Failed to compare version with suffix '1.0_patch2' < '1.0_patch3'")
 
 
-    def test_convert_cve_version(self):
-        from oe.cve_check import convert_cve_version
-
-        # Default format
-        self.assertEqual(convert_cve_version("8.3"), "8.3")
-        self.assertEqual(convert_cve_version(""), "")
-
-        # OpenSSL format version
-        self.assertEqual(convert_cve_version("1.1.1t"), "1.1.1t")
-
-        # OpenSSH format
-        self.assertEqual(convert_cve_version("8.3_p1"), "8.3p1")
-        self.assertEqual(convert_cve_version("8.3_p22"), "8.3p22")
-
-        # Linux kernel format
-        self.assertEqual(convert_cve_version("6.2_rc8"), "6.2-rc8")
-        self.assertEqual(convert_cve_version("6.2_rc31"), "6.2-rc31")
-
-
     def test_recipe_report_json(self):
         config = """
 INHERIT += "cve-check"
@@ -207,34 +188,18 @@ CVE_CHECK_REPORT_PATCHED = "1"
             self.assertEqual(len(report["package"]), 1)
             package = report["package"][0]
             self.assertEqual(package["name"], "logrotate")
-            found_cves = {}
-            for issue in package["issue"]:
-                found_cves[issue["id"]] = {
-                    "status" : issue["status"],
-                    "detail" : issue["detail"] if "detail" in issue else "",
-                    "description" : issue["description"] if "description" in issue else ""
-                }
+            found_cves = { issue["id"]: issue["status"] for issue in package["issue"]}
             # m4 CVE should not be in logrotate
             self.assertNotIn("CVE-2008-1687", found_cves)
             # logrotate has both Patched and Ignored CVEs
             self.assertIn("CVE-2011-1098", found_cves)
-            self.assertEqual(found_cves["CVE-2011-1098"]["status"], "Patched")
-            self.assertEqual(len(found_cves["CVE-2011-1098"]["detail"]), 0)
-            self.assertEqual(len(found_cves["CVE-2011-1098"]["description"]), 0)
-            detail = "not-applicable-platform"
-            description = "CVE is debian, gentoo or SUSE specific on the way logrotate was installed/used"
+            self.assertEqual(found_cves["CVE-2011-1098"], "Patched")
             self.assertIn("CVE-2011-1548", found_cves)
-            self.assertEqual(found_cves["CVE-2011-1548"]["status"], "Ignored")
-            self.assertEqual(found_cves["CVE-2011-1548"]["detail"], detail)
-            self.assertEqual(found_cves["CVE-2011-1548"]["description"], description)
+            self.assertEqual(found_cves["CVE-2011-1548"], "Ignored")
             self.assertIn("CVE-2011-1549", found_cves)
-            self.assertEqual(found_cves["CVE-2011-1549"]["status"], "Ignored")
-            self.assertEqual(found_cves["CVE-2011-1549"]["detail"], detail)
-            self.assertEqual(found_cves["CVE-2011-1549"]["description"], description)
+            self.assertEqual(found_cves["CVE-2011-1549"], "Ignored")
             self.assertIn("CVE-2011-1550", found_cves)
-            self.assertEqual(found_cves["CVE-2011-1550"]["status"], "Ignored")
-            self.assertEqual(found_cves["CVE-2011-1550"]["detail"], detail)
-            self.assertEqual(found_cves["CVE-2011-1550"]["description"], description)
+            self.assertEqual(found_cves["CVE-2011-1550"], "Ignored")
 
         self.assertExists(summary_json)
         check_m4_json(summary_json)

@@ -1,0 +1,11 @@
+[Unit]
+Description=Re-setting DIMM serial number (for some Vendors)
+Requires=multi-user.target
+After=smbios-mdrv2.service
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/dimmserial_start.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -4,17 +4,13 @@
 # SPDX-License-Identifier: MIT
 #
 
-# Note that this recipe only handles XML catalogues in the native sysroot, and doesn't
-# yet support catalogue management in the target sysroot or on the target itself.
-# (https://bugzilla.yoctoproject.org/13271)
+DEPENDS = "libxml2-native"
 
 # A whitespace-separated list of XML catalogs to be registered, for example
 # "${sysconfdir}/xml/docbook-xml.xml".
 XMLCATALOGS ?= ""
 
-DEPENDS:append = " libxml2-native"
-
-SYSROOT_PREPROCESS_FUNCS:append:class-native = " xmlcatalog_sstate_postinst"
+SYSROOT_PREPROCESS_FUNCS:append = " xmlcatalog_sstate_postinst"
 
 xmlcatalog_complete() {
 	ROOTCATALOG="${STAGING_ETCDIR_NATIVE}/xml/catalog"

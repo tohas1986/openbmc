@@ -1,0 +1,13 @@
+[Unit]
+Description=Runs firmware poller each 30 minutes
+
+[Timer]
+# Run after booting
+OnBootSec=3min
+# Run every
+OnUnitActiveSec=30min
+RandomizedDelaySec=15min
+Unit=fwpoll.service
+
+[Install]
+WantedBy=multi-user.target

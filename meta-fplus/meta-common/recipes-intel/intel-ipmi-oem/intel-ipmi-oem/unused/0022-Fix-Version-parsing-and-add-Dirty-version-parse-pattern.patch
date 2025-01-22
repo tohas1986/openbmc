@@ -1,0 +1,109 @@
+From 02aeea524b307e05f9aa4f00abd3b37e625fd735 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 20 May 2022 13:57:07 +0000
+Subject: [PATCH] Fix Version parsing and add Dirty version parse pattern
+
+---
+ src/appcommands.cpp | 63 +++++++++++++++++++--------------------------
+ 1 file changed, 26 insertions(+), 37 deletions(-)
+
+diff --git a/src/appcommands.cpp b/src/appcommands.cpp
+index 6462e66..a1d4545 100644
+--- a/src/appcommands.cpp
++++ b/src/appcommands.cpp
+@@ -208,13 +208,18 @@ std::optional<MetaRevision> convertIntelVersion(std::string& s)
+ {
+     std::smatch results;
+     MetaRevision rev;
+-    std::regex pattern1("(\\d+?).(\\d+?).\\d+?-\\w*?-(\\d+?)-g(\\w+?)-(\\w+?)");
+-    constexpr size_t matchedPhosphor = 6;
++
++    /*
++    *   In case of production firmware release
++    */
++
++    std::regex pattern1("(\\d+?).(\\d+?).\\d+?-\\w*?-(\\d+?)-g(\\w+?)-\\d*?(\\w+?)");
++    constexpr size_t matchedYandexPhosphor = 6;
+     if (std::regex_match(s, results, pattern1))
+     {
+-        if (results.size() == matchedPhosphor)
++        if (results.size() == matchedYandexPhosphor)
+         {
+-            rev.platform = "whtref";
++            rev.platform = "yandexBmc";
+             rev.major = static_cast<uint8_t>(std::stoi(results[1]));
+             rev.minor = static_cast<uint8_t>(std::stoi(results[2]));
+             rev.buildNo = static_cast<uint32_t>(std::stoi(results[3]));
+@@ -224,42 +229,24 @@ std::optional<MetaRevision> convertIntelVersion(std::string& s)
+                 rev.platform + ":" + std::to_string(rev.major) + ":" +
+                 std::to_string(rev.minor) + ":" + std::to_string(rev.buildNo) +
+                 ":" + rev.openbmcHash + ":" + rev.metaHash;
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "Get BMC version",
+-                phosphor::logging::entry("VERSION=%s", versionString.c_str()));
+-            return rev;
+-        }
+-    }
+-    constexpr size_t matchedIntel = 7;
+-    std::regex pattern2("(\\w+?)-(\\d+?).(\\d+?)-(\\d+?)-g(\\w+?)-(\\w+?)");
+-    if (std::regex_match(s, results, pattern2))
+-    {
+-        if (results.size() == matchedIntel)
+-        {
+-            rev.platform = results[1];
+-            rev.major = static_cast<uint8_t>(std::stoi(results[2]));
+-            rev.minor = static_cast<uint8_t>(std::stoi(results[3]));
+-            rev.buildNo = static_cast<uint32_t>(std::stoi(results[4]));
+-            rev.openbmcHash = results[6];
+-            rev.metaHash = results[5];
+-            std::string versionString =
+-                rev.platform + ":" + std::to_string(rev.major) + ":" +
+-                std::to_string(rev.minor) + ":" + std::to_string(rev.buildNo) +
+-                ":" + rev.openbmcHash + ":" + rev.metaHash;
+-            phosphor::logging::log<phosphor::logging::level::INFO>(
+-                "Get BMC version",
+-                phosphor::logging::entry("VERSION=%s", versionString.c_str()));
++            
++            std::cerr << "Get BMC version: VERSION=" << versionString.c_str() << "\n";
++
+             return rev;
+         }
+     }
+ 
+-    std::regex pattern3("(\\d+?).(\\d+?).\\d+?-\\w*?-(\\d+?)-g(\\w+?)");
+-    constexpr size_t matchedYandexPhosphor = 5;
+-    if (std::regex_match(s, results, pattern3))
++    /*
++    *   In case of Dirty image build we need to be able to parse firmware version
++    */
++
++    std::regex pattern2("(\\d+?).(\\d+?).\\d+?-\\w*?-(\\d+?)-g(\\w+?)-\\w*?-\\d*?(\\w+?)");
++    constexpr size_t matchedYandexPhosphorDirty = 6;
++    if (std::regex_match(s, results, pattern2))
+     {
+-        if (results.size() == matchedYandexPhosphor)
++        if (results.size() == matchedYandexPhosphorDirty)
+         {
+-            rev.platform = "whtref";
++            rev.platform = "yndxBmc";
+             rev.major = static_cast<uint8_t>(std::stoi(results[1]));
+             rev.minor = static_cast<uint8_t>(std::stoi(results[2]));
+             rev.buildNo = static_cast<uint32_t>(std::stoi(results[3]));
+@@ -269,12 +256,14 @@ std::optional<MetaRevision> convertIntelVersion(std::string& s)
+                 rev.platform + ":" + std::to_string(rev.major) + ":" +
+                 std::to_string(rev.minor) + ":" + std::to_string(rev.buildNo) +
+                 ":" + rev.openbmcHash + ":" + rev.metaHash;
+-            phosphor::logging::log<phosphor::logging::level::DEBUG>(
+-                "Get BMC version",
+-                phosphor::logging::entry("VERSION=%s", versionString.c_str()));
++
++            std::cerr << "Get BMC version: VERSION=" << versionString.c_str() << "\n";
++            std::cerr << "It's Dirty, but who cares" << "\n";
++
+             return rev;
+         }
+     }
++
+     return std::nullopt;
+ }
+ 

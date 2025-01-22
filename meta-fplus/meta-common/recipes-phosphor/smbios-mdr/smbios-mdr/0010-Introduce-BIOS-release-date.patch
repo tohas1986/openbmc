@@ -1,0 +1,104 @@
+From 43846f502b18d888077a1a46d84d4703af927e4f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 6 Oct 2022 09:47:30 +0000
+Subject: [PATCH] Introduce BIOS release date
+
+---
+ include/system.hpp |  3 +++
+ src/system.cpp     | 54 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+)
+
+diff --git a/include/system.hpp b/include/system.hpp
+index 80822e2..a57be3d 100644
+--- a/include/system.hpp
++++ b/include/system.hpp
+@@ -54,11 +54,14 @@ class System :
+         std::string input = "0";
+         uuid(input);
+         version("0.00");
++        releaseDate("01/01/1970");
+     }
+ 
+     std::string uuid(std::string value) override;
+ 
+     std::string version(std::string value) override;
++
++    std::string releaseDate(std::string value) override;
+     sdbusplus::bus_t& bus;
+ 
+   private:
+diff --git a/src/system.cpp b/src/system.cpp
+index e4ea038..95514df 100644
+--- a/src/system.cpp
++++ b/src/system.cpp
+@@ -120,6 +120,19 @@ static void setProperty(sdbusplus::bus::bus& bus, const std::string& objectPath,
+     bus.call_noreply(method);
+ }
+ 
++static void setProperty(const std::string& service,
++                 const std::string& path, const std::string& iface,
++                 const std::string& property, std::string value)
++{
++    auto bus = sdbusplus::bus::new_default();
++    auto method = bus.new_method_call(service.c_str(), path.c_str(),
++                                      "org.freedesktop.DBus.Properties", "Set");
++    method.append(iface, property, std::variant<std::string>(value));
++    bus.call_noreply(method);
++
++    return;
++}
++
+ std::string System::version(std::string value)
+ {
+     std::string result = "No BIOS Version";
+@@ -155,9 +168,50 @@ std::string System::version(std::string value)
+     }
+     lg2::info("VERSION INFO - BIOS - {VER}", "VER", result);
+ 
++    try
++    {
++        setProperty("xyz.openbmc_project.Software.BMC.Updater",  // Service
++                    "/xyz/openbmc_project/software/bios_active", // Path
++                    "xyz.openbmc_project.Software.Version",      // Interface
++                    "Version", result);                          // Property, Value
++    } catch (const std::exception& e)
++    {
++        std::cerr << "Unable to propogate BIOS version:" << e.what() << "\n";
++    }
++
++
+     return sdbusplus::xyz::openbmc_project::Inventory::Decorator::server::
+         Revision::version(result);
+ }
+ 
++std::string System::releaseDate(std::string value)
++{
++    std::string result = "No BIOS ReleaseDate";
++    uint8_t* dataIn = storage;
++    dataIn = getSMBIOSTypePtr(dataIn, biosType);
++    if (dataIn != nullptr)
++    {
++        auto biosInfo = reinterpret_cast<struct BIOSInfo*>(dataIn);
++        uint8_t biosReleaseData = biosInfo->releaseData;
++        std::string tempS =
++            positionToString(biosInfo->releaseData, biosInfo->length, dataIn);
++        result = tempS;
++    }
++
++    try
++    {
++        setProperty("xyz.openbmc_project.Software.BMC.Updater",  // Service
++                    "/xyz/openbmc_project/software/bios_active", // Path
++                    "xyz.openbmc_project.Software.Version",      // Interface
++                    "ReleaseDate", result);                      // Property, Value
++    } catch (const std::exception& e)
++    {
++        std::cerr << "Unable to propogate BIOS release date:" << e.what() << "\n";
++    }
++
++    return sdbusplus::xyz::openbmc_project::Inventory::Decorator::server::
++        Revision::releaseDate(result);
++}
++
+ } // namespace smbios
+ } // namespace phosphor

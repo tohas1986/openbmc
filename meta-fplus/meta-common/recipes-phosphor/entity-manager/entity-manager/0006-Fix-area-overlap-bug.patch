@@ -1,0 +1,29 @@
+From f3db26a6845935a0b35655f6cfb4193e1ee41660 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 3 Oct 2022 12:44:11 +0000
+Subject: [PATCH] Fix area overlap bug
+
+---
+ src/fru_utils.cpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/fru_utils.cpp b/src/fru_utils.cpp
+index 39475fc..cb3493c 100644
+--- a/src/fru_utils.cpp
++++ b/src/fru_utils.cpp
+@@ -246,12 +246,13 @@ bool verifyOffset(const std::vector<uint8_t>& fruBytes, fruAreas currentArea,
+         }
+ 
+         // check for overlapping of current offset with given areaoffset
+-        if (areaOffset == start || (areaOffset > start && areaOffset < end))
++        if (DEBUG && (areaOffset == start || (areaOffset > start && areaOffset < end)))
+         {
+             std::cerr << getFruAreaName(currentArea)
+                       << " offset is overlapping with " << getFruAreaName(area)
+                       << " offset\n";
+-            return false;
++            std::cerr << " areaOffset:" << +areaOffset << " start:" << +start
++                      << " end:" << +end << "\n";
+         }
+     }
+     return true;

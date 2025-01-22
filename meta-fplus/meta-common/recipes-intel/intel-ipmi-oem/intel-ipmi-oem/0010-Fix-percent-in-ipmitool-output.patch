@@ -1,0 +1,50 @@
+From d19fa03e8e8736dc36f76f61201872348c3d5e3e Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 15 Dec 2022 14:00:43 +0000
+Subject: [PATCH] Fix percent in ipmitool output
+
+---
+ src/sensorcommands.cpp | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/sensorcommands.cpp b/src/sensorcommands.cpp
+index 1875d99..2260c65 100644
+--- a/src/sensorcommands.cpp
++++ b/src/sensorcommands.cpp
+@@ -78,12 +78,13 @@ SensorSubTree sensorTree;
+ 
+ static boost::container::flat_map<std::string, ManagedObjectType> SensorCache;
+ 
+-constexpr static std::array<std::pair<const char*, SensorUnits>, 5> sensorUnits{
++constexpr static std::array<std::pair<const char*, SensorUnits>, 6> sensorUnits{
+     {{"temperature", SensorUnits::degreesC},
+      {"voltage", SensorUnits::volts},
+      {"current", SensorUnits::amps},
+      {"fan_tach", SensorUnits::rpm},
+-     {"power", SensorUnits::watts}}};
++     {"power", SensorUnits::watts},
++     {"utilization", SensorUnits::unspecified}}};
+ 
+ void registerSensorFunctions() __attribute__((constructor));
+ 
+@@ -1357,6 +1358,11 @@ static int getSensorDataRecord(ipmi::Context::ptr ctx,
+         }
+     }
+ 
++    if (type == "utilization")
++    {
++        record.body.sensor_units_1 |= 1 << 0;
++    }
++
+     record.body.event_reading_type = getSensorEventTypeFromPath(path);
+ 
+     auto sensorObject = sensorMap.find("xyz.openbmc_project.Sensor.Value");
+@@ -1451,7 +1457,7 @@ static int getSensorDataRecord(ipmi::Context::ptr ctx,
+         (rExpSign << 7) | (rExpBits << 4) | (bExpSign << 3) | bExpBits;
+ 
+     // Set the analog reading byte interpretation accordingly
+-    record.body.sensor_units_1 = (bSigned ? 1 : 0) << 7;
++    record.body.sensor_units_1 |= (bSigned ? 1 : 0) << 7;
+ 
+     // TODO(): Perhaps care about Tolerance, Accuracy, and so on
+     // These seem redundant, but derivable from the above 5 attributes

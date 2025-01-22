@@ -1,0 +1,122 @@
+From 78bf2932de15e00300dd53f09ad4badd3672f365 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 1 Apr 2021 13:54:50 +0000
+Subject: [PATCH] Add-debug-output-via-cmdline-param
+
+---
+ src/PSUSensorMain.cpp | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index b0781e4..9b1dfe7 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -38,7 +38,8 @@
+ #include <variant>
+ #include <vector>
+ 
+-static constexpr bool debug = false;
++#include <CLI/CLI.hpp>
++bool DEBUG = false;
+ 
+ static constexpr std::array<const char*, 34> sensorTypes = {
+     "xyz.openbmc_project.Configuration.ADM1272",
+@@ -470,7 +471,7 @@ static void createSensorsCallback(
+         /* read max value in sysfs for in, curr, power, temp, ... */
+         if (!findFiles(directory, R"(\w\d+_max$)", sensorPaths, 0))
+         {
+-            if constexpr (debug)
++            if (DEBUG)
+             {
+                 std::cerr << "No max name in PSU \n";
+             }
+@@ -537,7 +538,7 @@ static void createSensorsCallback(
+             std::ifstream labelFile(labelPath);
+             if (!labelFile.good())
+             {
+-                if constexpr (debug)
++                if (DEBUG)
+                 {
+                     std::cerr << "Input file " << sensorPath
+                               << " has no corresponding label file\n";
+@@ -568,7 +569,7 @@ static void createSensorsCallback(
+                 labelHead.insert(0, "max");
+             }
+ 
+-            if constexpr (debug)
++            if (DEBUG)
+             {
+                 std::cerr << "Sensor type=\"" << sensorNameSubStr
+                           << "\" label=\"" << labelHead << "\"\n";
+@@ -583,7 +584,7 @@ static void createSensorsCallback(
+                 if (std::find(findLabels.begin(), findLabels.end(),
+                               labelHead) == findLabels.end())
+                 {
+-                    if constexpr (debug)
++                    if (DEBUG)
+                     {
+                         std::cerr << "could not find " << labelHead
+                                   << " in the Labels list\n";
+@@ -595,7 +596,7 @@ static void createSensorsCallback(
+             auto findProperty = labelMatch.find(labelHead);
+             if (findProperty == labelMatch.end())
+             {
+-                if constexpr (debug)
++                if (DEBUG)
+                 {
+                     std::cerr << "Could not find matching default property for "
+                               << labelHead << "\n";
+@@ -735,7 +736,7 @@ static void createSensorsCallback(
+ 
+                 psuNameFromIndex = psuNames[nameIndex];
+ 
+-                if constexpr (debug)
++                if (DEBUG)
+                 {
+                     std::cerr << "Sensor label head " << labelHead
+                               << " paired with " << psuNameFromIndex
+@@ -769,7 +770,7 @@ static void createSensorsCallback(
+                                         findScaleFactor->second);
+                 }
+ 
+-                if constexpr (debug)
++                if (DEBUG)
+                 {
+                     std::cerr << "Sensor scaling factor " << factor
+                               << " string " << strScaleFactor << "\n";
+@@ -792,7 +793,7 @@ static void createSensorsCallback(
+                 continue;
+             }
+ 
+-            if constexpr (debug)
++            if (DEBUG)
+             {
+                 std::cerr << "Sensor properties: Name \""
+                           << psuProperty->labelTypeName << "\" Scale "
+@@ -820,7 +821,7 @@ static void createSensorsCallback(
+                     psuNameFromIndex + " " + psuProperty->labelTypeName;
+             }
+ 
+-            if constexpr (debug)
++            if (DEBUG)
+             {
+                 std::cerr << "Sensor name \"" << sensorName << "\" path \""
+                           << sensorPathStr << "\" type \"" << sensorType
+@@ -878,7 +879,7 @@ static void createSensorsCallback(
+                 std::move(bridgeGpio), readState);
+             sensors[sensorName]->setupRead();
+             ++numCreated;
+-            if constexpr (debug)
++            if (DEBUG)
+             {
+                 std::cerr << "Created " << numCreated << " sensors so far\n";
+             }
+@@ -892,7 +893,7 @@ static void createSensorsCallback(
+                 groupEventPathList, "OperationalStatus");
+     }
+ 
+-    if constexpr (debug)
++    if (DEBUG)
+     {
+         std::cerr << "Created total of " << numCreated << " sensors\n";
+     }

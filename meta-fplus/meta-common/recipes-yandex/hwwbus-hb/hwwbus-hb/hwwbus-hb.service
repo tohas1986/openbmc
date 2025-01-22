@@ -1,0 +1,12 @@
+[Unit]
+Description=HWWBUS heartbeat service
+Requires=multi-user.target
+Wants=network.target network-online.target
+After=network.target network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/hwwbus-hb --interface eth0 --interval 60 --port 9443
+
+[Install]
+WantedBy=multi-user.target

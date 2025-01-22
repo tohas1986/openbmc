@@ -13,9 +13,8 @@ SRC_URI +=" \
 	file://run-ptest \
 "
 
-RDEPENDS:${PN}-ptest +=" \
-    python3-pytest \
-    python3-unittest-automake-output \
+RDEPENDS:${PN}_ptest +=" \
+	${PYTHON_PN}_pytest \
 "
 
 do_install_ptest() {
@@ -23,6 +22,6 @@ do_install_ptest() {
 }
 
 
-RDEPENDS:${PN} += "python3-pytest"
+RDEPENDS:${PN} += "${PYTHON_PN}-pytest"
 
 BBCLASSEXTEND = "native nativesdk"

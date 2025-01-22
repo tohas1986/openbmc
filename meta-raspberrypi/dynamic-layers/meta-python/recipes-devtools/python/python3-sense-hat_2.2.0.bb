@@ -18,7 +18,7 @@ DEPENDS += " \
     "
 
 RDEPENDS:${PN} += " \
-    python3-numpy \
-    python3-rtimu \
-    python3-pillow \
+    ${PYTHON_PN}-numpy \
+    ${PYTHON_PN}-rtimu \
+    ${PYTHON_PN}-pillow \
     "

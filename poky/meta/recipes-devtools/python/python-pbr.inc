@@ -9,6 +9,6 @@ SRC_URI += "file://0001-change-shebang-to-python3.patch"
 
 inherit pypi
 
-RDEPENDS:${PN} += "python3-pip"
+RDEPENDS:${PN} += "${PYTHON_PN}-pip"
 
 BBCLASSEXTEND = "native nativesdk"

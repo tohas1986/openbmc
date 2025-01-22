@@ -1,0 +1,848 @@
+From a0978c6e6d72fe29b9c068008d47a87f9665304a Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 23 Dec 2021 08:12:39 +0000
+Subject: [PATCH] Introduce NodeManager sensor
+
+---
+ include/NMSensor.hpp                          |  80 +++
+ meson_options.txt                             |   1 +
+ service_files/meson.build                     |   1 +
+ .../xyz.openbmc_project.nmsensor.service      |  14 +
+ src/NMSensor.cpp                              | 675 ++++++++++++++++++
+ src/meson.build                               |  15 +
+ 6 files changed, 786 insertions(+)
+ create mode 100644 include/NMSensor.hpp
+ create mode 100644 service_files/xyz.openbmc_project.nmsensor.service
+ create mode 100644 src/NMSensor.cpp
+
+diff --git a/include/NMSensor.hpp b/include/NMSensor.hpp
+new file mode 100644
+index 0000000..ad5964e
+--- /dev/null
++++ b/include/NMSensor.hpp
+@@ -0,0 +1,80 @@
++#pragma once
++#include "sensor.hpp"
++
++#include <boost/asio/steady_timer.hpp>
++#include <boost/container/flat_map.hpp>
++
++#include <chrono>
++#include <limits>
++#include <memory>
++#include <optional>
++#include <string>
++#include <vector>
++
++enum class IpmbType
++{
++    DIMMSensor,
++    dtsTemp,
++    cpuTemp,
++    cpuTjMax
++};
++
++enum class IpmbSubType
++{
++    temp,
++    curr,
++    power,
++    volt,
++    util
++};
++
++enum class ReadingFormat
++{
++    medimmsensor,
++    cpu,
++    dts,
++    tjmax
++};
++
++struct NMSensor : public Sensor
++{
++    NMSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
++               boost::asio::io_service& io, const std::string& name,
++               const std::string& sensorConfiguration,
++               sdbusplus::asio::object_server& objectServer,
++               std::vector<thresholds::Threshold>&& thresholds,
++               uint8_t& deviceAddress,  uint8_t& deviceCPUID, uint8_t& deviceChannelID,
++               uint8_t& deviceDIMMID, std::string& deviceTypeName,
++               std::string& sensorTypeName);
++    ~NMSensor() override;
++
++    void checkThresholds(void) override;
++    void read(void);
++    void init(void);
++    std::string getSubTypeUnits(void);
++    void loadDefaults(void);
++    bool processReading(const std::vector<uint8_t>& data, double& resp);
++
++    IpmbType type;
++    IpmbSubType subType;
++    double scaleVal;
++    double offsetVal;
++    uint8_t deviceCPUID = 0;
++    uint8_t deviceChannelID = 0;
++    uint8_t deviceDIMMID = 0;
++    std::string deviceTypeName;
++
++    uint8_t netfn;
++    uint8_t command;
++    uint8_t deviceAddress;
++    uint8_t errorCount;
++    std::vector<uint8_t> commandData;
++
++    uint8_t pollTime = 1;
++
++    ReadingFormat readingFormat;
++
++  private:
++    sdbusplus::asio::object_server& objectServer;
++    boost::asio::steady_timer waitTimer;
++};
+diff --git a/meson_options.txt b/meson_options.txt
+index 6e6fce8..61d77c0 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -18,3 +18,4 @@ option('sysfs', type: 'feature', value: 'enabled', description: 'Enable sysfs ge
+ option('i2c', type: 'feature', value: 'enabled', description: 'Enable I2C bus state sensor.',)
+ option('bmcresetcause', type: 'feature', value: 'enabled', description: 'Enable BMC reset cause sensor.',)
+ option('gpu', type: 'feature', value: 'enabled', description: 'Enable GPU SMBPBI sensor.',)
++option('nodemanager', type: 'feature', value: 'enabled', description: 'Enable NodeManager sensor.',)
+diff --git a/service_files/meson.build b/service_files/meson.build
+index 36919d9..4699a0e 100644
+--- a/service_files/meson.build
++++ b/service_files/meson.build
+@@ -16,6 +16,7 @@ unit_files = [
+     ['i2c', 'xyz.openbmc_project.i2csensor.service'],
+     ['bmcresetcause', 'xyz.openbmc_project.bmcresetcausesensor.service'],
+     ['gpu', 'xyz.openbmc_project.gpusensor.service'],
++    ['nodemanager', 'xyz.openbmc_project.nmsensor.service'],
+ ]
+ 
+ foreach tuple : unit_files
+diff --git a/service_files/xyz.openbmc_project.nmsensor.service b/service_files/xyz.openbmc_project.nmsensor.service
+new file mode 100644
+index 0000000..e92a950
+--- /dev/null
++++ b/service_files/xyz.openbmc_project.nmsensor.service
+@@ -0,0 +1,14 @@
++[Unit]
++Description=NodeManager Sensor
++StopWhenUnneeded=false
++Requires=xyz.openbmc_project.EntityManager.service
++After=xyz.openbmc_project.EntityManager.service
++
++[Service]
++Restart=always
++RestartSec=5
++ExecStart=/usr/bin/nmsensor
++
++[Install]
++WantedBy=multi-user.target
++
+diff --git a/src/NMSensor.cpp b/src/NMSensor.cpp
+new file mode 100644
+index 0000000..bffe5ba
+--- /dev/null
++++ b/src/NMSensor.cpp
+@@ -0,0 +1,675 @@
++/*
++// Copyright (c) 2019 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#include "NMSensor.hpp"
++
++#include "Utils.hpp"
++#include "VariantVisitors.hpp"
++
++#include <math.h>
++#include <CLI/CLI.hpp>
++
++#include <boost/algorithm/string.hpp>
++#include <boost/algorithm/string/predicate.hpp>
++#include <boost/container/flat_map.hpp>
++#include <sdbusplus/asio/connection.hpp>
++#include <sdbusplus/asio/object_server.hpp>
++#include <sdbusplus/bus/match.hpp>
++
++#include <chrono>
++#include <functional>
++#include <iostream>
++#include <limits>
++#include <memory>
++#include <numeric>
++#include <string>
++#include <tuple>
++#include <variant>
++#include <vector>
++#include <chrono>
++#include <cmath>
++
++bool DEBUG = false;
++
++constexpr const char* configInterface =
++    "xyz.openbmc_project.Configuration.NMSensor";
++
++static constexpr uint8_t meAddress = 1;
++static constexpr uint8_t lun = 0;
++std::vector<uint8_t> meDataDIMMandCPU;
++double TjmaxValue = 100;
++int requestCnt = 0;
++
++
++static constexpr const char* sensorPathPrefix = "/xyz/openbmc_project/sensors/";
++
++using IpmbMethodType =
++    std::tuple<int, uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
++
++const  std::vector<uint8_t> SecondRequestCommandData = {0x57, 0x01, 0x00, 0x40, 0xff,  0xff, 0xff,
++                            0xff, 0x00, 0x00, 0x00, 0x00};
++
++boost::container::flat_map<std::string, std::unique_ptr<NMSensor>> sensors;
++
++NMSensor::NMSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
++                       boost::asio::io_service& io,
++                       const std::string& sensorName,
++                       const std::string& sensorConfiguration,
++                       sdbusplus::asio::object_server& objectServer,
++                       std::vector<thresholds::Threshold>&& thresholdData,
++                       uint8_t& deviceAddress, uint8_t& deviceCPUID, uint8_t& deviceChannelID,
++                       uint8_t& deviceDIMMID, std::string& deviceTypeName,
++                       std::string& sensorTypeName) :
++    Sensor(escapeName(sensorName), std::move(thresholdData),
++           sensorConfiguration, "xyz.openbmc_project.Configuration.ExitAirTemp",
++           false, false, 0xff, 0x00, conn, PowerState::on),
++    deviceAddress(deviceAddress),
++    deviceCPUID(deviceCPUID), deviceChannelID(deviceChannelID), deviceDIMMID(deviceDIMMID),
++    deviceTypeName(deviceTypeName), objectServer(objectServer),
++    waitTimer(io)
++{
++    std::string dbusPath = sensorPathPrefix + sensorTypeName + "/" + name;
++
++    sensorInterface = objectServer.add_interface(
++        dbusPath, "xyz.openbmc_project.Sensor.Value");
++
++    if (thresholds::hasWarningInterface(thresholds))
++    {
++        thresholdInterfaceWarning = objectServer.add_interface(
++            dbusPath, "xyz.openbmc_project.Sensor.Threshold.Warning");
++    }
++    if (thresholds::hasCriticalInterface(thresholds))
++    {
++        thresholdInterfaceCritical = objectServer.add_interface(
++            dbusPath, "xyz.openbmc_project.Sensor.Threshold.Critical");
++    }
++    association = objectServer.add_interface(dbusPath, association::interface);
++}
++
++NMSensor::~NMSensor()
++{
++    waitTimer.cancel();
++    objectServer.remove_interface(thresholdInterfaceWarning);
++    objectServer.remove_interface(thresholdInterfaceCritical);
++    objectServer.remove_interface(sensorInterface);
++    objectServer.remove_interface(association);
++}
++
++std::string NMSensor::getSubTypeUnits(void)
++{
++    switch (subType)
++    {
++        case IpmbSubType::temp:
++            return sensor_paths::unitDegreesC;
++        case IpmbSubType::curr:
++            return sensor_paths::unitAmperes;
++        case IpmbSubType::power:
++            return sensor_paths::unitWatts;
++        case IpmbSubType::volt:
++            return sensor_paths::unitVolts;
++        case IpmbSubType::util:
++            return sensor_paths::unitPercent;
++        default:
++            throw std::runtime_error("Invalid sensor type");
++    }
++}
++
++void NMSensor::init(void)
++{
++    loadDefaults();
++    setInitialProperties(getSubTypeUnits());
++    read();
++}
++
++void NMSensor::loadDefaults()
++{
++    if (type == IpmbType::DIMMSensor)
++    {
++        netfn = 0x2e;       // me bridge
++        command = 0x4b;     // Get CPU and DIMM Temperature
++        commandData = {0x57, 0x01, 0x00, 0x00, 0xff,  0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00};
++        readingFormat = ReadingFormat::medimmsensor;
++    }
++    else if (type == IpmbType::cpuTjMax)
++    {
++        netfn = 0x04; 
++        command = 0x2d;
++        commandData = {deviceAddress};   // CPU TjMax
++        readingFormat = ReadingFormat::tjmax;
++    }
++    else if (type == IpmbType::dtsTemp)
++    {
++        netfn = 0x2e;       // me bridge
++        command = 0x4b;     // Get CPU DTS
++        commandData = {0x57, 0x01, 0x00, deviceAddress, 0x00,  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
++        readingFormat = ReadingFormat::dts;
++    }
++    else if (type == IpmbType::cpuTemp)
++    {
++        netfn = 0x2e;       // me bridge
++        command = 0x4b;     // Get CPU
++        commandData = {0x57, 0x01, 0x00, deviceAddress, 0x00,  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
++        readingFormat = ReadingFormat::cpu;
++    }
++    else
++    {
++        throw std::runtime_error("Invalid sensor type");
++    }
++
++    if (subType == IpmbSubType::util)
++    {
++        // Utilization need to be scaled to percent
++        maxValue = 100;
++        minValue = 0;
++    }
++}
++
++void NMSensor::checkThresholds(void)
++{
++    thresholds::checkThresholds(this);
++}
++
++bool NMSensor::processReading(const std::vector<uint8_t>& data, double& resp)
++{
++
++    if (data.size() < 3)
++    {
++        return false;
++    }
++
++    switch (readingFormat)
++    {
++        case (ReadingFormat::medimmsensor):
++        {
++            if (requestCnt > 24)
++                requestCnt = 0;
++
++            if (meDataDIMMandCPU.size() >= (deviceDIMMID + deviceChannelID*4 + 3))
++            {
++                resp = meDataDIMMandCPU[deviceDIMMID + deviceChannelID*4 + 3];
++                return true;
++            }
++            else
++            {
++                return false;
++            }
++        }
++        case (ReadingFormat::tjmax):
++        {
++            TjmaxValue = data[0];
++            resp = data[0];
++            return true;
++        }
++        case (ReadingFormat::dts):
++        {
++            resp = data[3];
++            return true;
++        }
++        case (ReadingFormat::cpu):
++        {
++            if (TjmaxValue > 0 && ! (data[1] & (1 << 5))) // Check Reading unavailable bit
++            {
++                resp = TjmaxValue - data[3];
++                return true;
++            }
++            return false;
++        }
++        default:
++            throw std::runtime_error("Invalid reading type");
++    }
++}
++
++void printMEData(const std::vector<uint8_t>& data, std::string deviceTypeName)
++{
++    std::cerr << "Data from ME to: " << deviceTypeName << " : ";
++
++    for (size_t d : data)
++    {
++        std::cerr << std::hex << d << " ";
++    }
++    std::cerr << "\n";
++}
++
++void NMSensor::read(void)
++{
++    if (deviceTypeName != "DIMM")
++    {
++        waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
++        waitTimer.async_wait([this](const boost::system::error_code& ec) {
++            if (ec == boost::asio::error::operation_aborted)
++            {
++                std::cerr << "read: Error occured, exiting\n";
++                exit(0);
++            }
++            if (!readingStateGood())
++            {
++                updateValue(std::numeric_limits<double>::quiet_NaN());
++                read();
++                return;
++            }
++            dbusConnection->async_method_call(
++                [this](boost::system::error_code ec,
++                const IpmbMethodType& response) {
++                    const int& status = std::get<0>(response);
++                    const std::vector<uint8_t>& data = std::get<5>(response);
++
++                    if (ec || status || data.empty())
++                    {
++                        incrementError();
++                        read();
++                        return;
++                    }
++
++                    if (DEBUG) printMEData(data, deviceTypeName);
++
++                    double value = 0;
++
++                    if (!processReading(data, value))
++                    {
++                        incrementError();
++                        read();
++                        return;
++                    }
++
++                    value = (value * scaleVal) + offsetVal;
++
++                    if (value >= 161 && value <= 255)
++                    {
++                        updateValue(std::numeric_limits<double>::quiet_NaN());
++                    }
++                    else if (value <= 0)
++                    {
++                        updateValue(std::numeric_limits<double>::quiet_NaN());
++                    }
++                    else
++                    {
++                        updateValue(value);
++                    }
++
++                    read();
++                },
++                "xyz.openbmc_project.Ipmi.Channel.Ipmb",
++                "/xyz/openbmc_project/Ipmi/Channel/Ipmb", "org.openbmc.Ipmb",
++                "sendRequest", meAddress, netfn, lun, command, commandData);
++            });
++    }
++
++    if (deviceTypeName == "DIMM")
++    {
++        waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
++        waitTimer.async_wait([this](const boost::system::error_code& ec) {
++            if (ec == boost::asio::error::operation_aborted)
++            {
++                std::cerr << "read: Error occured, exiting\n";
++                exit(0);
++            }
++
++            if (!readingStateGood())
++            {
++                updateValue(std::numeric_limits<double>::quiet_NaN());
++                read();
++                return;
++            }
++
++            if (requestCnt > 2)
++            {
++                double value = 0;
++
++                if (!processReading(meDataDIMMandCPU, value))
++                {
++                    incrementError();
++                    read();
++                    return;
++                }
++                value = (value * scaleVal) + offsetVal;
++
++                if (value >= 161 && value <= 255)
++                {
++                    updateValue(std::numeric_limits<double>::quiet_NaN());
++                }
++                else if (value <= 0)
++                {
++                    updateValue(std::numeric_limits<double>::quiet_NaN());
++                }
++                else
++                {
++                    updateValue(value);
++                }
++                requestCnt++;
++                read();
++                return;
++            }
++
++            dbusConnection->async_method_call(
++                [this](boost::system::error_code ec,
++                       const IpmbMethodType& response) {
++                    const int& status = std::get<0>(response);
++                    const std::vector<uint8_t>& data = std::get<5>(response);
++                    if (ec || status || data.empty())
++                    {
++                        incrementError();
++                        read();
++                        return;
++                    }
++
++                    if (DEBUG) printMEData(data, deviceTypeName);
++
++                    meDataDIMMandCPU.clear();
++
++                    for (int i=0; i < data.size(); i++)
++                    {
++                        meDataDIMMandCPU.push_back(data[i]);
++                    }
++
++                    dbusConnection->async_method_call(
++                        [this](boost::system::error_code ec,
++                            const IpmbMethodType& response) {
++
++                                const int& status = std::get<0>(response);
++                                const std::vector<uint8_t>& data = std::get<5>(response);
++
++                                if (ec || status || data.empty())
++                                {
++                                    incrementError();
++                                    read();
++                                    return;
++                                }
++
++                                if (DEBUG) printMEData(data, deviceTypeName);
++
++                                for (int i=3; i < data.size(); i++)
++                                {
++                                    meDataDIMMandCPU.push_back(data[i]);
++                                }
++
++                                double value = 0;
++
++                                if (!processReading(meDataDIMMandCPU, value))
++                                {
++                                    incrementError();
++                                    read();
++                                    return;
++                                }
++
++                                value = (value * scaleVal) + offsetVal;
++
++                                if ((value >= 161 && value <= 255) || value <= 0)
++                                {
++                                    value = std::numeric_limits<double>::quiet_NaN();
++                                }
++                                updateValue(value);
++
++                                requestCnt++;
++                                read();
++                        },
++                        "xyz.openbmc_project.Ipmi.Channel.Ipmb",
++                        "/xyz/openbmc_project/Ipmi/Channel/Ipmb", "org.openbmc.Ipmb",
++                        "sendRequest", meAddress, netfn, lun, command, SecondRequestCommandData);
++                },
++                "xyz.openbmc_project.Ipmi.Channel.Ipmb",
++                "/xyz/openbmc_project/Ipmi/Channel/Ipmb", "org.openbmc.Ipmb",
++                "sendRequest", meAddress, netfn, lun, command, commandData);
++        });
++    }
++}
++
++void createSensors(
++    boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,
++    boost::container::flat_map<std::string, std::unique_ptr<NMSensor>>&
++        sensors,
++    std::shared_ptr<sdbusplus::asio::connection>& dbusConnection)
++{
++    if (!dbusConnection)
++    {
++        std::cerr << "Connection not created\n";
++        exit(0);
++    }
++    dbusConnection->async_method_call(
++        [&](boost::system::error_code ec, const ManagedObjectType& resp) {
++            if (ec)
++            {
++                std::cerr << "Error contacting entity manager\n";
++                exit(0);
++            }
++            for (const auto& pathPair : resp)
++            {
++                for (const auto& entry : pathPair.second)
++                {
++                    if (entry.first != configInterface)
++                    {
++                        continue;
++                    }
++
++                    std::string name;
++                    try
++                    {
++                        name =
++                            loadVariant<std::string>(entry.second, "Name");
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get Name, setting to default" << "\n";
++                    }
++
++                    std::vector<thresholds::Threshold> sensorThresholds;
++                    if (!parseThresholdsFromConfig(pathPair.second,
++                                                   sensorThresholds))
++                    {
++                        if (DEBUG) std::cerr << "error populating thresholds for " << name << "\n";
++                    }
++                    uint8_t deviceAddress =  0;
++                    try
++                    {
++                        deviceAddress =
++                            loadVariant<uint8_t>(entry.second, "Address");
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get Address, setting to default" << "\n";
++                    }
++
++                    uint8_t deviceCPUID = 0;
++                    try
++                    {
++                        deviceCPUID =
++                            loadVariant<uint8_t>(entry.second, "CPUID");
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get CPUID, setting to default" << "\n";
++                    }
++                    uint8_t deviceChannelID = 0;
++                    try
++                    {
++                        deviceChannelID =
++                            loadVariant<uint8_t>(entry.second, "ChannelID");
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get ChannelID, setting to default" << "\n";
++                    }
++
++                    uint8_t deviceDIMMID = 0;
++                    try
++                    {
++                        deviceDIMMID =
++                            loadVariant<uint8_t>(entry.second, "DIMMID");
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get DIMMID, setting to default" << "\n";
++                    }
++
++                    std::string deviceTypeName;
++                    try
++                    {
++                        deviceTypeName =
++                            loadVariant<std::string>(entry.second, "TypeName");
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get deviceTypeName, setting to default" << "\n";
++                    }
++
++                    std::string sensorClass;
++                    try
++                    {
++                        sensorClass  =
++                           loadVariant<std::string>(entry.second, "Class");
++                    }
++                    catch(...)
++                    {
++                        if (DEBUG) std::cerr << "Unable to get Class, setting to default" << "\n";
++                    }
++
++
++                    /* Default sensor type is "temperature" */
++                    std::string sensorTypeName = "temperature";
++                    auto findType = entry.second.find("SensorType");
++                    if (findType != entry.second.end())
++                    {
++                        sensorTypeName = std::visit(VariantToStringVisitor(),
++                                                    findType->second);
++                    }
++
++                    auto& sensor = sensors[name];
++                    sensor = std::make_unique<NMSensor>(
++                        dbusConnection, io, name, pathPair.first, objectServer,
++                        std::move(sensorThresholds), deviceAddress,
++                        deviceCPUID, deviceChannelID, deviceDIMMID, deviceTypeName,
++                        sensorTypeName);
++
++                    /* Initialize scale and offset value */
++                    sensor->scaleVal = 1;
++                    sensor->offsetVal = 0;
++
++                    auto findScaleVal = entry.second.find("ScaleValue");
++                    if (findScaleVal != entry.second.end())
++                    {
++                        sensor->scaleVal = std::visit(VariantToDoubleVisitor(),
++                                                      findScaleVal->second);
++                    }
++
++                    auto findOffsetVal = entry.second.find("OffsetValue");
++                    if (findOffsetVal != entry.second.end())
++                    {
++                        sensor->offsetVal = std::visit(VariantToDoubleVisitor(),
++                                                       findOffsetVal->second);
++                    }
++
++                    auto findPowerState = entry.second.find("PowerState");
++
++                    if (findPowerState != entry.second.end())
++                    {
++                        std::string powerState = std::visit(
++                            VariantToStringVisitor(), findPowerState->second);
++
++                        setReadState(powerState, sensor->readState);
++                    }
++
++                    if (sensorClass == "DIMMSensor")
++                    {
++                        sensor->type = IpmbType::DIMMSensor;
++                        sensor->pollTime = 3;
++                    }
++                    else if (sensorClass == "cpuTjMax")
++                    {
++                        sensor->type = IpmbType::cpuTjMax;
++                    }
++                    else if (sensorClass == "dtsTemp")
++                    {
++                        sensor->type = IpmbType::dtsTemp;
++                    }
++                    else if (sensorClass == "cpuTemp")
++                    {
++                        sensor->type = IpmbType::cpuTemp;
++                    }
++                    else
++                    {
++                        std::cerr << "Invalid class " << sensorClass << "\n";
++                        continue;
++                    }
++
++                    if (sensorTypeName == "voltage")
++                    {
++                        sensor->subType = IpmbSubType::volt;
++                    }
++                    else if (sensorTypeName == "power")
++                    {
++                        sensor->subType = IpmbSubType::power;
++                    }
++                    else if (sensorTypeName == "current")
++                    {
++                        sensor->subType = IpmbSubType::curr;
++                    }
++                    else if (sensorTypeName == "utilization")
++                    {
++                        sensor->subType = IpmbSubType::util;
++                    }
++                    else
++                    {
++                        sensor->subType = IpmbSubType::temp;
++                    }
++                    sensor->init();
++                }
++            }
++        },
++        entityManagerName, "/xyz/openbmc_project/inventory",
++        "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
++}
++
++int main(int argc, char* argv[])
++{
++    CLI::App app("NodeManager (ME) sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
++    boost::asio::io_service io;
++    auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
++    systemBus->request_name("xyz.openbmc_project.NMSensor");
++    sdbusplus::asio::object_server objectServer(systemBus);
++
++    io.post([&]() { createSensors(io, objectServer, sensors, systemBus); });
++
++    boost::asio::steady_timer configTimer(io);
++
++    std::function<void(sdbusplus::message::message&)> eventHandler =
++        [&](sdbusplus::message::message&) {
++            configTimer.expires_from_now(boost::asio::chrono::seconds(1));
++            // create a timer because normally multiple properties change
++            configTimer.async_wait([&](const boost::system::error_code& ec) {
++                if (ec == boost::asio::error::operation_aborted)
++                {
++                    return; // we're being canceled
++                }
++                createSensors(io, objectServer, sensors, systemBus);
++                if (sensors.empty())
++                {
++                    std::cerr << "Configuration not detected\n";
++                }
++            });
++        };
++
++    sdbusplus::bus::match::match configMatch(
++        static_cast<sdbusplus::bus::bus&>(*systemBus),
++        "type='signal',member='PropertiesChanged',path_namespace='" +
++            std::string(inventoryPath) + "',arg0namespace='" + configInterface +
++            "'",
++        eventHandler);
++
++    io.run();
++    return 0;
++}
+diff --git a/src/meson.build b/src/meson.build
+index 6e14929..01944fa 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -305,3 +305,18 @@ if get_option('bmcresetcause').enabled()
+         ],
+     )
+ endif
++
++if get_option('nodemanager').enabled()
++    executable(
++        'nmsensor',
++        'NMSensor.cpp',
++        dependencies: [
++            default_deps,
++            thresholds_dep,
++            utils_dep,
++        ],
++        implicit_include_directories: false,
++        include_directories: '../include',
++        install: true,
++    )
++endif

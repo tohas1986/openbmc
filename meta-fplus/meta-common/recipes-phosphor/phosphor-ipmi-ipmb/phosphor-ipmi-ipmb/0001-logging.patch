@@ -1,0 +1,119 @@
+From 06947846929bd3a5b055ce3ea9b320d9f8e30a57 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 30 Apr 2020 11:05:36 +0300
+Subject: [PATCH 1/1] logging
+
+---
+ ipmbbridged.cpp | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/ipmbbridged.cpp b/ipmbbridged.cpp
+index e0eadfc..07eab71 100644
+--- a/ipmbbridged.cpp
++++ b/ipmbbridged.cpp
+@@ -25,6 +25,7 @@
+ #include <phosphor-logging/log.hpp>
+ #include <tuple>
+ #include <unordered_map>
++#include <iostream>
+ 
+ /**
+  * @brief Dbus
+@@ -262,6 +263,14 @@ void IpmbChannel::ipmbSendI2cFrame(std::shared_ptr<std::vector<uint8_t>> buffer,
+     uint8_t targetAddr = ipmbIsResponse(&(ipmbPkt->hdr))
+                              ? ipmbPkt->hdr.Header.Resp.address
+                              : ipmbPkt->hdr.Header.Req.address;
++
++    std::stringstream ss;
++    ss << ">>>>";
++    for(auto b : *buffer) {
++        ss << " " << std::hex << std::setfill('0') << std::setw(2) << +b;
++    }
++    std::cerr << ss.str() << std::endl;
++
+     boost::asio::async_write(
+         i2cSlaveDescriptor, boost::asio::buffer(*buffer),
+         [this, buffer, retriesAttempted,
+@@ -349,6 +358,7 @@ void IpmbChannel::responseMatch(std::unique_ptr<IpmbResponse> &response)
+ 
+ void IpmbChannel::processI2cEvent()
+ {
++    std::cerr << "Process I2C Event" << std::endl;
+     std::array<uint8_t, ipmbMaxFrameLength> buffer{};
+     IPMB_PKT *ipmbPkt = reinterpret_cast<IPMB_PKT *>(buffer.data());
+     IPMB_HEADER *ipmbFrame = &(ipmbPkt->hdr);
+@@ -361,12 +371,14 @@ void IpmbChannel::processI2cEvent()
+ 
+     if ((r < ipmbMinFrameLength) || (r > ipmbMaxFrameLength))
+     {
++        std::cerr << "Process I2C Event: length worng" << std::endl;
+         goto end;
+     }
+ 
+     // valiate the frame
+     if (!isFrameValid(ipmbFrame, r))
+     {
++        std::cerr << "Process I2C Event: frame invalid" << std::endl;
+         goto end;
+     }
+ 
+@@ -398,8 +410,9 @@ void IpmbChannel::processI2cEvent()
+     {
+         // if command is blocked - respond with 'invalid command'
+         // completion code
+-        if (commandFilter)
++        if (commandFilter && 0)
+         {
++            std::cerr << "Not passed filter" << std::endl;
+             uint8_t netFn = ipmbNetFnGet(ipmbFrame->Header.Req.rsNetFnLUN);
+             uint8_t cmd = ipmbFrame->Header.Req.cmd;
+             uint8_t rqSA = ipmbFrame->Header.Req.rqSA;
+@@ -432,12 +445,14 @@ void IpmbChannel::processI2cEvent()
+             {"rqSA", ipmbAddressTo7BitSet(ipmbMessageReceived.rqSA)}};
+         using IpmiDbusRspType = std::tuple<uint8_t, uint8_t, uint8_t, uint8_t,
+                                            std::vector<uint8_t>>;
++
+         conn->async_method_call(
+             [this, rqLun{ipmbMessageReceived.rqLun},
+              seq{ipmbMessageReceived.seq}, address{ipmbMessageReceived.rqSA}](
+                 const boost::system::error_code &ec,
+                 const IpmiDbusRspType &response) {
+                 const auto &[netfn, lun, cmd, cc, payload] = response;
++                std::cerr << "Got reply" << std::endl;
+                 if (ec)
+                 {
+                     phosphor::logging::log<phosphor::logging::level::ERR>(
+@@ -447,6 +462,13 @@ void IpmbChannel::processI2cEvent()
+ 
+                 uint8_t bmcSlaveAddress = getBmcSlaveAddress();
+ 
++                std::cerr << "bmcSlaveAddress=0x" << std::hex << std::setfill('0') << std::setw(2) << +bmcSlaveAddress;
++                std::cerr << " netfn=0x" << std::hex << std::setfill('0') << std::setw(2) << +netfn;
++                std::cerr << " lun=0x" << std::hex << std::setfill('0') << std::setw(2) << +lun;
++                std::cerr << " cmd=0x" << std::hex << std::setfill('0') << std::setw(2) << +cmd;
++                std::cerr << " cc=0x" << std::hex << std::setfill('0') << std::setw(2) << +cc;
++                std::cerr << std::endl;
++
+                 if (payload.size() > ipmbMaxDataSize)
+                 {
+                     phosphor::logging::log<phosphor::logging::level::ERR>(
+@@ -546,6 +568,7 @@ int IpmbChannel::ipmbChannelInit(const char *ipmbI2cSlave)
+ 
+     // Check if sysfs has device. If not, enable I2C slave driver by command
+     // echo "ipmb-dev 0x1010" > /sys/bus/i2c/devices/i2c-0/new_device
++    std::cerr << "ipmbChannelInit: trying to open device: " << ipmbI2cSlave << std::endl;
+     bool hasSysfs = std::filesystem::exists(ipmbI2cSlave);
+     if (!hasSysfs)
+     {
+@@ -691,6 +714,8 @@ ipmbChannelType IpmbChannel::getChannelType()
+ 
+ void IpmbChannel::addFilter(const uint8_t respNetFn, const uint8_t cmd)
+ {
++    std::cerr << "addFilter: netfn=0x" << std::hex << std::setfill('0') << std::setw(2) << +respNetFn;
++    std::cerr << " cmd=0x" << std::hex << std::setfill('0') << std::setw(2) << +cmd << std::endl;
+     if (commandFilter)
+     {
+         commandFilter->addFilter(respNetFn, cmd);
+-- 
+1.9.1
+

@@ -1,0 +1,31 @@
+From 0779ddfaadacde71ddf7fa10895378ac08b4e2e6 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Thu, 3 Feb 2022 12:54:32 +0000
+Subject: [PATCH] Fix HBM TEMP flap issue
+
+---
+ src/GPUSensor.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/GPUSensor.cpp b/src/GPUSensor.cpp
+index 64b4ea4..044d524 100644
+--- a/src/GPUSensor.cpp
++++ b/src/GPUSensor.cpp
+@@ -362,7 +362,7 @@ int GPUSensor::getRegister(uint8_t idx, uint32_t* value)
+ 
+ void GPUSensor::readSensor(void)
+ {
+-    static constexpr size_t pollTime = 1; // in seconds
++    static constexpr size_t pollTime = 2; // in seconds
+ 
+     waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
+     waitTimer.async_wait([this](const boost::system::error_code& ec) {
+@@ -390,7 +390,7 @@ void GPUSensor::readSensor(void)
+         {
+             if((subType == SensorSubTypes::GPUTEMP) || (subType == SensorSubTypes::HBMTEMP))
+             {
+-                if ((value >= 120 && value <= 255) || (value <= 0))
++                if ((value >= 110 && value <= 255) || (value <= 0))
+                 {
+                     updateValue(std::numeric_limits<double>::quiet_NaN());
+                 }

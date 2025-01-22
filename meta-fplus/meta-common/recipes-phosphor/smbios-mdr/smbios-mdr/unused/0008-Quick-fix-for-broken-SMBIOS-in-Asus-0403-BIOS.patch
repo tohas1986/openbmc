@@ -1,0 +1,26 @@
+From 3c6f2a5aa49ef081234c183c1011e3295c66631c Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 1 Feb 2022 08:32:19 +0000
+Subject: [PATCH] Quick fix for broken SMBIOS in Asus 0403 BIOS
+
+---
+ src/drive.cpp | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/drive.cpp b/src/drive.cpp
+index 6140f41..abb22a8 100644
+--- a/src/drive.cpp
++++ b/src/drive.cpp
+@@ -82,6 +82,12 @@ void Drive::driveInfoUpdate(void)
+     /* Fill in OEM structure */
+     auto driveInfo = reinterpret_cast<struct DriveInfo*>(dataIn);
+ 
++    /* FIXME Quick fix for buggy ASUS BIOS 0403 */
++    if (driveInfo->handle > 512)
++    {
++        return;
++    }
++
+     /* And then parse it in accordance to the types of fiels */
+     std::string serial = positionToString(driveInfo->strSerial, driveInfo->length, dataIn);
+     std::string firmwareVersion = positionToString(driveInfo->strFirmwareVersion, driveInfo->length, dataIn);

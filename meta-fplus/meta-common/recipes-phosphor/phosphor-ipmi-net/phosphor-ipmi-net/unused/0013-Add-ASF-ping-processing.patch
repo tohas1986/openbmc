@@ -1,0 +1,75 @@
+From 09ad95672099556f17b32c8fab93c4b5af98067f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 3 Jul 2020 08:38:46 +0000
+Subject: [PATCH] Add ASF ping processing
+
+---
+ message_parsers.cpp | 26 ++++++++++++++++++++++++--
+ message_parsers.hpp |  3 +++
+ 2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/message_parsers.cpp b/message_parsers.cpp
+index 6703fc3..4533047 100644
+--- a/message_parsers.cpp
++++ b/message_parsers.cpp
+@@ -27,7 +27,8 @@ std::tuple<std::shared_ptr<Message>, SessionHeader>
+     // Verify if the fields in the RMCP header conforms to the specification
+     if ((rmcpHeaderPtr->version != RMCP_VERSION) ||
+         (rmcpHeaderPtr->rmcpSeqNum != RMCP_SEQ) ||
+-        (rmcpHeaderPtr->classOfMsg != RMCP_MESSAGE_CLASS_IPMI))
++        (rmcpHeaderPtr->classOfMsg != RMCP_MESSAGE_CLASS_IPMI &&
++        rmcpHeaderPtr->classOfMsg != RMCP_MESSAGE_CLASS_ASF))
+     {
+         throw std::runtime_error("RMCP Header is invalid");
+     }
+@@ -82,6 +83,27 @@ namespace ipmi15parser
+ 
+ std::shared_ptr<Message> unflatten(std::vector<uint8_t>& inPacket)
+ {
++    // Check if it's ASF ping
++    // 0x06 00 ff 06 00 00 11 be 80 00 00 00
++    uint8_t *p = inPacket.data();
++    if (p[0] == 0x06 && p[1] == 0x00 &&
++        p[3] == 0x06 && p[8] == 0x80)
++    {
++        auto message = std::make_shared<Message>();
++
++        message->payloadType = PayloadType::IPMI;
++        message->bmcSessionID = 0;
++        message->sessionSeqNum = 0;
++        message->isPacketEncrypted = false;
++        message->isPacketAuthenticated = false;
++
++        (message->payload)
++            .assign(inPacket.data() + sizeof(SessionHeader_t),
++                inPacket.data() + sizeof(SessionHeader_t) + 0x0c);
++
++        return message;
++    }
++
+     if (inPacket.size() < sizeof(SessionHeader_t))
+     {
+         throw std::runtime_error("IPMI1.5 Session Header Missing");
+@@ -151,7 +173,7 @@ namespace ipmi20parser
+ 
+ std::shared_ptr<Message> unflatten(std::vector<uint8_t>& inPacket)
+ {
+-    // Check if the packet has atleast the Session Header
++    // Check if the packet has at least the Session Header
+     if (inPacket.size() < sizeof(SessionHeader_t))
+     {
+         throw std::runtime_error("IPMI2.0 Session Header Missing");
+diff --git a/message_parsers.hpp b/message_parsers.hpp
+index 5738c43..43a66f6 100644
+--- a/message_parsers.hpp
++++ b/message_parsers.hpp
+@@ -21,6 +21,9 @@ constexpr size_t RMCP_SEQ = 0xFF;
+ // RMCP Message Class 7h is for IPMI
+ constexpr size_t RMCP_MESSAGE_CLASS_IPMI = 7;
+ 
++// RMCP Message Class 6h is for ASF
++constexpr size_t RMCP_MESSAGE_CLASS_ASF = 6;
++
+ // RMCP Session Header Size
+ constexpr size_t RMCP_SESSION_HEADER_SIZE = 4;
+ 

@@ -1,0 +1,25 @@
+From 663dc3f6e551b010608261d8b9afbb31ce9fde6b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 7 Feb 2020 09:44:19 +0300
+Subject: [PATCH 1/1] Reduce i2c logging of incorrect IRQ handling
+
+---
+ drivers/i2c/busses/i2c-aspeed.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
+index 62b803e..ca38c97 100644
+--- a/drivers/i2c/busses/i2c-aspeed.c
++++ b/drivers/i2c/busses/i2c-aspeed.c
+@@ -1058,7 +1058,7 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
+ 
+ 	irq_remaining &= ~irq_handled;
+ 	if (irq_remaining)
+-		dev_err(bus->dev,
++		dev_dbg(bus->dev,
+ 			"irq handled != irq. expected 0x%08x, but was 0x%08x\n",
+ 			irq_received, irq_handled);
+ 
+-- 
+1.9.1
+

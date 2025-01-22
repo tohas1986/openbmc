@@ -44,12 +44,14 @@ build system applies them against ``local.conf`` and ``auto.conf``:
    :term:`ESDK_LOCALCONF_ALLOW` overrides either of the previous two
    filters. The default value is blank.
 
--  Classes inherited globally with :term:`INHERIT` that are listed in
-   :term:`ESDK_CLASS_INHERIT_DISABLE` are disabled. Using
-   :term:`ESDK_CLASS_INHERIT_DISABLE` to disable these classes is the typical
-   method to disable classes that are problematic or unnecessary in the SDK
-   context. The default value disables the
-   :ref:`ref-classes-buildhistory` and :ref:`ref-classes-icecc` classes.
+-  Classes inherited globally with
+   :term:`INHERIT` that are listed in
+   :term:`ESDK_CLASS_INHERIT_DISABLE`
+   are disabled. Using :term:`ESDK_CLASS_INHERIT_DISABLE` to disable these
+   classes is the typical method to disable classes that are problematic
+   or unnecessary in the SDK context. The default value disables the
+   :ref:`buildhistory <ref-classes-buildhistory>`
+   and :ref:`icecc <ref-classes-icecc>` classes.
 
 Additionally, the contents of ``conf/sdk-extra.conf``, when present, are
 appended to the end of ``conf/local.conf`` within the produced SDK,
@@ -72,12 +74,13 @@ adjustments:
 
    .. note::
 
-      The default value of :term:`ESDK_CLASS_INHERIT_DISABLE`
+      The default value of
+      ESDK_CLASS_INHERIT_DISABLE
       is set using the "?=" operator. Consequently, you will need to
       either define the entire list by using the "=" operator, or you
       will need to append a value using either ":append" or the "+="
       operator. You can learn more about these operators in the
-      ":ref:`bitbake-user-manual/bitbake-user-manual-metadata:basic syntax`"
+      ":ref:`bitbake:bitbake-user-manual/bitbake-user-manual-metadata:basic syntax`"
       section of the BitBake User Manual.
 
 -  If you have classes or recipes that add additional tasks to the
@@ -172,12 +175,12 @@ perform additional steps. These steps make it possible for anyone using
 the installed SDKs to update the installed SDKs by using the
 ``devtool sdk-update`` command:
 
-#. Create a directory that can be shared over HTTP or HTTPS. You can do
+1. Create a directory that can be shared over HTTP or HTTPS. You can do
    this by setting up a web server such as an :wikipedia:`Apache HTTP Server
    <Apache_HTTP_Server>` or :wikipedia:`Nginx <Nginx>` server in the cloud
    to host the directory. This directory must contain the published SDK.
 
-#. Set the
+2. Set the
    :term:`SDK_UPDATE_URL`
    variable to point to the corresponding HTTP or HTTPS URL. Setting
    this variable causes any SDK built to default to that URL and thus,
@@ -186,10 +189,10 @@ the installed SDKs to update the installed SDKs by using the
    ":ref:`sdk-manual/extensible:applying updates to an installed extensible sdk`"
    section.
 
-#. Build the extensible SDK normally (i.e., use the
+3. Build the extensible SDK normally (i.e., use the
    ``bitbake -c populate_sdk_ext`` imagename command).
 
-#. Publish the SDK using the following command::
+4. Publish the SDK using the following command::
 
       $ oe-publish-sdk some_path/sdk-installer.sh path_to_shared_http_directory
 
@@ -244,7 +247,7 @@ If you want the users of an extensible SDK you build to be able to add
 items to the SDK without requiring the users to build the items from
 source, you need to do a number of things:
 
-#. Ensure the additional items you want the user to be able to install
+1. Ensure the additional items you want the user to be able to install
    are already built:
 
    -  Build the items explicitly. You could use one or more "meta"
@@ -256,12 +259,12 @@ source, you need to do a number of things:
       :term:`EXCLUDE_FROM_WORLD`
       variable for additional information.
 
-#. Expose the ``sstate-cache`` directory produced by the build.
+2. Expose the ``sstate-cache`` directory produced by the build.
    Typically, you expose this directory by making it available through
    an :wikipedia:`Apache HTTP Server <Apache_HTTP_Server>` or
    :wikipedia:`Nginx <Nginx>` server.
 
-#. Set the appropriate configuration so that the produced SDK knows how
+3. Set the appropriate configuration so that the produced SDK knows how
    to find the configuration. The variable you need to set is
    :term:`SSTATE_MIRRORS`::
 

@@ -1,5 +1,3 @@
-Upstream-Status: Pending
-
 --- a/qa/src/GNUlocaldefs
 +++ b/qa/src/GNUlocaldefs
 @@ -728,7 +728,7 @@ scale.o:	localconfig.h

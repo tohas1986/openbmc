@@ -1,0 +1,25 @@
+From 545f4fb4059fa171dfbcb0558ad08f1b8044dbe7 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 12 Jan 2021 13:30:55 +0000
+Subject: [PATCH 1/1] Increase logfile to 32Mb
+
+---
+ log-handler.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/log-handler.c b/log-handler.c
+index 0785e6b..f77168d 100644
+--- a/log-handler.c
++++ b/log-handler.c
+@@ -41,7 +41,7 @@ struct log_handler {
+ 
+ 
+ static const char *default_filename = LOCALSTATEDIR "/log/obmc-console.log";
+-static const size_t default_logsize = 16 * 1024;
++static const size_t default_logsize = 32 * 1024 * 1024;
+ 
+ static struct log_handler *to_log_handler(struct handler *handler)
+ {
+-- 
+2.7.4
+

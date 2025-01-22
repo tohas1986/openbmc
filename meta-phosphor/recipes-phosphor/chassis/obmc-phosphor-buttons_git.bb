@@ -5,18 +5,17 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
 DEPENDS += " \
     systemd \
     sdbusplus \
-    sdeventplus \
     phosphor-dbus-interfaces \
     phosphor-logging \
     "
-SRCREV = "d36b6b1d3887f8545b1558f8f0d946a9c9785a72"
+SRCREV = "c7645850ca6d93434a42f0492a1be21f478b98ce"
 PACKAGECONFIG ??= "signals handler"
 PACKAGECONFIG[signals] = ",,gpioplus nlohmann-json,"
 PACKAGECONFIG[handler] = ",,,${VIRTUAL-RUNTIME_obmc-host-state-manager} ${VIRTUAL-RUNTIME_obmc-chassis-state-manager}"
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
-SRC_URI = "git://github.com/openbmc/phosphor-buttons.git;branch=master;protocol=https"
+SRC_URI += "git://github.com/openbmc/phosphor-buttons.git;branch=master;protocol=https"
 
 S = "${WORKDIR}/git"
 SYSTEMD_PACKAGES = "${BUTTON_PACKAGES}"

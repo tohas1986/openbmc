@@ -2,4 +2,5 @@ owners:
 - benjaminfair@google.com
 
 reviewers:
+- peter@pjd.dev
 - dphadke@linux.microsoft.com

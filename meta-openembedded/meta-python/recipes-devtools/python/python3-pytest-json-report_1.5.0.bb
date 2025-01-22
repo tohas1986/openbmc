@@ -9,10 +9,10 @@ PYPI_PACKAGE = "pytest-json-report"
 
 inherit pypi setuptools3
 
-DEPENDS += "python3-setuptools-scm-native"
+DEPENDS += "${PYTHON_PN}-setuptools-scm-native"
 
 RDEPENDS:${PN} = "\
-    python3-pytest \
-    python3-pytest-metadata \
+    ${PYTHON_PN}-pytest \
+    ${PYTHON_PN}-pytest-metadata \
 "
 

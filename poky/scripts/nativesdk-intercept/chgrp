@@ -14,10 +14,7 @@ real_chgrp = shutil.which('chgrp', path=path)
 args = list()
 
 found = False
-
-args.append(real_chgrp)
-
-for i in sys.argv[1:]:
+for i in sys.argv:
     if i.startswith("-"):
         args.append(i)
         continue

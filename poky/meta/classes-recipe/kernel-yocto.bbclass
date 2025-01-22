@@ -176,32 +176,12 @@ do_kernel_metadata() {
 		# kernel source tree, where they'll be used later.
 		check_git_config
 		patches="${@" ".join(find_patches(d,'kernel-meta'))}"
-		if [ -n "$patches" ]; then
+		for p in $patches; do
 		    (
-			    cd ${WORKDIR}/kernel-meta
-
-			    # take the SRC_URI patches, and create a series file
-			    # this is required to support some better processing
-			    # of issues with the patches
-			    rm -f series
-			    for p in $patches; do
-				cp $p .
-				echo "$(basename $p)" >> series
-			    done
-
-			    # process the series with kgit-s2q, which is what is
-			    # handling the rest of the kernel. This allows us
-			    # more flexibility for handling failures or advanced
-			    # mergeing functinoality
-			    message=$(kgit-s2q --gen -v --patches ${WORKDIR}/kernel-meta 2>&1)
-			    if [ $? -ne 0 ]; then
-				# setup to try the patch again
-				kgit-s2q --prev
-				bberror "Problem applying patches to: ${WORKDIR}/kernel-meta"
-				bbfatal_log "\n($message)"
-			    fi
-			)
-		fi
+			cd ${WORKDIR}/kernel-meta
+			git am -s $p
+		    )
+		done
 	fi
 
 	sccs_from_src_uri="${@" ".join(find_sccs(d))}"
@@ -232,7 +212,7 @@ do_kernel_metadata() {
 	# SRC_URI. If they were supplied, we convert them into include directives
 	# for the update part of the process
 	for f in ${feat_dirs}; do
-		if [ -d "${WORKDIR}/$f/kernel-meta" ]; then
+		if [ -d "${WORKDIR}/$f/meta" ]; then
 			includes="$includes -I${WORKDIR}/$f/kernel-meta"
 		elif [ -d "${WORKDIR}/../oe-local-files/$f" ]; then
 			includes="$includes -I${WORKDIR}/../oe-local-files/$f"
@@ -428,7 +408,7 @@ do_kernel_checkout() {
 		git init
 		check_git_config
 		git add .
-		git commit -q -n -m "baseline commit: creating repo for ${PN}-${PV}"
+		git commit -q -m "baseline commit: creating repo for ${PN}-${PV}"
 		git clean -d -f
 	fi
 
@@ -475,7 +455,7 @@ do_kernel_configme() {
 		bbfatal_log "Could not find configuration queue (${meta_dir}/config.queue)"
 	fi
 
-	CFLAGS="${CFLAGS} ${TOOLCHAIN_OPTIONS}" HOSTCC="${BUILD_CC} ${BUILD_CFLAGS} ${BUILD_LDFLAGS}" HOSTCPP="${BUILD_CPP}" CC="${KERNEL_CC}" LD="${KERNEL_LD}" OBJCOPY="${KERNEL_OBJCOPY}" STRIP="${KERNEL_STRIP}" ARCH=${ARCH} merge_config.sh -O ${B} ${config_flags} ${configs} > ${meta_dir}/cfg/merge_config_build.log 2>&1
+	CFLAGS="${CFLAGS} ${TOOLCHAIN_OPTIONS}" HOSTCC="${BUILD_CC} ${BUILD_CFLAGS} ${BUILD_LDFLAGS}" HOSTCPP="${BUILD_CPP}" CC="${KERNEL_CC}" LD="${KERNEL_LD}" ARCH=${ARCH} merge_config.sh -O ${B} ${config_flags} ${configs} > ${meta_dir}/cfg/merge_config_build.log 2>&1
 	if [ $? -ne 0 -o ! -f ${B}/.config ]; then
 		bberror "Could not generate a .config for ${KMACHINE}-${LINUX_KERNEL_TYPE}"
 		if [ ${KCONF_AUDIT_LEVEL} -gt 1 ]; then
@@ -509,8 +489,6 @@ python do_config_analysis() {
     env['PATH'] = "%s:%s%s" % (d.getVar('PATH'), s, "/scripts/util/")
     env['LD'] = d.getVar('KERNEL_LD')
     env['CC'] = d.getVar('KERNEL_CC')
-    env['OBJCOPY'] = d.getVar('KERNEL_OBJCOPY')
-    env['STRIP'] = d.getVar('KERNEL_STRIP')
     env['ARCH'] = d.getVar('ARCH')
     env['srctree'] = s
 
@@ -572,8 +550,6 @@ python do_kernel_configcheck() {
     env['PATH'] = "%s:%s%s" % (d.getVar('PATH'), s, "/scripts/util/")
     env['LD'] = d.getVar('KERNEL_LD')
     env['CC'] = d.getVar('KERNEL_CC')
-    env['OBJCOPY'] = d.getVar('KERNEL_OBJCOPY')
-    env['STRIP'] = d.getVar('KERNEL_STRIP')
     env['ARCH'] = d.getVar('ARCH')
     env['srctree'] = s
 

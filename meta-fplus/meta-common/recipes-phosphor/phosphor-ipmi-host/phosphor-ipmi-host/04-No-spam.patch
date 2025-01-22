@@ -1,0 +1,22 @@
+From af92dfdf5ee722d87407c22def5b6c10f8252b2b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 26 Jun 2020 10:43:17 +0000
+Subject: [PATCH] No spam
+
+---
+ user_channel/channelcommands.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/user_channel/channelcommands.cpp b/user_channel/channelcommands.cpp
+index 6fcf64c..521feb1 100644
+--- a/user_channel/channelcommands.cpp
++++ b/user_channel/channelcommands.cpp
+@@ -267,7 +267,7 @@ RspType<uint4_t,  // chNum
+     Cc compCode = getChannelInfo(chNum, chInfo);
+     if (compCode != ccSuccess)
+     {
+-        log<level::ERR>("Failed to get channel info",
++        log<level::DEBUG>("Failed to get channel info",
+                         entry("CHANNEL=%x", chNum),
+                         entry("ERRNO=%x", compCode));
+         return response(compCode);

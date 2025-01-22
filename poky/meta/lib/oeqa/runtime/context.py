@@ -10,6 +10,7 @@ import sys
 from oeqa.core.context import OETestContext, OETestContextExecutor
 from oeqa.core.target.ssh import OESSHTarget
 from oeqa.core.target.qemu import OEQemuTarget
+from oeqa.utils.dump import HostDumper
 
 from oeqa.runtime.loader import OERuntimeTestLoader
 
@@ -19,11 +20,12 @@ class OERuntimeTestContext(OETestContext):
                         os.path.dirname(os.path.abspath(__file__)), "files")
 
     def __init__(self, td, logger, target,
-                 image_packages, extract_dir):
+                 host_dumper, image_packages, extract_dir):
         super(OERuntimeTestContext, self).__init__(td, logger)
 
         self.target = target
         self.image_packages = image_packages
+        self.host_dumper = host_dumper
         self.extract_dir = extract_dir
         self._set_target_cmds()
 
@@ -65,11 +67,11 @@ class OERuntimeTestContextExecutor(OETestContextExecutor):
                 % self.default_target_type)
         runtime_group.add_argument('--target-ip', action='store',
                 default=self.default_target_ip,
-                help="IP address and optionally ssh port (default 22) of device under test, for example '192.168.0.7:22'. Default: %s" \
+                help="IP address of device under test, default: %s" \
                 % self.default_target_ip)
         runtime_group.add_argument('--server-ip', action='store',
                 default=self.default_target_ip,
-                help="IP address of the test host from test target machine, default: %s" \
+                help="IP address of device under test, default: %s" \
                 % self.default_server_ip)
 
         runtime_group.add_argument('--host-dumper-dir', action='store',
@@ -197,6 +199,10 @@ class OERuntimeTestContextExecutor(OETestContextExecutor):
 
         return image_packages
 
+    @staticmethod
+    def getHostDumper(cmds, directory):
+        return HostDumper(cmds, directory)
+
     def _process_args(self, logger, args):
         if not args.packages_manifest:
             raise TypeError('Manifest file not provided')
@@ -209,6 +215,9 @@ class OERuntimeTestContextExecutor(OETestContextExecutor):
         self.tc_kwargs['init']['target'] = \
                 OERuntimeTestContextExecutor.getTarget(args.target_type,
                         None, args.target_ip, args.server_ip, **target_kwargs)
+        self.tc_kwargs['init']['host_dumper'] = \
+                OERuntimeTestContextExecutor.getHostDumper(None,
+                        args.host_dumper_dir)
         self.tc_kwargs['init']['image_packages'] = \
                 OERuntimeTestContextExecutor.readPackagesManifest(
                         args.packages_manifest)

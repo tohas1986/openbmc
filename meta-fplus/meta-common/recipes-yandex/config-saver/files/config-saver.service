@@ -1,0 +1,10 @@
+[Unit]
+Description=Save RWFS to persistent partition
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStop=/usr/sbin/config-saver
+
+[Install]
+WantedBy=multi-user.target

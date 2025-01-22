@@ -1,0 +1,184 @@
+From 3b6d41cbe5186feb706cf6501e287424f4d91d38 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Tue, 22 Mar 2022 13:16:44 +0000
+Subject: [PATCH] [WIP Rework sel to redfish logging
+
+---
+ redfish-core/include/logutils.hpp | 57 ++++++++++++++++++++++++++-----
+ 1 file changed, 48 insertions(+), 9 deletions(-)
+
+diff --git a/redfish-core/include/logutils.hpp b/redfish-core/include/logutils.hpp
+index 34a6686..96f3204 100644
+--- a/redfish-core/include/logutils.hpp
++++ b/redfish-core/include/logutils.hpp
+@@ -8,6 +8,7 @@
+ #include <sstream>
+ #include <string>
+ #include <array>
++#include <iostream>
+ 
+ #pragma once
+ 
+@@ -193,6 +194,9 @@ static const struct ipmiEventSensorTypes sensorSpecificEventTypes[] = {
+     { 0x07, 0x0a, 0xff, "Throttled" },
+     { 0x07, 0x0b, 0xff, "Uncorrectable machine check exception" },
+     { 0x07, 0x0c, 0xff, "Correctable machine check error" },
++    /* Yandex Specific Processor Error */
++    { 0x07, 0xa5, 0xff, "Processor Error" },
++    { 0x07, 0xa5, 0xff, "Processor Error Last Boot" },
+     /* Power Supply */
+     { 0x08, 0x00, 0xff, "Presence detected" },
+     { 0x08, 0x01, 0xff, "Failure detected" },
+@@ -228,6 +232,11 @@ static const struct ipmiEventSensorTypes sensorSpecificEventTypes[] = {
+     { 0x0c, 0x08, 0xff, "Spare" },
+     { 0x0c, 0x09, 0xff, "Throttled" },
+     { 0x0c, 0x0a, 0xff, "Critical Overtemperature" },
++    /* Yandex Memory Specific Sensors*/
++    { 0x0c, 0x30, 0xff, "Correctable ECC" },
++    { 0x0c, 0x31, 0xff, "Uncorrectable ECC" },
++    { 0xc5, 0x30, 0xff, "DIMM Training Error"},
++    
+     /* Drive Slot */
+     { 0x0d, 0x00, 0xff, "Drive Present" },
+     { 0x0d, 0x01, 0xff, "Drive Fault" },
+@@ -346,6 +355,13 @@ static const struct ipmiEventSensorTypes sensorSpecificEventTypes[] = {
+     { 0x13, 0x09, 0xff, "Fatal NMI" },
+     { 0x13, 0x0a, 0xff, "Bus Fatal Error" },
+     { 0x13, 0x0b, 0xff, "Bus Degraded" },
++    /* Yandex Specific Critical Interrupt */
++    { 0x13, 0xaf, 0xff, "PCIE Error Last Boot " },
++    { 0x13, 0xa0, 0xff, "PCIE Error Corrected" },
++    { 0x13, 0xa8, 0xff, "PCIE Error Correctable" },
++    { 0x13, 0xaa, 0xff, "PCIE Error Fatal" },
++    { 0x13, 0xa5, 0xff, "PCIE Error SERR" },
++    { 0x13, 0xa4, 0xff, "PCIE Error PERR" },
+     /* Button */
+     { 0x14, 0x00, 0xff, "Power Button pressed" },
+     { 0x14, 0x01, 0xff, "Sleep Button pressed" },
+@@ -562,6 +578,7 @@ static const struct ipmiEventSensorTypes sensorSpecificEventTypes[] = {
+     { 0xF2, 0x00, 0xff, "Module Handle Closed" },
+     { 0xF2, 0x01, 0xff, "Module Handle Opened" },
+     { 0xF2, 0x02, 0xff, "Quiesced" },
++    /* END */
+     { 0x00, 0x00, 0xff, NULL },
+ };
+ 
+@@ -712,6 +729,7 @@ enum class SensorTypeCodes : uint8_t
+     versionchange = 0x2b,
+     fru_state = 0x2c,
+     other = 0xB,
++    dimm = 0xc5,
+ };
+ 
+ const static boost::container::flat_map<const char*, SensorTypeCodes, CmpStr>
+@@ -732,7 +750,8 @@ const static boost::container::flat_map<const char*, SensorTypeCodes, CmpStr>
+                  {"versionchange", SensorTypeCodes::versionchange},
+                  {"fru_state", SensorTypeCodes::fru_state},
+                  {"pattern", SensorTypeCodes::other},
+-                 {"power", SensorTypeCodes::other}}};
++                 {"power", SensorTypeCodes::other},
++                 {"dimm", SensorTypeCodes::dimm}}};
+ 
+ inline static std::string getSensorTypeStringFromPath(const std::string& path)
+ {
+@@ -912,8 +931,8 @@ ipmiGetNextEventSensorType(const struct ipmiEventSensorTypes *evt)
+     return NULL;
+ }
+ 
+-std::string getEventDesc(uint8_t sensorType, uint8_t eventType, uint8_t eventData1,
+-                        uint8_t eventData2)
++std::string getEventDesc(uint8_t sensorType, uint8_t sensorNum, uint8_t eventType, uint8_t eventData1,
++                        uint8_t eventData2, uint8_t eventData3)
+ {
+     const struct ipmiEventSensorTypes *evt = NULL;
+     uint8_t eventTypeSplit = (eventType & 0x7f);
+@@ -932,6 +951,15 @@ std::string getEventDesc(uint8_t sensorType, uint8_t eventType, uint8_t eventDat
+             desc = evt->desc;
+             return desc;
+         }
++
++        //Yandex specific sensors
++        if ((evt->code == sensorType) &&
++            (evt->offset == eventData1) &&
++                (evt->data == eventData2))
++        {
++            desc = evt->desc;
++            return desc;
++        }
+     }
+ 
+     return desc;
+@@ -1007,7 +1035,7 @@ void SELEntryHandler(std::vector<std::string>& logEntryFields, MessageID message
+         eventDir = "Assertion";
+     }
+ 
+-    logEntryFields.insert(logEntryFields.end(),"reserved");
++    logEntryFields.insert(logEntryFields.end(),MessageIDToString(messageID));
+     logEntryFields.insert(logEntryFields.end(),hexToSring<uint8_t>(recordType,true));
+     logEntryFields.insert(logEntryFields.end(),hexToSring<uint16_t>(generatorID,true));
+     logEntryFields.insert(logEntryFields.end(),hexToSring<uint8_t>(evmRev,true));
+@@ -1058,7 +1086,7 @@ void SELEntryOKHandler(std::vector<std::string>& logEntryFields, MessageID messa
+         sensorTypeStr = hexToSring<uint8_t>(sensorType,true);
+     }
+ 
+-    logEntryFields.insert(logEntryFields.end(),"reserved");
++    logEntryFields.insert(logEntryFields.end(),MessageIDToString(messageID));
+     logEntryFields.insert(logEntryFields.end(),hexToSring<uint8_t>(recordType,true));
+     logEntryFields.insert(logEntryFields.end(),hexToSring<uint16_t>(generatorID,true));
+     logEntryFields.insert(logEntryFields.end(),hexToSring<uint8_t>(evmRev,true));
+@@ -1069,8 +1097,7 @@ void SELEntryOKHandler(std::vector<std::string>& logEntryFields, MessageID messa
+     logEntryFields.insert(logEntryFields.end(),sensorStr);
+     logEntryFields.insert(logEntryFields.end(),eventDir);
+     logEntryFields.insert(logEntryFields.end(),getEventType(eventType));
+-    logEntryFields.insert(logEntryFields.end(),getEventDesc(sensorType,eventType,eventData1,eventData2));
+-
++    logEntryFields.insert(logEntryFields.end(),getEventDesc(sensorType,sensorNum,eventType,eventData1,eventData2,eventData3));
+ }
+ 
+ MessageID setMessageID(uint8_t eventType, uint8_t eventData1)
+@@ -1083,6 +1110,8 @@ MessageID setMessageID(uint8_t eventType, uint8_t eventData1)
+         switch(eventData1  & 0x0f)
+         {
+             case 0x02:
++                messageID = MessageID::SELEntryCritical;
++                break;
+             case 0x03:
+             case 0x04:
+             case 0x05:
+@@ -1108,7 +1137,7 @@ MessageID setMessageID(uint8_t eventType, uint8_t eventData1)
+     }
+     else if(eventTypeSplit == 0x6f)
+     {
+-        messageID = MessageID::SELEntryOK;
++        messageID = MessageID::SELEntryCritical;
+     }
+     else
+     {
+@@ -1131,13 +1160,23 @@ void setmessageArgs(std::vector<std::string>& logEntryFields, MessageID messageI
+                             eventData2, eventData3);
+             break;
+         case MessageID::SELEntryOK:
++            SELEntryOKHandler(logEntryFields, messageID, recordType,
++                            generatorID, evmRev, sensorType,
++                            sensorNum, eventType, eventData1,
++                            eventData2, eventData3);
++            break;
+         case MessageID::SELEntryCritical:
+-        case MessageID::SELEntryWarning:
+             SELEntryOKHandler(logEntryFields, messageID, recordType,
+                             generatorID, evmRev, sensorType,
+                             sensorNum, eventType, eventData1,
+                             eventData2, eventData3);
+             break;
++        case MessageID::SELEntryWarning:
++            SELEntryHandler(logEntryFields, messageID, recordType,
++                            generatorID, evmRev, sensorType,
++                            sensorNum, eventType, eventData1,
++                            eventData2, eventData3); 
++            break;
+         default:
+             SELEntryHandler(logEntryFields, messageID, recordType,
+                             generatorID, evmRev, sensorType,
+-- 
+2.35.1
+

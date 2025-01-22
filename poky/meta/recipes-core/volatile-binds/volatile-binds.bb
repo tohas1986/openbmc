@@ -16,10 +16,10 @@ inherit allarch systemd features_check
 REQUIRED_DISTRO_FEATURES = "systemd"
 
 VOLATILE_BINDS ?= "\
-    ${localstatedir}/volatile/lib ${localstatedir}/lib\n\
-    ${localstatedir}/volatile/cache ${localstatedir}/cache\n\
-    ${localstatedir}/volatile/spool ${localstatedir}/spool\n\
-    ${localstatedir}/volatile/srv /srv\n\
+    /var/volatile/lib /var/lib\n\
+    /var/volatile/cache /var/cache\n\
+    /var/volatile/spool /var/spool\n\
+    /var/volatile/srv /srv\n\
 "
 VOLATILE_BINDS[type] = "list"
 VOLATILE_BINDS[separator] = "\n"
@@ -46,8 +46,8 @@ do_compile () {
             continue
         fi
 
-        servicefile="$(echo "${spec#/}" | tr / -).service"
-        [ "$mountpoint" != ${localstatedir}/lib ] || var_lib_servicefile=$servicefile
+        servicefile="${spec#/}"
+        servicefile="$(echo "$servicefile" | tr / -).service"
         sed -e "s#@what@#$spec#g; s#@where@#$mountpoint#g" \
             -e "s#@whatparent@#${spec%/*}#g; s#@whereparent@#${mountpoint%/*}#g" \
             -e "s#@avoid_overlayfs@#${@d.getVar('AVOID_OVERLAYFS')}#g" \
@@ -56,12 +56,12 @@ do_compile () {
 ${@d.getVar('VOLATILE_BINDS').replace("\\n", "\n")}
 END
 
-    if [ -e "$var_lib_servicefile" ]; then
+    if [ -e var-volatile-lib.service ]; then
         # As the seed is stored under /var/lib, ensure that this service runs
         # after the volatile /var/lib is mounted.
         sed -i -e "/^Before=/s/\$/ systemd-random-seed.service/" \
                -e "/^WantedBy=/s/\$/ systemd-random-seed.service/" \
-               "$var_lib_servicefile"
+               var-volatile-lib.service
     fi
 }
 do_compile[dirs] = "${WORKDIR}"
@@ -78,7 +78,7 @@ do_install () {
 
     # Suppress attempts to process some tmpfiles that are not temporary.
     #
-    install -d ${D}${sysconfdir}/tmpfiles.d ${D}${localstatedir}/cache
+    install -d ${D}${sysconfdir}/tmpfiles.d ${D}/var/cache
     ln -s /dev/null ${D}${sysconfdir}/tmpfiles.d/etc.conf
     ln -s /dev/null ${D}${sysconfdir}/tmpfiles.d/home.conf
 }

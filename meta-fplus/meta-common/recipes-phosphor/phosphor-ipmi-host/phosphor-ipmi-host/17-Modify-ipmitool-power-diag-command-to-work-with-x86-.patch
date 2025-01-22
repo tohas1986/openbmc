@@ -1,0 +1,29 @@
+From 1dc0a5f84507b346bf579214ad7feb4e465b1516 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 16 Dec 2021 09:32:33 +0000
+Subject: [PATCH] Modify ipmitool power diag command to work with
+ x86-power-control
+
+---
+ chassishandler.cpp | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/chassishandler.cpp b/chassishandler.cpp
+index cb2f568..4772d1d 100644
+--- a/chassishandler.cpp
++++ b/chassishandler.cpp
+@@ -888,6 +888,14 @@ int initiateChassisStateTransition(ipmi::Context::ptr& ctx,
+ //------------------------------------------
+ int setNmiProperty(ipmi::Context::ptr& ctx, const bool value)
+ {
++    auto bus = sdbusplus::bus::new_default();
++    auto method = bus.new_method_call("xyz.openbmc_project.Control.Host.NMI",
++                                           "/xyz/openbmc_project/control/host0/nmi",
++                                           "xyz.openbmc_project.Control.Host.NMI",
++                                           "NMI");
++    bus.call_noreply(method);
++    return 0;
++
+     constexpr const char* nmiSourceObjPath =
+         "/xyz/openbmc_project/Chassis/Control/NMISource";
+     constexpr const char* nmiSourceIntf =

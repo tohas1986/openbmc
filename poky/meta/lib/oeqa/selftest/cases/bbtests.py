@@ -41,7 +41,7 @@ class BitbakeTests(OESelftestTestCase):
 
     def test_event_handler(self):
         self.write_config("INHERIT += \"test_events\"")
-        result = bitbake('selftest-hello-native')
+        result = bitbake('m4-native')
         find_build_started = re.search(r"NOTE: Test for bb\.event\.BuildStarted(\n.*)*NOTE: Executing.*Tasks", result.output)
         find_build_completed = re.search(r"Tasks Summary:.*(\n.*)*NOTE: Test for bb\.event\.BuildCompleted", result.output)
         self.assertTrue(find_build_started, msg = "Match failed in:\n%s"  % result.output)
@@ -49,11 +49,11 @@ class BitbakeTests(OESelftestTestCase):
         self.assertNotIn('Test for bb.event.InvalidEvent', result.output)
 
     def test_local_sstate(self):
-        bitbake('selftest-hello-native')
-        bitbake('selftest-hello-native -cclean')
-        result = bitbake('selftest-hello-native')
-        find_setscene = re.search("selftest-hello-native.*do_.*_setscene", result.output)
-        self.assertTrue(find_setscene, msg = "No \"selftest-hello-native.*do_.*_setscene\" message found during bitbake selftest-hello-native. bitbake output: %s" % result.output )
+        bitbake('m4-native')
+        bitbake('m4-native -cclean')
+        result = bitbake('m4-native')
+        find_setscene = re.search("m4-native.*do_.*_setscene", result.output)
+        self.assertTrue(find_setscene, msg = "No \"m4-native.*do_.*_setscene\" message found during bitbake m4-native. bitbake output: %s" % result.output )
 
     def test_bitbake_invalid_recipe(self):
         result = bitbake('-b asdf', ignore_status=True)
@@ -175,7 +175,7 @@ SSTATE_DIR = \"${TOPDIR}/download-selftest\"
         self.assertIn('localconf', result.output)
 
     def test_dry_run(self):
-        result = runCmd('bitbake -n selftest-hello-native')
+        result = runCmd('bitbake -n m4-native')
         self.assertEqual(0, result.status, "bitbake dry run didn't run as expected. %s" % result.output)
 
     def test_just_parse(self):
@@ -188,10 +188,6 @@ SSTATE_DIR = \"${TOPDIR}/download-selftest\"
         self.assertTrue(find, "No version returned for searched recipe. bitbake output: %s" % result.output)
 
     def test_prefile(self):
-        # Test when the prefile does not exist
-        result = runCmd('bitbake -r conf/prefile.conf', ignore_status=True)
-        self.assertEqual(1, result.status, "bitbake didn't error and should have when a specified prefile didn't exist: %s" % result.output)
-        # Test when the prefile exists
         preconf = os.path.join(self.builddir, 'conf/prefile.conf')
         self.track_for_cleanup(preconf)
         ftools.write_file(preconf ,"TEST_PREFILE=\"prefile\"")
@@ -202,10 +198,6 @@ SSTATE_DIR = \"${TOPDIR}/download-selftest\"
         self.assertIn('localconf', result.output)
 
     def test_postfile(self):
-        # Test when the postfile does not exist
-        result = runCmd('bitbake -R conf/postfile.conf', ignore_status=True)
-        self.assertEqual(1, result.status, "bitbake didn't error and should have when a specified postfile didn't exist: %s" % result.output)
-        # Test when the postfile exists
         postconf = os.path.join(self.builddir, 'conf/postfile.conf')
         self.track_for_cleanup(postconf)
         ftools.write_file(postconf , "TEST_POSTFILE=\"postfile\"")
@@ -232,21 +224,16 @@ INHERIT:remove = \"report-error\"
         self.assertLess(errorpos,continuepos, msg = "bitbake didn't pass do_fail_task. bitbake output: %s" % result.output)
 
     def test_non_gplv3(self):
-        self.write_config('''INCOMPATIBLE_LICENSE = "GPL-3.0-or-later"
-require conf/distro/include/no-gplv3.inc
-''')
+        self.write_config('INCOMPATIBLE_LICENSE = "GPL-3.0-or-later"')
         result = bitbake('selftest-ed', ignore_status=True)
         self.assertEqual(result.status, 0, "Bitbake failed, exit code %s, output %s" % (result.status, result.output))
         lic_dir = get_bb_var('LICENSE_DIRECTORY')
-        arch = get_bb_var('SSTATE_PKGARCH')
-        filename = os.path.join(lic_dir, arch, 'selftest-ed', 'generic_GPL-3.0-or-later')
-        self.assertFalse(os.path.isfile(filename), msg="License file %s exists and shouldn't" % filename)
-        filename = os.path.join(lic_dir, arch, 'selftest-ed', 'generic_GPL-2.0-or-later')
-        self.assertTrue(os.path.isfile(filename), msg="License file %s doesn't exist" % filename)
+        self.assertFalse(os.path.isfile(os.path.join(lic_dir, 'selftest-ed/generic_GPL-3.0-or-later')))
+        self.assertTrue(os.path.isfile(os.path.join(lic_dir, 'selftest-ed/generic_GPL-2.0-or-later')))
 
     def test_setscene_only(self):
         """ Bitbake option to restore from sstate only within a build (i.e. execute no real tasks, only setscene)"""
-        test_recipe = 'selftest-hello-native'
+        test_recipe = 'ed'
 
         bitbake(test_recipe)
         bitbake('-c clean %s' % test_recipe)
@@ -259,7 +246,7 @@ require conf/distro/include/no-gplv3.inc
                                              'Executed tasks were: %s' % (task, str(tasks)))
 
     def test_skip_setscene(self):
-        test_recipe = 'selftest-hello-native'
+        test_recipe = 'ed'
 
         bitbake(test_recipe)
         bitbake('-c clean %s' % test_recipe)
@@ -364,14 +351,3 @@ require conf/distro/include/no-gplv3.inc
 
         result = bitbake('gitunpackoffline-fail -c fetch', ignore_status=True)
         self.assertTrue(re.search("Recipe uses a floating tag/branch .* for repo .* without a fixed SRCREV yet doesn't call bb.fetch2.get_srcrev()", result.output), msg = "Recipe without PV set to SRCPV should have failed: %s" % result.output)
-
-    def test_unexpanded_variable_in_path(self):
-        """
-            Test that bitbake fails if directory contains unexpanded bitbake variable in the name
-        """
-        recipe_name = "gitunpackoffline"
-        self.write_config('PV:pn-gitunpackoffline:append = "+${UNDEFVAL}"')
-        result = bitbake('{}'.format(recipe_name), ignore_status=True)
-        self.assertGreater(result.status, 0, "Build should have failed if ${ is in the path")
-        self.assertTrue(re.search("ERROR: Directory name /.* contains unexpanded bitbake variable. This may cause build failures and WORKDIR polution",
-                                  result.output), msg = "mkdirhier with unexpanded variable should have failed: %s" % result.output)

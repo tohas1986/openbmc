@@ -6,7 +6,7 @@ for dir in /run/nftables /etc/nftables /usr/share/nftables; do
   for file in "$dir"/*.rules; do
     basemap["${file##*/}$i"]="$file"
   done
-  (( i+=1 ))
+  let i+=1
 done
 
 rules=""

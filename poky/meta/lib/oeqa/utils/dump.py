@@ -51,7 +51,9 @@ class BaseDumper(object):
         self.dump_dir = dump_dir
 
     def _construct_filename(self, command):
-        if isinstance(self, TargetDumper):
+        if isinstance(self, HostDumper):
+            prefix = "host"
+        elif isinstance(self, TargetDumper):
             prefix = "target"
         elif isinstance(self, MonitorDumper):
             prefix = "qmp"
@@ -74,56 +76,54 @@ class BaseDumper(object):
             with open(fullname, 'w') as dump_file:
                 dump_file.write(output)
 
+class HostDumper(BaseDumper):
+    """ Class to get dumps from the host running the tests """
+
+    def __init__(self, cmds, parent_dir):
+        super(HostDumper, self).__init__(cmds, parent_dir)
+
+    def dump_host(self, dump_dir=""):
+        if dump_dir:
+            self.dump_dir = dump_dir
+        env = os.environ.copy()
+        env['PATH'] = '/usr/sbin:/sbin:/usr/bin:/bin'
+        env['COLUMNS'] = '9999'
+        for cmd in self.cmds:
+            result = runCmd(cmd, ignore_status=True, env=env)
+            self._write_dump(cmd.split()[0], result.output)
+
 class TargetDumper(BaseDumper):
-    """ Class to get dumps from target, it only works with QemuRunner.
-        Will give up permanently after 5 errors from running commands over
-        serial console. This helps to end testing when target is really dead, hanging
-        or unresponsive.
-    """
+    """ Class to get dumps from target, it only works with QemuRunner """
 
     def __init__(self, cmds, parent_dir, runner):
         super(TargetDumper, self).__init__(cmds, parent_dir)
         self.runner = runner
-        self.errors = 0
 
     def dump_target(self, dump_dir=""):
-        if self.errors >= 5:
-                print("Too many errors when dumping data from target, assuming it is dead! Will not dump data anymore!")
-                return
         if dump_dir:
             self.dump_dir = dump_dir
         for cmd in self.cmds:
             # We can continue with the testing if serial commands fail
             try:
                 (status, output) = self.runner.run_serial(cmd)
-                if status == 0:
-                    self.errors = self.errors + 1
                 self._write_dump(cmd.split()[0], output)
             except:
-                self.errors = self.errors + 1
                 print("Tried to dump info from target but "
                         "serial console failed")
                 print("Failed CMD: %s" % (cmd))
 
 class MonitorDumper(BaseDumper):
-    """ Class to get dumps via the Qemu Monitor, it only works with QemuRunner
-        Will stop completely if there are more than 5 errors when dumping monitor data.
-        This helps to end testing when target is really dead, hanging or unresponsive.
-    """
+    """ Class to get dumps via the Qemu Monitor, it only works with QemuRunner """
 
     def __init__(self, cmds, parent_dir, runner):
         super(MonitorDumper, self).__init__(cmds, parent_dir)
         self.runner = runner
-        self.errors = 0
 
     def dump_monitor(self, dump_dir=""):
         if self.runner is None:
             return
         if dump_dir:
             self.dump_dir = dump_dir
-        if self.errors >= 5:
-                print("Too many errors when dumping data from qemu monitor, assuming it is dead! Will not dump data anymore!")
-                return
         for cmd in self.cmds:
             cmd_name = cmd.split()[0]
             try:
@@ -137,5 +137,4 @@ class MonitorDumper(BaseDumper):
                     output = self.runner.run_monitor(cmd_name)
                 self._write_dump(cmd_name, output)
             except Exception as e:
-                self.errors = self.errors + 1
                 print("Failed to dump QMP CMD: %s with\nException: %s" % (cmd_name, e))

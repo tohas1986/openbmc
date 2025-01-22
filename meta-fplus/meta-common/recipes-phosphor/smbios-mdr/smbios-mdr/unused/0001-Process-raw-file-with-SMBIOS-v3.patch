@@ -1,0 +1,63 @@
+From 09352a1fd528f95e798f033c692eb30d02a3416c Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 1 Feb 2022 07:39:54 +0000
+Subject: [PATCH] Process raw file with SMBIOS v3
+
+---
+ src/mdrv2.cpp | 36 ++++++++++++++++++++++++++++++++++--
+ 1 file changed, 34 insertions(+), 2 deletions(-)
+
+diff --git a/src/mdrv2.cpp b/src/mdrv2.cpp
+index 8e5883b..2e9313b 100644
+--- a/src/mdrv2.cpp
++++ b/src/mdrv2.cpp
+@@ -233,15 +233,47 @@ bool MDR_V2::readDataFromFlash(MDRSMBIOSHeader* mdrHdr, uint8_t* data)
+             "MDR V2 file size is smaller than mdr header");
+         return false;
+     }
++
++    /* Detect if it's full file with entry point */
++    smbiosFile.read(reinterpret_cast<char *>(data), 7);
++
++    int fileOffset = 0;
++    int smbiosVer = 0;
++    if (strncmp(reinterpret_cast<char *>(data), "_SM3_", 5) == 0)
++    {
++        fileOffset = data[6];
++        smbiosVer = 3;
++
++    }
++    else if (strncmp(reinterpret_cast<char *>(data), "_SM_", 4) == 0)
++    {
++        fileOffset = data[5];
++        smbiosVer = 2;
++    }
++
++    smbiosFile.seekg(fileOffset, std::ios_base::beg);
+     smbiosFile.read(reinterpret_cast<char*>(mdrHdr), sizeof(MDRSMBIOSHeader));
+-    if (mdrHdr->dataSize > smbiosTableStorageSize)
++    if (smbiosVer == 0 && mdrHdr->dataSize > smbiosTableStorageSize)
+     {
+         phosphor::logging::log<phosphor::logging::level::ERR>(
+             "Data size out of limitation");
+         smbiosFile.close();
+         return false;
+     }
+-    fileLength -= sizeof(MDRSMBIOSHeader);
++
++    /* Keep old logic if it's prepared file, cut entry point if it's not */
++    if (smbiosVer == 0 )
++    {
++        fileLength -= sizeof(MDRSMBIOSHeader);
++    }
++    else
++    {
++        fileLength -= fileOffset;
++        mdrHdr->dataSize = fileLength;
++    }
++
++    smbiosFile.seekg(fileOffset, std::ios_base::beg);
++
+     if (fileLength < mdrHdr->dataSize)
+     {
+         smbiosFile.read(reinterpret_cast<char*>(data), fileLength);

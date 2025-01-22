@@ -1,0 +1,57 @@
+From 4279cea7f70678c41ea5d506cb323c430fdb86b1 Mon Sep 17 00:00:00 2001
+From: vedenena <vedenena@yandex-team.ru>
+Date: Tue, 31 Mar 2020 15:13:28 +0300
+Subject: [PATCH] read data from i2c debug patch
+
+---
+ src/MCUTempSensor.cpp | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index 06376b6..ac8a809 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -41,7 +41,7 @@ extern "C" {
+ #include <linux/i2c-dev.h>
+ }
+ 
+-constexpr const bool debug = false;
++constexpr const bool debug = true;
+ 
+ constexpr const char* configInterface =
+     "xyz.openbmc_project.Configuration.MCUTempSensor";
+@@ -60,7 +60,7 @@ MCUTempSensor::MCUTempSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+                              uint8_t tempReg) :
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(thresholdData), sensorConfiguration,
+-           "xyz.openbmc_project.Configuration.ExitAirTemp", mcuTempMaxReading,
++           "xyz.openbmc_project.Configuration.MCUTempSensor", mcuTempMaxReading,
+            mcuTempMinReading),
+     busId(busId), mcuAddress(mcuAddress), tempReg(tempReg),
+     objectServer(objectServer), dbusConnection(conn), waitTimer(io)
+@@ -140,7 +140,8 @@ int MCUTempSensor::getMCURegsInfoWord(uint8_t regs, int16_t* pu16data)
+         return -1;
+     }
+ 
+-    *pu16data = i2c_smbus_read_word_data(fd, regs);
++    //*pu16data = i2c_smbus_read_word_data(fd, regs);
++    *pu16data = i2c_smbus_read_byte_data(fd, regs);    
+     close(fd);
+ 
+     if (*pu16data < 0)
+@@ -171,9 +172,11 @@ void MCUTempSensor::read(void)
+         }
+         int16_t temp;
+         int ret = getMCURegsInfoWord(tempReg, &temp);
++	 std::cerr <<"read from i2c "<< static_cast<int>(temp) << "\n";
++	 std::cerr <<"getMCURegsInfoWord return  "<< static_cast<int>(ret) << "\n";
+         if (ret >= 0)
+         {
+-            double v = static_cast<double>(temp) / 1000;
++            double v = static_cast<double>(temp);
+             if constexpr (debug)
+             {
+                 std::cerr << "Value update to " << v << "raw reading "
+-- 
+1.9.1
+

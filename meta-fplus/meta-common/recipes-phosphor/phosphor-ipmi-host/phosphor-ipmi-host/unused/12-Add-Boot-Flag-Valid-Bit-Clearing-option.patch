@@ -1,0 +1,77 @@
+From 4699ce13a08d461803705c73bf23211b7174f613 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 11 Aug 2020 15:33:59 +0000
+Subject: [PATCH 1/1] Add Boot Flag Valid Bit Clearing option
+
+---
+ chassishandler.cpp | 19 +++++++++++++++++++
+ chassishandler.hpp |  2 ++
+ 2 files changed, 21 insertions(+)
+
+diff --git a/chassishandler.cpp b/chassishandler.cpp
+index cfba6ce..bc821b2 100644
+--- a/chassishandler.cpp
++++ b/chassishandler.cpp
+@@ -1497,6 +1497,7 @@ static constexpr uint8_t setInProgress = 0x1;
+ static uint8_t transferStatus = setComplete;
+ static uint8_t bootInfoData1 = 0x00;
+ static uint8_t bootInfoData2 = 0x00;
++static uint8_t bootFlagClearing = 0x00;
+ 
+ ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+                                              ipmi_request_t request,
+@@ -1535,6 +1536,17 @@ ipmi_ret_t ipmi_chassis_get_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+         return IPMI_CC_OK;
+     }
+ 
++    if (reqptr->parameter ==
++        static_cast<uint8_t>(BootOptionParameter::BOOT_FLAG_CLEARING))
++    {
++        *data_len =
++            static_cast<uint8_t>(BootOptionResponseSize::BOOT_FLAG_CLEARING);
++        resp->version = SET_PARM_VERSION;
++        resp->parm = static_cast<uint8_t>(BootOptionParameter::BOOT_FLAG_CLEARING);
++        resp->data[0] = bootFlagClearing;
++        return IPMI_CC_OK;
++    }
++
+     std::memset(resp, 0, sizeof(*resp));
+     resp->version = SET_PARM_VERSION;
+     resp->parm = 5;
+@@ -1697,6 +1709,13 @@ ipmi_ret_t ipmi_chassis_set_sys_boot_options(ipmi_netfn_t netfn, ipmi_cmd_t cmd,
+         return IPMI_CC_OK;
+     }
+ 
++    if (reqptr->parameter ==
++        static_cast<uint8_t>(BootOptionParameter::BOOT_FLAG_CLEARING))
++    {
++        bootFlagClearing = reqptr->data[0];
++        return IPMI_CC_OK;
++    }
++
+     /*  000101
+      * Parameter #5 means boot flags. Please refer to 28.13 of ipmi doc.
+      * This is the only parameter used by petitboot.
+diff --git a/chassishandler.hpp b/chassishandler.hpp
+index 56a903f..85edbd9 100644
+--- a/chassishandler.hpp
++++ b/chassishandler.hpp
+@@ -48,6 +48,7 @@ enum ipmi_chassis_control_cmds : uint8_t
+ enum class BootOptionParameter : size_t
+ {
+     SET_IN_PROGRESS = 0x0,
++    BOOT_FLAG_CLEARING = 0x3,
+     BOOT_INFO = 0x4,
+     BOOT_FLAGS = 0x5,
+     OPAL_NETWORK_SETTINGS = 0x61
+@@ -56,6 +57,7 @@ enum class BootOptionParameter : size_t
+ enum class BootOptionResponseSize : size_t
+ {
+     SET_IN_PROGRESS = 3,
++    BOOT_FLAG_CLEARING = 3,
+     BOOT_INFO = 4,
+     BOOT_FLAGS = 5,
+     OPAL_NETWORK_SETTINGS = 50
+-- 
+2.7.4
+

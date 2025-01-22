@@ -28,6 +28,7 @@ SRC_URI[md5sum] = "2b31c78f087f99179feb357da312d7ec"
 SRC_URI[sha256sum] = "4441a5d593f85bb6e8d578cf6653fb4ec30f9e8f4a2315a3d8f2d0a8b3fadf94"
 
 # remove at next version upgrade or when output changes
+PR = "r1"
 
 RECIPE_NO_UPDATE_REASON = "6.04-pre3 is broken"
 UPSTREAM_CHECK_URI = "https://www.zytor.com/pub/syslinux/"
@@ -48,7 +49,7 @@ TARGET_LDFLAGS = ""
 SECURITY_LDFLAGS = ""
 LDFLAGS_SECTION_REMOVAL = ""
 
-CFLAGS:append = " -DNO_INLINE_FUNCS -Wno-error=implicit-function-declaration"
+CFLAGS:append = " -DNO_INLINE_FUNCS"
 
 EXTRA_OEMAKE = " \
 	BINDIR=${bindir} SBINDIR=${sbindir} LIBDIR=${libdir} \
@@ -62,10 +63,6 @@ EXTRA_OEMAKE = " \
 	NM="${NM}" \
 	RANLIB="${RANLIB}" \
 "
-
-# mtools allows non-root users to install syslinux
-PACKAGECONFIG ??= "mtools"
-PACKAGECONFIG[mtools] = ",,,"
 
 #
 # Tasks for native/nativesdk which just build the installer.
@@ -81,15 +78,10 @@ do_compile() {
 do_install() {
 	install -d ${D}${bindir}
 	install \
+		${B}/bios/mtools/syslinux \
 		${B}/bios/extlinux/extlinux \
 		${B}/bios/utils/isohybrid \
 		${D}${bindir}
-
-	if ${@bb.utils.contains("PACKAGECONFIG", "mtools", "true", "false", d)}; then
-		install ${B}/bios/mtools/syslinux ${D}${bindir}
-	else
-		install ${B}/bios/linux/syslinux ${D}${bindir}
-	fi
 }
 
 #
@@ -113,12 +105,14 @@ do_install:class-target() {
 	install -m 644 ${S}/bios/core/ldlinux.bss ${D}${datadir}/syslinux/
 }
 
-PACKAGES += "${PN}-extlinux ${PN}-mbr ${PN}-chain ${PN}-pxelinux ${PN}-isolinux ${PN}-misc"
+PACKAGES += "${PN}-nomtools ${PN}-extlinux ${PN}-mbr ${PN}-chain ${PN}-pxelinux ${PN}-isolinux ${PN}-misc"
 
-RDEPENDS:${PN} += "${@bb.utils.contains("PACKAGECONFIG", "mtools", "mtools", "", d)}"
+RDEPENDS:${PN} += "mtools"
+RDEPENDS:${PN}-nomtools += "libext2fs"
 RDEPENDS:${PN}-misc += "perl"
 
 FILES:${PN} = "${bindir}/syslinux"
+FILES:${PN}-nomtools = "${bindir}/syslinux-nomtools"
 FILES:${PN}-extlinux = "${sbindir}/extlinux"
 FILES:${PN}-mbr = "${datadir}/${BPN}/mbr.bin"
 FILES:${PN}-chain = "${datadir}/${BPN}/chain.c32"

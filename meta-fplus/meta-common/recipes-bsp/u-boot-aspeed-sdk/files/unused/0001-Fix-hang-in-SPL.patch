@@ -1,0 +1,22 @@
+From 681bfff01637664da23a4fd447e3cbccd4f309ea Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 20 Jan 2022 15:11:01 +0000
+Subject: [PATCH] Fix hang in SPL
+
+---
+ drivers/ram/aspeed/sdram_ast2600.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/ram/aspeed/sdram_ast2600.c b/drivers/ram/aspeed/sdram_ast2600.c
+index 2e53a68687..cee0e7bdef 100644
+--- a/drivers/ram/aspeed/sdram_ast2600.c
++++ b/drivers/ram/aspeed/sdram_ast2600.c
+@@ -925,7 +925,7 @@ static int ast2600_sdrammc_probe(struct udevice *dev)
+ 	}
+ #endif
+ 
+-	if (readl(priv->scu + AST_SCU_HANDSHAKE) & SCU_SDRAM_INIT_READY_MASK) {
++	if (false && readl(priv->scu + AST_SCU_HANDSHAKE) & SCU_SDRAM_INIT_READY_MASK) {
+ 		printf("already initialized, ");
+ 		ast2600_sdrammc_update_size(priv);
+ 		return 0;

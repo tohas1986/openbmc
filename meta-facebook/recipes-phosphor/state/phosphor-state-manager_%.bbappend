@@ -1,20 +1,40 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
-HOST_DEFAULT_TARGETS:append = " \
+DEFAULT_TARGETS = " \
+    multi-user.target.requires/obmc-host-reset@{}.target \
+    obmc-chassis-poweron@{}.target.wants/chassis-poweron@{}.service \
+    obmc-chassis-hard-poweroff@{}.target.wants/chassis-poweroff@{}.service \
     obmc-host-shutdown@{}.target.wants/host-poweroff@{}.service \
     obmc-host-start@{}.target.wants/host-poweron@{}.service \
     obmc-host-reboot@{}.target.wants/host-powercycle@{}.service \
-    obmc-host-force-warm-reboot@{}.target.wants/host-powerreset@{}.service \
 "
 
-CHASSIS_DEFAULT_TARGETS:append = " \
-    obmc-chassis-poweron@{}.target.wants/chassis-poweron@{}.service \
-    obmc-chassis-hard-poweroff@{}.target.wants/chassis-poweroff@{}.service \
-    obmc-chassis-powercycle@{}.target.wants/chassis-powercycle@{}.service \
-"
+SRC_URI:append:greatlakes = " \
+    file://chassis-poweroff@.service \
+    file://chassis-poweron@.service \
+    file://host-poweroff@.service \
+    file://host-poweron@.service \
+    file://host-powercycle@.service \
+    file://chassis-poweroff \
+    file://chassis-poweron \
+    file://host-poweroff \
+    file://host-poweron \
+    file://host-powercycle \
+    file://power-cmd \
+    "
 
-CHASSIS_DEFAULT_TARGETS:remove = " \
-    obmc-chassis-poweroff@{}.target.requires/obmc-powered-off@{}.service \
-"
+RDEPENDS:${PN}:append:greatlakes = " bash"
 
-FILES:${PN} += " ${systemd_system_unitdir}/*.service"
+do_install:append:greatlakes() {
+    install -d ${D}${systemd_system_unitdir}
+    install -m 0644 ${WORKDIR}/*.service ${D}${systemd_system_unitdir}/
+
+    install -d ${D}${libexecdir}
+    install -m 0777 ${WORKDIR}/chassis-poweroff ${D}${libexecdir}/
+    install -m 0777 ${WORKDIR}/chassis-poweron ${D}${libexecdir}/
+    install -m 0777 ${WORKDIR}/host-poweroff ${D}${libexecdir}/
+    install -m 0777 ${WORKDIR}/host-poweron ${D}${libexecdir}/
+    install -m 0777 ${WORKDIR}/host-powercycle ${D}${libexecdir}/
+    install -m 0777 ${WORKDIR}/power-cmd ${D}${libexecdir}/
+}
+FILES:${PN} += " /lib/systemd/system/*.service"

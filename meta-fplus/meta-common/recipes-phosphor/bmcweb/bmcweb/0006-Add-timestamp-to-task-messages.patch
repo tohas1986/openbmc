@@ -1,0 +1,162 @@
+From 98e24a215eea4e0df0d95a8f83ebf850e9b42c4e Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 24 Aug 2021 07:12:33 +0000
+Subject: [PATCH 05/20] Add timestamp to task messages Add timestsamp to error
+ messages
+
+---
+ redfish-core/include/registries.hpp    | 17 +++++++++++++++++
+ redfish-core/include/task_messages.hpp | 25 +++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+)
+
+diff --git a/redfish-core/include/registries.hpp b/redfish-core/include/registries.hpp
+index da8fa85f..cbd1c74a 100644
+--- a/redfish-core/include/registries.hpp
++++ b/redfish-core/include/registries.hpp
+@@ -26,6 +26,10 @@
+ #include <string>
+ #include <string_view>
+ #include <utility>
++#include <iomanip>
++#include <ctime>
++#include <sstream>
++
+ 
+ // IWYU pragma: no_include <stddef.h>
+ 
+@@ -91,6 +95,18 @@ inline std::string
+     return ret;
+ }
+ 
++inline std::string now(void)
++{
++    auto t = std::time(nullptr);
++    auto tm = *std::localtime(&t);
++
++    std::ostringstream oss;
++    oss << std::put_time(&tm, "%d-%m-%Y %H:%M:%S");
++    auto str = oss.str();
++
++    return str;
++}
++
+ inline nlohmann::json::object_t
+     getLogFromRegistry(const Header& header,
+                        std::span<const MessageEntry> registry, size_t index,
+@@ -117,6 +133,7 @@ inline nlohmann::json::object_t
+     response["MessageArgs"] = std::move(jArgs);
+     response["MessageSeverity"] = entry.second.messageSeverity;
+     response["Resolution"] = entry.second.resolution;
++    response["Timestamp"] = now();
+     return response;
+ }
+ 
+diff --git a/redfish-core/include/task_messages.hpp b/redfish-core/include/task_messages.hpp
+index cbf4f007..81bec1d4 100644
+--- a/redfish-core/include/task_messages.hpp
++++ b/redfish-core/include/task_messages.hpp
+@@ -13,6 +13,10 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ */
++#include <iostream>
++#include <iomanip>
++#include <ctime>
++#include <sstream>
+ 
+ namespace redfish
+ {
+@@ -20,6 +24,18 @@ namespace redfish
+ namespace messages
+ {
+ 
++inline std::string now(void)
++{
++    auto t = std::time(nullptr);
++    auto tm = *std::localtime(&t);
++
++    std::ostringstream oss;
++    oss << std::put_time(&tm, "%d-%m-%Y %H:%M:%S");
++    auto str = oss.str();
++
++    return str;
++}
++
+ inline nlohmann::json taskAborted(const std::string& arg1)
+ {
+     return nlohmann::json{
+@@ -28,6 +44,7 @@ inline nlohmann::json taskAborted(const std::string& arg1)
+         {"Message", "The task with id " + arg1 + " has been aborted."},
+         {"MessageArgs", {arg1}},
+         {"Severity", "Critical"},
++        {"Timestamp", now()},
+         {"Resolution", "None."}};
+ }
+ 
+@@ -39,6 +56,7 @@ inline nlohmann::json taskCancelled(const std::string& arg1)
+         {"Message", "The task with id " + arg1 + " has been cancelled."},
+         {"MessageArgs", {arg1}},
+         {"Severity", "Warning"},
++        {"Timestamp", now()},
+         {"Resolution", "None."}};
+ }
+ 
+@@ -50,6 +68,7 @@ inline nlohmann::json taskCompletedOK(const std::string& arg1)
+         {"Message", "The task with id " + arg1 + " has Completed."},
+         {"MessageArgs", {arg1}},
+         {"Severity", "OK"},
++        {"Timestamp", now()},
+         {"Resolution", "None."}};
+ }
+ 
+@@ -61,6 +80,7 @@ inline nlohmann::json taskCompletedWarning(const std::string& arg1)
+                                           " has completed with warnings."},
+                           {"MessageArgs", {arg1}},
+                           {"Severity", "Warning"},
++                          {"Timestamp", now()},
+                           {"Resolution", "None."}};
+ }
+ 
+@@ -72,6 +92,7 @@ inline nlohmann::json taskPaused(const std::string& arg1)
+         {"Message", "The task with id " + arg1 + " has been paused."},
+         {"MessageArgs", {arg1}},
+         {"Severity", "Warning"},
++        {"Timestamp", now()},
+         {"Resolution", "None."}};
+ }
+ 
+@@ -85,6 +106,7 @@ inline nlohmann::json taskProgressChanged(const std::string& arg1,
+                         std::to_string(arg2) + " percent complete."},
+         {"MessageArgs", {arg1, std::to_string(arg2)}},
+         {"Severity", "OK"},
++        {"Timestamp", now()},
+         {"Resolution", "None."}};
+ }
+ 
+@@ -96,6 +118,7 @@ inline nlohmann::json taskRemoved(const std::string& arg1)
+         {"Message", "The task with id " + arg1 + " has been removed."},
+         {"MessageArgs", {arg1}},
+         {"Severity", "Warning"},
++        {"Timestamp", now()},
+         {"Resolution", "None."}};
+ }
+ 
+@@ -107,6 +130,7 @@ inline nlohmann::json taskResumed(const std::string& arg1)
+         {"Message", "The task with id " + arg1 + " has been resumed."},
+         {"MessageArgs", {arg1}},
+         {"Severity", "OK"},
++        {"Timestamp", now()},
+         {"Resolution", "None."}};
+ }
+ 
+@@ -118,6 +142,7 @@ inline nlohmann::json taskStarted(const std::string& arg1)
+         {"Message", "The task with id " + arg1 + " has started."},
+         {"MessageArgs", {arg1}},
+         {"Severity", "OK"},
++        {"Timestamp", now()},
+         {"Resolution", "None."}};
+ }
+ 
+-- 
+2.34.1
+

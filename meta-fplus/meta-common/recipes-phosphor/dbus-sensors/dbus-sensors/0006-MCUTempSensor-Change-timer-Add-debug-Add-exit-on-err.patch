@@ -1,0 +1,153 @@
+From 5f6762c4620b8c79e7e51e320aa422905755b159 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 18 Oct 2022 15:16:18 +0000
+Subject: [PATCH] MCUTempSensor: Add exit on error
+
+---
+ include/MCUTempSensor.hpp |  3 ++-
+ src/MCUTempSensor.cpp     | 44 +++++++++++++++++++++++----------------
+ 2 files changed, 28 insertions(+), 19 deletions(-)
+
+diff --git a/include/MCUTempSensor.hpp b/include/MCUTempSensor.hpp
+index c4c2406fc..5e7c50e3a 100644
+--- a/include/MCUTempSensor.hpp
++++ b/include/MCUTempSensor.hpp
+@@ -16,7 +16,8 @@ struct MCUTempSensor : public Sensor
+                   const std::string& sensorConfiguration,
+                   sdbusplus::asio::object_server& objectServer,
+                   std::vector<thresholds::Threshold>&& thresholdData,
+-                  uint8_t busId, uint8_t mcuAddress, uint8_t tempReg);
++                  uint8_t busId, uint8_t mcuAddress, uint8_t tempReg,
++                  const PowerState powerState);
+     ~MCUTempSensor() override;
+ 
+     void checkThresholds(void) override;
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index 2c28fe0de..ad1fa6094 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -52,7 +52,7 @@ MCUTempSensor::MCUTempSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+                              sdbusplus::asio::object_server& objectServer,
+                              std::vector<thresholds::Threshold>&& thresholdData,
+                              uint8_t busId, uint8_t mcuAddress,
+-                             uint8_t tempReg) :
++                             uint8_t tempReg, const PowerState powerState) :
+     Sensor(escapeName(sensorName), std::move(thresholdData),
+            sensorConfiguration, "MCUTempSensor", false, false,
+            mcuTempMaxReading, mcuTempMinReading, conn),
+@@ -113,7 +113,8 @@ int MCUTempSensor::getMCURegsInfoWord(uint8_t regs, int16_t* pu16data) const
+     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
+     if (ioctl(fd, I2C_SLAVE_FORCE, mcuAddress) < 0)
+     {
+-        std::cerr << " unable to set device address\n";
++        if constexpr (debug)
++            std::cerr << " unable to set device address\n";
+         close(fd);
+         return -1;
+     }
+@@ -134,13 +135,13 @@ int MCUTempSensor::getMCURegsInfoWord(uint8_t regs, int16_t* pu16data) const
+         return -1;
+     }
+ 
+-    *pu16data = i2c_smbus_read_word_data(fd, regs);
++    *pu16data = i2c_smbus_read_byte_data(fd, regs);
+     close(fd);
+ 
+     if (*pu16data < 0)
+     {
+-        std::cerr << " read word data failed at " << static_cast<int>(regs)
+-                  << "\n";
++        if constexpr (debug)
++            std::cerr << " read word data failed at " << static_cast<int>(regs) << "\n";
+         return -1;
+     }
+ 
+@@ -160,14 +161,23 @@ void MCUTempSensor::read(void)
+         // read timer error
+         if (ec)
+         {
+-            std::cerr << "timer error\n";
+             return;
+         }
+         int16_t temp = 0;
+-        int ret = getMCURegsInfoWord(tempReg, &temp);
++        int ret;
++        /* Don't read anything if power is off */
++        if (isPowerOn())
++        {
++            ret = getMCURegsInfoWord(tempReg, &temp);
++        }
++        else
++        {
++            ret = -1;
++        }
++
+         if (ret >= 0)
+         {
+-            double v = static_cast<double>(temp) / 1000;
++            double v = static_cast<double>(temp);
+             if constexpr (debug)
+             {
+                 std::cerr << "Value update to " << v << "raw reading "
+@@ -177,8 +187,9 @@ void MCUTempSensor::read(void)
+         }
+         else
+         {
+-            std::cerr << "Invalid read getMCURegsInfoWord\n";
+-            incrementError();
++            if constexpr (debug)
++                std::cerr << "Invalid read getMCURegsInfoWord\n";
++            updateValue(std::numeric_limits<double>::quiet_NaN());
+         }
+         read();
+     });
+@@ -193,7 +204,7 @@ void createSensors(
+     if (!dbusConnection)
+     {
+         std::cerr << "Connection not created\n";
+-        return;
++        exit(0);
+     }
+ 
+     dbusConnection->async_method_call(
+@@ -202,7 +213,7 @@ void createSensors(
+         if (ec)
+         {
+             std::cerr << "Error contacting entity manager\n";
+-            return;
++            exit(0);
+         }
+         for (const auto& [path, interfaces] : resp)
+         {
+@@ -240,11 +251,13 @@ void createSensors(
+                               << "\tClass: " << sensorClass << "\n";
+                 }
+ 
++                PowerState powerState = PowerState::on;
+                 auto& sensor = sensors[name];
+ 
+                 sensor = std::make_unique<MCUTempSensor>(
+                     dbusConnection, io, name, path, objectServer,
+-                    std::move(sensorThresholds), busId, mcuAddress, tempReg);
++                    std::move(sensorThresholds), busId, mcuAddress, tempReg,
++                    powerState);
+ 
+                 sensor->init();
+             }
+@@ -270,14 +283,9 @@ int main()
+         configTimer.expires_from_now(std::chrono::seconds(1));
+         // create a timer because normally multiple properties change
+         configTimer.async_wait([&](const boost::system::error_code& ec) {
+-            if (ec == boost::asio::error::operation_aborted)
+-            {
+-                return; // we're being canceled
+-            }
+             // config timer error
+             if (ec)
+             {
+-                std::cerr << "timer error\n";
+                 return;
+             }
+             createSensors(io, objectServer, sensors, systemBus);
+-- 
+2.36.1

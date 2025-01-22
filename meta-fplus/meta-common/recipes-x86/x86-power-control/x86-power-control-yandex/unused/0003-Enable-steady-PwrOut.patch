@@ -1,0 +1,93 @@
+From 5485fc6264e5ac37617c2e68f8a34ba7075bef9f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 08:26:31 +0000
+Subject: [PATCH 1/1] Enable steady PwrOut
+
+---
+ power-control-x86/src/power_control.cpp | 41 ++++++++++++++++++++++++++++++---
+ 1 file changed, 38 insertions(+), 3 deletions(-)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index 61656f3..8400e8a 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -51,6 +51,7 @@ static std::string powerButtonName;
+ static std::string resetButtonName;
+ static std::string idButtonName;
+ static std::string nmiButtonName;
++static bool powerOutSteady;
+ 
+ static std::shared_ptr<sdbusplus::asio::dbus_interface> hostIface;
+ static std::shared_ptr<sdbusplus::asio::dbus_interface> chassisIface;
+@@ -1131,16 +1132,39 @@ static int setGPIOOutputForMs(const std::string& name, const int value,
+ 
+ static void powerOn()
+ {
+-    setGPIOOutputForMs(power_control::powerOutName, 0, powerPulseTimeMs);
++    if (powerOutSteady)
++    {
++        gpiod::line gpioLine;
++        setGPIOOutput(power_control::powerOutName, 1, gpioLine);
++    }
++    else
++    {
++        setGPIOOutputForMs(power_control::powerOutName, 0, powerPulseTimeMs);
++    }
+ }
+ 
+ static void gracefulPowerOff()
+ {
+-    setGPIOOutputForMs(power_control::powerOutName, 0, powerPulseTimeMs);
++    if (powerOutSteady)
++    {
++        gpiod::line gpioLine;
++        setGPIOOutput(power_control::powerOutName, 0, gpioLine);
++    }
++    else
++    {
++        setGPIOOutputForMs(power_control::powerOutName, 0, powerPulseTimeMs);
++    }
+ }
+ 
+ static void forcePowerOff()
+ {
++    if (powerOutSteady)
++    {
++        gpiod::line gpioLine;
++        setGPIOOutput(power_control::powerOutName, 0, gpioLine);
++        return;
++    }
++
+     if (setGPIOOutputForMs(power_control::powerOutName, 0,
+                            forceOffPulseTimeMs) < 0)
+     {
+@@ -2325,6 +2349,17 @@ static int loadConfigValues()
+         powerOutName = data["PwrOut"];
+     }
+ 
++    if (data.contains("PwrOutSteady"))
++    {
++        std::cerr << "Setting Steady to true\n";
++        powerOutSteady = true;
++    }
++    else
++    {
++        std::cerr << "Setting Steady to false\n";
++        powerOutSteady = false;
++    }
++
+     if (data.contains("RstButton"))
+     {
+         resetButtonName = data["RstButton"];
+@@ -2497,7 +2532,7 @@ int main(int argc, char* argv[])
+ 
+     // Initialize POWER_OUT and RESET_OUT GPIO.
+     gpiod::line line;
+-    if (!setGPIOOutput(powerOutName, 1, line))
++    if (powerOutSteady == false && !setGPIOOutput(powerOutName, 1, line))
+     {
+         return -1;
+     }
+-- 
+2.7.4
+

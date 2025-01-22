@@ -15,7 +15,30 @@ inherit utils
 inherit utility-tasks
 inherit logging
 
+OE_EXTRA_IMPORTS ?= ""
+
+OE_IMPORTS += "os sys time oe.path oe.utils oe.types oe.package oe.packagegroup oe.sstatesig oe.lsb oe.cachedpath oe.license oe.qa oe.reproducible oe.rust oe.buildcfg ${OE_EXTRA_IMPORTS}"
+OE_IMPORTS[type] = "list"
+
 PACKAGECONFIG_CONFARGS ??= ""
+
+def oe_import(d):
+    import sys
+
+    bbpath = [os.path.join(dir, "lib") for dir in d.getVar("BBPATH").split(":")]
+    sys.path[0:0] = [dir for dir in bbpath if dir not in sys.path]
+
+    import oe.data
+    for toimport in oe.data.typed_value("OE_IMPORTS", d):
+        try:
+            # Make a python object accessible from the metadata
+            bb.utils._context[toimport.split(".", 1)[0]] = __import__(toimport)
+        except AttributeError as e:
+            bb.error("Error importing OE modules: %s" % str(e))
+    return ""
+
+# We need the oe module name space early (before INHERITs get added)
+OE_IMPORTED := "${@oe_import(d)}"
 
 inherit metadata_scm
 
@@ -116,7 +139,7 @@ def setup_hosttools_dir(dest, toolsvar, d, fatal=True):
             # /usr/local/bin/ccache/gcc -> /usr/bin/ccache, then which(gcc)
             # would return /usr/local/bin/ccache/gcc, but what we need is
             # /usr/bin/gcc, this code can check and fix that.
-            if os.path.islink(srctool) and os.path.basename(os.readlink(srctool)) == 'ccache':
+            if "ccache" in srctool:
                 srctool = bb.utils.which(path, tool, executable=True, direction=1)
             if srctool:
                 os.symlink(srctool, desttool)
@@ -126,18 +149,11 @@ def setup_hosttools_dir(dest, toolsvar, d, fatal=True):
     if notfound and fatal:
         bb.fatal("The following required tools (as specified by HOSTTOOLS) appear to be unavailable in PATH, please install them in order to proceed:\n  %s" % " ".join(notfound))
 
-# We can't use vardepvalue against do_fetch directly since that would overwrite
-# the other task dependencies so we use an indirect function.
-python fetcher_hashes_dummyfunc() {
-    return
-}
-fetcher_hashes_dummyfunc[vardepvalue] = "${@bb.fetch.get_hashvalue(d)}"
-
 addtask fetch
 do_fetch[dirs] = "${DL_DIR}"
 do_fetch[file-checksums] = "${@bb.fetch.get_checksum_file_list(d)}"
 do_fetch[file-checksums] += " ${@get_lic_checksum_file_list(d)}"
-do_fetch[prefuncs] += "fetcher_hashes_dummyfunc"
+do_fetch[vardeps] += "SRCREV"
 do_fetch[network] = "1"
 python base_do_fetch() {
 
@@ -295,7 +311,7 @@ python base_eventhandler() {
             bb.plain('\n%s\n%s\n' % (statusheader, '\n'.join(statuslines)))
 
     # This code is to silence warnings where the SDK variables overwrite the 
-    # target ones and we'd see duplicate key names overwriting each other
+    # target ones and we'd see dulpicate key names overwriting each other
     # for various PREFERRED_PROVIDERS
     if isinstance(e, bb.event.RecipePreFinalise):
         if d.getVar("TARGET_PREFIX") == d.getVar("SDK_PREFIX"):
@@ -358,10 +374,14 @@ base_do_compile() {
 
 addtask install after do_compile
 do_install[dirs] = "${B}"
-# Remove and re-create ${D} so that it is guaranteed to be empty
+# Remove and re-create ${D} so that is it guaranteed to be empty
 do_install[cleandirs] = "${D}"
 
 base_do_install() {
+	:
+}
+
+base_do_package() {
 	:
 }
 
@@ -523,12 +543,12 @@ python () {
         check_license_format(d)
         unmatched_license_flags = check_license_flags(d)
         if unmatched_license_flags:
-            for unmatched in unmatched_license_flags:
-                message = "Has a restricted license '%s' which is not listed in your LICENSE_FLAGS_ACCEPTED." % unmatched
-                details = d.getVarFlag("LICENSE_FLAGS_DETAILS", unmatched)
-                if details:
-                    message += "\n" + details
-            bb.debug(1, "Skipping %s: %s" % (pn, message))
+            if len(unmatched_license_flags) == 1:
+                message = "because it has a restricted license '{0}'. Which is not listed in LICENSE_FLAGS_ACCEPTED".format(unmatched_license_flags[0])
+            else:
+                message = "because it has restricted licenses {0}. Which are not listed in LICENSE_FLAGS_ACCEPTED".format(
+                    ", ".join("'{0}'".format(f) for f in unmatched_license_flags))
+            bb.debug(1, "Skipping %s %s" % (pn, message))
             raise bb.parse.SkipRecipe(message)
 
     # If we're building a target package we need to use fakeroot (pseudo)
@@ -613,6 +633,7 @@ python () {
                     bb.debug(1, "Skipping recipe %s because of incompatible license(s): %s" % (pn, ' '.join(incompatible_lic)))
                     raise bb.parse.SkipRecipe("it has incompatible license(s): %s" % ' '.join(incompatible_lic))
 
+    needsrcrev = False
     srcuri = d.getVar('SRC_URI')
     for uri_string in srcuri.split():
         uri = bb.fetch.URI(uri_string)
@@ -625,16 +646,23 @@ python () {
 
         # Svn packages should DEPEND on subversion-native
         if uri.scheme == "svn":
+            needsrcrev = True
             d.appendVarFlag('do_fetch', 'depends', ' subversion-native:do_populate_sysroot')
 
         # Git packages should DEPEND on git-native
         elif uri.scheme in ("git", "gitsm"):
+            needsrcrev = True
             d.appendVarFlag('do_fetch', 'depends', ' git-native:do_populate_sysroot')
 
         # Mercurial packages should DEPEND on mercurial-native
         elif uri.scheme == "hg":
+            needsrcrev = True
             d.appendVar("EXTRANATIVEPATH", ' python3-native ')
-            d.appendVarFlag('do_fetch', 'depends', ' mercurial-native:do_populate_sysroot ca-certificates-native:do_populate_sysroot')
+            d.appendVarFlag('do_fetch', 'depends', ' mercurial-native:do_populate_sysroot')
+
+        # Perforce packages support SRCREV = "${AUTOREV}"
+        elif uri.scheme == "p4":
+            needsrcrev = True
 
         # OSC packages should DEPEND on osc-native
         elif uri.scheme == "osc":
@@ -644,6 +672,7 @@ python () {
             d.appendVarFlag('do_fetch', 'depends', ' nodejs-native:do_populate_sysroot')
 
         elif uri.scheme == "repo":
+            needsrcrev = True
             d.appendVarFlag('do_fetch', 'depends', ' repo-native:do_populate_sysroot')
 
         # *.lz4 should DEPEND on lz4-native for unpacking
@@ -674,9 +703,20 @@ python () {
         elif path.endswith('.deb'):
             d.appendVarFlag('do_unpack', 'depends', ' xz-native:do_populate_sysroot')
 
-        # *.7z should DEPEND on p7zip-native for unpacking
-        elif path.endswith('.7z'):
-            d.appendVarFlag('do_unpack', 'depends', ' p7zip-native:do_populate_sysroot')
+    if needsrcrev:
+        d.setVar("SRCPV", "${@bb.fetch2.get_srcrev(d)}")
+
+        # Gather all named SRCREVs to add to the sstate hash calculation
+        # This anonymous python snippet is called multiple times so we
+        # need to be careful to not double up the appends here and cause
+        # the base hash to mismatch the task hash
+        for uri in srcuri.split():
+            parm = bb.fetch.decodeurl(uri)[5]
+            uri_names = parm.get("name", "").split(",")
+            for uri_name in filter(None, uri_names):
+                srcrev_name = "SRCREV_{}".format(uri_name)
+                if srcrev_name not in (d.getVarFlag("do_fetch", "vardeps") or "").split():
+                    d.appendVarFlag("do_fetch", "vardeps", " {}".format(srcrev_name))
 
     set_packagetriplet(d)
 
@@ -746,4 +786,4 @@ python do_cleanall() {
 do_cleanall[nostamp] = "1"
 
 
-EXPORT_FUNCTIONS do_fetch do_unpack do_configure do_compile do_install
+EXPORT_FUNCTIONS do_fetch do_unpack do_configure do_compile do_install do_package

@@ -1,0 +1,22 @@
+From acda6a19651ae52c30f110ee8b11ad50c088b259 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Tue, 25 Aug 2020 07:30:28 +0000
+Subject: [PATCH] Disable-System-Error-spam
+
+---
+ src/PSUSensor.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index 25cc5ad..071abc2 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -194,7 +194,7 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+     }
+     else
+     {
+-        std::cerr << "System error " << err << "\n";
++        //std::cerr << "System error " << err << "\n";
+         incrementError();
+     }
+ 

@@ -1,0 +1,54 @@
+From 8d6e8d29a576a8393c07579deeb3485044f1f670 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 15 Dec 2022 13:51:46 +0000
+Subject: [PATCH] Fix bus number type after entity-manager update
+
+---
+ src/storagecommands.cpp | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index 2ddf355..2dd363f 100644
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -112,11 +112,11 @@ constexpr static const char* chassisTypeRackMount = "23";
+ constexpr static const uint8_t deassertionEvent = 0x80;
+ 
+ static std::vector<uint8_t> fruCache;
+-static uint8_t cacheBus = 0xFF;
++static uint16_t cacheBus = 0xFFFF;
+ static uint8_t cacheAddr = 0XFF;
+ static uint8_t lastDevId = 0xFF;
+ 
+-static uint8_t writeBus = 0xFF;
++static uint16_t writeBus = 0xFFFF;
+ static uint8_t writeAddr = 0XFF;
+ 
+ std::unique_ptr<phosphor::Timer> writeTimer = nullptr;
+@@ -134,7 +134,7 @@ void registerStorageFunctions() __attribute__((constructor));
+ 
+ bool writeFru()
+ {
+-    if (writeBus == 0xFF && writeAddr == 0xFF)
++    if (writeBus == 0xFFFF && writeAddr == 0xFF)
+     {
+         return true;
+     }
+@@ -154,7 +154,7 @@ bool writeFru()
+             "error writing fru");
+         return false;
+     }
+-    writeBus = 0xFF;
++    writeBus = 0xFFFF;
+     writeAddr = 0xFF;
+     return true;
+ }
+@@ -353,7 +353,7 @@ ipmi::Cc getFru(ipmi::Context::ptr ctx, uint8_t devId)
+         phosphor::logging::log<phosphor::logging::level::ERR>(
+             "Couldn't get raw fru",
+             phosphor::logging::entry("ERROR=%s", ec.message().c_str()));
+-        cacheBus = 0xFF;
++        cacheBus = 0xFFFF;
+         cacheAddr = 0xFF;
+         return ipmi::ccResponseError;
+     }

@@ -1,0 +1,115 @@
+From c71aa0abb6523f7067349aad7bb18931b8d9ff09 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 10:06:46 +0000
+Subject: [PATCH 06/16] TachSensor: Change timer; Add debug; Add exit on error
+
+---
+ include/TachSensor.hpp |  2 +-
+ src/TachSensor.cpp     | 46 +++++++++++++++++++++++++++-------------------
+ 2 files changed, 28 insertions(+), 20 deletions(-)
+
+diff --git a/include/TachSensor.hpp b/include/TachSensor.hpp
+index 1b80404..bed5a07 100644
+--- a/include/TachSensor.hpp
++++ b/include/TachSensor.hpp
+@@ -83,7 +83,7 @@ class TachSensor : public Sensor
+     std::shared_ptr<sdbusplus::asio::dbus_interface> itemIface;
+     std::shared_ptr<sdbusplus::asio::dbus_interface> itemAssoc;
+     boost::asio::posix::stream_descriptor inputDev;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     boost::asio::streambuf readBuf;
+     std::string path;
+     std::optional<std::string> led;
+diff --git a/src/TachSensor.cpp b/src/TachSensor.cpp
+index 1ec979f..bb67716 100644
+--- a/src/TachSensor.cpp
++++ b/src/TachSensor.cpp
+@@ -21,7 +21,7 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/read_until.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <gpiod.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+@@ -39,6 +39,7 @@
+ 
+ static constexpr unsigned int pwmPollMs = 500;
+ static constexpr size_t warnAfterErrorCount = 10;
++extern bool DEBUG;
+ 
+ TachSensor::TachSensor(const std::string& path, const std::string& objectType,
+                        sdbusplus::asio::object_server& objectServer,
+@@ -59,6 +60,14 @@ TachSensor::TachSensor(const std::string& path, const std::string& objectType,
+     inputDev(io, open(path.c_str(), O_RDONLY)), waitTimer(io), path(path),
+     led(ledIn)
+ {
++
++    if (DEBUG)
++    {   
++        std::cerr << "Constructed sensor: path " << path << " type "
++                  << objectType << " config " << sensorConfiguration
++                  << " name \"" << fanName << "\n";
++    }
++
+     sensorInterface = objectServer.add_interface(
+         "/xyz/openbmc_project/sensors/fan_tach/" + name,
+         "xyz.openbmc_project.Sensor.Value");
+@@ -173,11 +182,11 @@ void TachSensor::handleResponse(const boost::system::error_code& err)
+         return; // we're no longer valid
+     }
+     inputDev.assign(fd);
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(pollTime));
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(pollTime));
+     waitTimer.async_wait([&](const boost::system::error_code& ec) {
+-        if (ec == boost::asio::error::operation_aborted)
++        if (ec)
+         {
+-            return; // we're being canceled
++            exit(0); // we're being canceled
+         }
+         setupRead();
+     });
+@@ -248,23 +257,22 @@ PresenceSensor::~PresenceSensor()
+ void PresenceSensor::monitorPresence(void)
+ {
+     gpioFd.async_wait(boost::asio::posix::stream_descriptor::wait_read,
+-                      [this](const boost::system::error_code& ec) {
+-                          if (ec == boost::system::errc::bad_file_descriptor)
++                    [this](const boost::system::error_code& ec) {
++                          /*if (ec == boost::system::errc::bad_file_descriptor)
+                           {
+                               return; // we're being destroyed
+-                          }
+-                          if (ec)
+-                          {
+-                              std::cerr << "Error on presence sensor " << name
+-                                        << " \n";
+-                              ;
+-                          }
+-                          else
+-                          {
+-                              read();
+-                          }
+-                          monitorPresence();
+-                      });
++                          }*/
++                        if (ec)
++                        {
++                            std::cerr << "Error on presence sensor " << name << " \n";
++                            exit(0);
++                        }
++                        else
++                        {
++                            read();
++                        }
++                        monitorPresence();
++                    });
+ }
+ 
+ void PresenceSensor::read(void)
+-- 
+2.7.4
+

@@ -1,0 +1,161 @@
+From 4b91c2554c44a16cbf32c1bc2f1468c2eb4061da Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 7 Sep 2020 08:19:06 +0000
+Subject: [PATCH] Add debug output via cmdline param
+
+---
+ src/PSUSensorMain.cpp | 35 ++++++++++++++++++++---------------
+ 1 file changed, 20 insertions(+), 15 deletions(-)
+
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index 81b2f6c..70c150d 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -18,6 +18,7 @@
+ #include "PSUSensor.hpp"
+ #include "Utils.hpp"
+ 
++#include <CLI/CLI.hpp>
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/container/flat_map.hpp>
+@@ -38,7 +39,7 @@
+ #include <variant>
+ #include <vector>
+ 
+-static constexpr bool DEBUG = false;
++bool DEBUG = false;
+ 
+ static constexpr std::array<const char*, 26> sensorTypes = {
+     "xyz.openbmc_project.Configuration.ADM1272",
+@@ -377,7 +378,7 @@ void createSensors(boost::asio::io_service& io,
+ 
+             if ((*confBus != bus) || (*confAddr != addr))
+             {
+-                std::cerr << "Configuration skipping " << *confBus << "-"
++                if (DEBUG) std::cerr << "Configuration skipping " << *confBus << "-"
+                           << *confAddr << " because not " << bus << "-" << addr
+                           << "\n";
+                 continue;
+@@ -404,7 +405,7 @@ void createSensors(boost::asio::io_service& io,
+         auto findPSUName = baseConfig->second.find("Name");
+         if (findPSUName == baseConfig->second.end())
+         {
+-            std::cerr << "could not determine configuration name for "
++            if (DEBUG) std::cerr << "could not determine configuration name for "
+                       << deviceName << "\n";
+             continue;
+         }
+@@ -438,7 +439,7 @@ void createSensors(boost::asio::io_service& io,
+         /* read max value in sysfs for in, curr, power, temp, ... */
+         if (!findFiles(directory, R"(\w\d+_max$)", sensorPaths, 0))
+         {
+-            if constexpr (DEBUG)
++            if (DEBUG)
+             {
+                 std::cerr << "No max name in PSU \n";
+             }
+@@ -505,7 +506,7 @@ void createSensors(boost::asio::io_service& io,
+             std::ifstream labelFile(labelPath);
+             if (!labelFile.good())
+             {
+-                if constexpr (DEBUG)
++                if (DEBUG)
+                 {
+                     std::cerr << "Input file " << sensorPath
+                               << " has no corresponding label file\n";
+@@ -536,7 +537,7 @@ void createSensors(boost::asio::io_service& io,
+                 labelHead = "max" + labelHead;
+             }
+ 
+-            if constexpr (DEBUG)
++            if (DEBUG)
+             {
+                 std::cerr << "Sensor type=\"" << sensorNameSubStr
+                           << "\" label=\"" << labelHead << "\"\n";
+@@ -551,7 +552,7 @@ void createSensors(boost::asio::io_service& io,
+                 if (std::find(findLabels.begin(), findLabels.end(),
+                               labelHead) == findLabels.end())
+                 {
+-                    if constexpr (DEBUG)
++                    if (DEBUG)
+                     {
+                         std::cerr << "could not find " << labelHead
+                                   << " in the Labels list\n";
+@@ -563,7 +564,7 @@ void createSensors(boost::asio::io_service& io,
+             auto findProperty = labelMatch.find(labelHead);
+             if (findProperty == labelMatch.end())
+             {
+-                if constexpr (DEBUG)
++                if (DEBUG)
+                 {
+                     std::cerr << "Could not find matching default property for "
+                               << labelHead << "\n";
+@@ -703,7 +704,7 @@ void createSensors(boost::asio::io_service& io,
+ 
+                 psuNameFromIndex = psuNames[nameIndex];
+ 
+-                if constexpr (DEBUG)
++                if (DEBUG)
+                 {
+                     std::cerr << "Sensor label head " << labelHead
+                               << " paired with " << psuNameFromIndex
+@@ -736,7 +737,7 @@ void createSensors(boost::asio::io_service& io,
+                                         findScaleFactor->second);
+                 }
+ 
+-                if constexpr (DEBUG)
++                if (DEBUG)
+                 {
+                     std::cerr << "Sensor scaling factor " << factor
+                               << " string " << strScaleFactor << "\n";
+@@ -759,7 +760,7 @@ void createSensors(boost::asio::io_service& io,
+                 continue;
+             }
+ 
+-            if constexpr (DEBUG)
++            if (DEBUG)
+             {
+                 std::cerr << "Sensor properties: Name \""
+                           << psuProperty->labelTypeName << "\" Scale "
+@@ -787,7 +788,7 @@ void createSensors(boost::asio::io_service& io,
+                     psuNameFromIndex + " " + psuProperty->labelTypeName;
+             }
+ 
+-            if constexpr (DEBUG)
++            if (DEBUG)
+             {
+                 std::cerr << "Sensor name \"" << sensorName << "\" path \""
+                           << sensorPathStr << "\" type \"" << sensorType
+@@ -845,7 +846,7 @@ void createSensors(boost::asio::io_service& io,
+                 std::move(bridgeGpio), readState);
+             sensors[sensorName]->setupRead();
+             ++numCreated;
+-            if constexpr (DEBUG)
++            if (DEBUG)
+             {
+                 std::cerr << "Created " << numCreated << " sensors so far\n";
+             }
+@@ -859,7 +860,7 @@ void createSensors(boost::asio::io_service& io,
+                 groupEventPathList, "OperationalStatus");
+     }
+ 
+-    if constexpr (DEBUG)
++    if (DEBUG)
+     {
+         std::cerr << "Created total of " << numCreated << " sensors\n";
+     }
+@@ -947,8 +948,12 @@ std::map<std::string, int> BridgeGpio::requests;
+ std::map<std::string, int> BridgeGpio::releases;
+ bool BridgeGpio::debug = false;
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++    CLI::App app("PSU and HWMON sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+ 

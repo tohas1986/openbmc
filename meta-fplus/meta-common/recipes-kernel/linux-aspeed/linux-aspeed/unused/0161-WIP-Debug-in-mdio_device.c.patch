@@ -1,0 +1,28 @@
+From a12101bab5355d1206cfb0252a7749cd5e43c7f9 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 22 Mar 2023 14:45:30 +0000
+Subject: [PATCH] WIP: Debug in mdio_device.c
+
+---
+ drivers/net/phy/mdio_device.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/net/phy/mdio_device.c b/drivers/net/phy/mdio_device.c
+index 250742ffdfd9..361d8908baff 100644
+--- a/drivers/net/phy/mdio_device.c
++++ b/drivers/net/phy/mdio_device.c
+@@ -120,8 +120,10 @@ void mdio_device_reset(struct mdio_device *mdiodev, int value)
+ 	if (!mdiodev->reset_gpio && !mdiodev->reset_ctrl)
+ 		return;
+ 
+-	if (mdiodev->reset_gpio)
++	if (mdiodev->reset_gpio) {
++		pr_info("DEBUG %s Set reset to %d\n", __func__, value);
+ 		gpiod_set_value_cansleep(mdiodev->reset_gpio, value);
++	}
+ 
+ 	if (mdiodev->reset_ctrl) {
+ 		if (value)
+-- 
+2.34.1
+

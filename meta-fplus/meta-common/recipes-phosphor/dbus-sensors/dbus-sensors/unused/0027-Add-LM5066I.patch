@@ -1,0 +1,41 @@
+From cc8ef06d817a9f0645712892984e3e53fb05abdf Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Mon, 5 Apr 2021 09:37:47 +0000
+Subject: [PATCH] Add-LM5066I
+
+---
+ src/PSUSensorMain.cpp | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index ca87f8c..52ba91b 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -41,7 +41,7 @@
+ #include <CLI/CLI.hpp>
+ bool DEBUG = false;
+ 
+-static constexpr std::array<const char*, 34> sensorTypes = {
++static constexpr std::array<const char*, 35> sensorTypes = {
+     "xyz.openbmc_project.Configuration.ADM1272",
+     "xyz.openbmc_project.Configuration.ADM1278",
+     "xyz.openbmc_project.Configuration.DPS800",
+@@ -75,7 +75,8 @@ static constexpr std::array<const char*, 34> sensorTypes = {
+     "xyz.openbmc_project.Configuration.TMP441",
+     "xyz.openbmc_project.Configuration.TMP75",
+     "xyz.openbmc_project.Configuration.NCT7802",
+-    "xyz.openbmc_project.Configuration.JC42"};
++    "xyz.openbmc_project.Configuration.JC42",
++    "xyz.openbmc_project.Configuration.LM5066I"};
+ 
+ static std::vector<std::string> pmbusNames = {
+     "adm1272",   "adm1278",   "dps800",    "ina219",   "ina230",   "isl68137",
+@@ -83,7 +84,7 @@ static std::vector<std::string> pmbusNames = {
+     "max20730",  "max20734",  "max20796",  "max34451", "pmbus",    "pxe1610",
+     "raa228000", "raa228228", "raa229004", "tps546d24",
+     "emc1413", "max31725", "max31730","max6581", "max6654", "tmp112", "tmp175",
+-    "tmp421", "tmp441", "tmp75", "nct7802", "jc42" };
++    "tmp421", "tmp441", "tmp75", "nct7802", "jc42", "lm5066i" };
+ 
+ namespace fs = std::filesystem;
+ 

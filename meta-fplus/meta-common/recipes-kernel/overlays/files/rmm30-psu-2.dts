@@ -1,0 +1,78 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/aspeed-gpio.h>
+
+/ {
+	compatible = "aspeed,ast2400";
+
+	fragment@0 {
+		target = <&i2c2>;
+		__overlay__ {
+			status = "okay";
+			psumux@70 {
+				compatible = "nxp,pca9547";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x70>;
+				i2c-mux-idle-disconnect;
+				shelf@0 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0>;
+					fru {
+						compatible = "atmel,24c02";
+						reg = <0x50>;
+					};
+				};
+				shelf@1 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <1>;
+					fru {
+						compatible = "atmel,24c02";
+						reg = <0x50>;
+					};
+				};
+				shelf@2 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <2>;
+					fru {
+						compatible = "atmel,24c02";
+						reg = <0x50>;
+					};
+				};
+				shelf@3 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <3>;
+					fru {
+						compatible = "atmel,24c02";
+						reg = <0x50>;
+					};
+				};
+				shelf@4 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <4>;
+					fru {
+						compatible = "atmel,24c02";
+						reg = <0x50>;
+					};
+				};
+				shelf@5 {
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <5>;
+					fru {
+						compatible = "atmel,24c02";
+						reg = <0x50>;
+					};
+				};
+			};
+		};
+	};
+
+};

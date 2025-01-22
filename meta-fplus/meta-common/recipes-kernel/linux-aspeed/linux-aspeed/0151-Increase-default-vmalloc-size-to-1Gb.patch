@@ -1,0 +1,25 @@
+From 695190f97360bef2434ea3a9a94cdeb587077f46 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 20 May 2022 14:52:30 +0000
+Subject: [PATCH] Increase default vmalloc size to 1Gb
+
+---
+ arch/arm/mm/mmu.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
+index 5e2be37a198e..dc8ac52bf12b 100644
+--- a/arch/arm/mm/mmu.c
++++ b/arch/arm/mm/mmu.c
+@@ -1123,7 +1123,7 @@ void __init debug_ll_io_init(void)
+ }
+ #endif
+ 
+-static unsigned long __initdata vmalloc_size = 240 * SZ_1M;
++static unsigned long __initdata vmalloc_size = 1024 * SZ_1M;
+ 
+ /*
+  * vmalloc=size forces the vmalloc area to be exactly 'size'
+-- 
+2.36.0
+

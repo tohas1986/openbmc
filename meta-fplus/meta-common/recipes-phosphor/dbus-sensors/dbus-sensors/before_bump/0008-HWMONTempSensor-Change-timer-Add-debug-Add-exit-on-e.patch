@@ -1,0 +1,200 @@
+From e81b8fc3bb7219b49aa8ae9bdb6dde19a97ed5db Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 10:08:51 +0000
+Subject: [PATCH 08/16] HWMONTempSensor: Change timer; Add debug; Add exit on
+ error
+
+---
+ include/HwmonTempSensor.hpp |  2 +-
+ src/HwmonTempMain.cpp       | 10 +++---
+ src/HwmonTempSensor.cpp     | 74 ++++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 64 insertions(+), 22 deletions(-)
+
+diff --git a/include/HwmonTempSensor.hpp b/include/HwmonTempSensor.hpp
+index 11e46f3..a382c27 100644
+--- a/include/HwmonTempSensor.hpp
++++ b/include/HwmonTempSensor.hpp
+@@ -27,7 +27,7 @@ class HwmonTempSensor :
+   private:
+     sdbusplus::asio::object_server& objServer;
+     boost::asio::posix::stream_descriptor inputDev;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     boost::asio::streambuf readBuf;
+     std::string path;
+     size_t errCount;
+diff --git a/src/HwmonTempMain.cpp b/src/HwmonTempMain.cpp
+index 79eab20..5c25a80 100644
+--- a/src/HwmonTempMain.cpp
++++ b/src/HwmonTempMain.cpp
+@@ -40,7 +40,7 @@ static constexpr bool debug = false;
+ static constexpr float pollRateDefault = 0.5;
+ 
+ namespace fs = std::filesystem;
+-static constexpr std::array<const char*, 13> sensorTypes = {
++static constexpr std::array<const char*, 15> sensorTypes = {
+     "xyz.openbmc_project.Configuration.EMC1412",
+     "xyz.openbmc_project.Configuration.EMC1413",
+     "xyz.openbmc_project.Configuration.EMC1414",
+@@ -53,7 +53,9 @@ static constexpr std::array<const char*, 13> sensorTypes = {
+     "xyz.openbmc_project.Configuration.TMP175",
+     "xyz.openbmc_project.Configuration.TMP421",
+     "xyz.openbmc_project.Configuration.TMP441",
+-    "xyz.openbmc_project.Configuration.TMP75"};
++    "xyz.openbmc_project.Configuration.TMP75",
++    "xyz.openbmc_project.Configuration.NCT7802",
++    "xyz.openbmc_project.Configuration.JC42"};
+ 
+ void createSensors(
+     boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,
+@@ -293,7 +295,7 @@ int main()
+         createSensors(io, objectServer, sensors, systemBus, nullptr);
+     });
+ 
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message& message) {
+             if (message.is_method_error())
+@@ -303,7 +305,7 @@ int main()
+             }
+             sensorsChanged->insert(message.get_path());
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+diff --git a/src/HwmonTempSensor.cpp b/src/HwmonTempSensor.cpp
+index 41fc357..9be0362 100644
+--- a/src/HwmonTempSensor.cpp
++++ b/src/HwmonTempSensor.cpp
+@@ -20,7 +20,7 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/read_until.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+@@ -31,6 +31,7 @@
+ #include <string>
+ #include <vector>
+ 
++static constexpr unsigned int sensorSetupRetryMs = 2000;
+ static constexpr unsigned int sensorScaleFactor = 1000;
+ static constexpr size_t warnAfterErrorCount = 10;
+ 
+@@ -86,6 +87,26 @@ HwmonTempSensor::~HwmonTempSensor()
+ 
+ void HwmonTempSensor::setupRead(void)
+ {
++    if (readState == PowerState::on && !isPowerOn())
++    {
++        updateValue(std::numeric_limits<double>::quiet_NaN());
++        waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorSetupRetryMs));
++        std::weak_ptr<HwmonTempSensor> weakRef = weak_from_this();
++        waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
++            std::shared_ptr<HwmonTempSensor> self = weakRef.lock();
++            if (self)
++            {
++                self->setupRead();
++            }
++            else
++            {
++                std::cerr << "setupRead: no self, exiting\n";
++                exit(0);
++            }
++        });
++        return;
++    }
++
+     std::weak_ptr<HwmonTempSensor> weakRef = weak_from_this();
+ 
+     boost::asio::async_read_until(inputDev, readBuf, '\n',
+@@ -97,6 +118,11 @@ void HwmonTempSensor::setupRead(void)
+                                       {
+                                           self->handleResponse(ec);
+                                       }
++                                      else
++                                      {
++                                        std::cerr << "setupRead: no self, exiting\n";
++                                        exit(0);
++                                      }
+                                   });
+ }
+ 
+@@ -107,8 +133,30 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+     {
+         std::cerr << "Hwmon temp sensor " << name << " removed " << path
+                   << "\n";
+-        return; // we're being destroyed
++        updateValue(std::numeric_limits<double>::quiet_NaN());
++        //return; // we're being destroyed
++        exit(0);
++    }
++
++    if (readState == PowerState::on && !isPowerOn())
++    {
++         errCount = 0;
++         updateValue(std::numeric_limits<double>::quiet_NaN());
++
++         std::weak_ptr<HwmonTempSensor> weakRef = weak_from_this();
++         std::shared_ptr<HwmonTempSensor> self = weakRef.lock();
++         if (self)
++         {
++              self->setupRead();
++              return;
++         }
++         else
++         {
++            std::cerr << "handleResponse: no self, exiting\n";
++            exit(0);
++         }
+     }
++
+     std::istream responseStream(&readBuf);
+     if (!err)
+     {
+@@ -137,30 +185,22 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+     {
+         std::cerr << "Hwmon temp sensor " << name << " not valid " << path
+                   << "\n";
+-        return; // we're no longer valid
++        exit(0); // we're no longer valid
+     }
+     inputDev.assign(fd);
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollMs));
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+     std::weak_ptr<HwmonTempSensor> weakRef = weak_from_this();
+     waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+         std::shared_ptr<HwmonTempSensor> self = weakRef.lock();
+-        if (ec == boost::asio::error::operation_aborted)
+-        {
+-            if (self)
+-            {
+-                std::cerr << "Hwmon temp sensor " << self->name
+-                          << " read cancelled " << self->path << "\n";
+-            }
+-            else
+-            {
+-                std::cerr << "Hwmon sensor read cancelled, no self\n";
+-            }
+-            return; // we're being canceled
+-        }
+         if (self)
+         {
+             self->setupRead();
+         }
++        else
++        {
++            std::cerr << "Hwmon sensor read cancelled, no self\n";
++            exit(0);
++        }
+     });
+ }
+ 
+-- 
+2.7.4
+

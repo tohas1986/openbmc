@@ -23,7 +23,6 @@
 # SOFTWARE.
 
 import sys
-import pytest
 
 try:
     from StringIO import StringIO
@@ -48,7 +47,7 @@ def capture(command, *args, **kwargs):
 def makemigrations():
     management.call_command('makemigrations')
 
-@pytest.mark.order(1)
+
 class MigrationTest(TestCase):
 
     def testPendingMigration(self):

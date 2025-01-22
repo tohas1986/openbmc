@@ -1,4 +1,4 @@
-SUMMARY = "Powerful Python library for atomic file writes"
+DESCRIPTION = "Powerful Python library for atomic file writes"
 HOMEPAGE = "https://github.com/untitaker/python-atomicwrites"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=91cc36cfafeefb7863673bcfcb1d4da4"
@@ -12,9 +12,8 @@ SRC_URI += " \
 "
 
 RDEPENDS:${PN}-ptest += " \
-	python3-pytest \
-	python3-unittest-automake-output \
-	python3-unixadmin \
+	${PYTHON_PN}-pytest \
+	${PYTHON_PN}-unixadmin \
 "
 
 do_install_ptest() {
@@ -22,6 +21,4 @@ do_install_ptest() {
 	cp -rf ${S}/tests/* ${D}${PTEST_PATH}/tests/
 }
 
-RDEPENDS:${PN} = "python3-misc"
-
-BBCLASSEXTEND = "native nativesdk"
+RDEPENDS:${PN} = "${PYTHON_PN}-misc"

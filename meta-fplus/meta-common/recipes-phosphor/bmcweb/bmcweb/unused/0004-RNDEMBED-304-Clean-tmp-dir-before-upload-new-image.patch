@@ -1,0 +1,43 @@
+From 8d615781549d7eda8d87183e4e95352ae31f5081 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Wed, 16 Dec 2020 21:59:12 +0000
+Subject: [PATCH] [RNDEMBED-304] Clean tmp dir, before upload new image
+
+---
+ include/image_upload.hpp | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/include/image_upload.hpp b/include/image_upload.hpp
+index 25b4f2a..1cb063a 100644
+--- a/include/image_upload.hpp
++++ b/include/image_upload.hpp
+@@ -10,6 +10,7 @@
+ #include <cstdio>
+ #include <fstream>
+ #include <memory>
++#include <filesystem>
+ 
+ namespace crow
+ {
+@@ -97,6 +98,18 @@ inline void uploadImageHandler(const crow::Request& req, crow::Response& res)
+         "member='InterfacesAdded',path='/xyz/openbmc_project/software'",
+         callback);
+ 
++    namespace fs = std::filesystem;
++
++    fs::path imgDir("/tmp/images");
++
++    if(fs::exists(imgDir))
++    {
++        for (auto& path: fs::directory_iterator(imgDir))
++        {
++            fs::remove_all(path);
++        }
++    }
++
+     std::string filepath(
+         "/tmp/images/" +
+         boost::uuids::to_string(boost::uuids::random_generator()()));
+-- 
+2.7.4
+

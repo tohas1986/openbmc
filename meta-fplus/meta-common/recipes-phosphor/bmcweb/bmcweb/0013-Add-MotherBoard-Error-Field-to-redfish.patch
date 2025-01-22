@@ -1,0 +1,31 @@
+From 77e16f79ac31ff5c67558f43ea4dd326560c24f4 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 30 Sep 2022 12:06:52 +0000
+Subject: [PATCH] Add MotherBoard Error Field to redfish
+
+---
+ .../include/registries/openbmc_message_registry.hpp   | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
+index 4068eb3f..5e70b335 100644
+--- a/redfish-core/include/registries/openbmc_message_registry.hpp
++++ b/redfish-core/include/registries/openbmc_message_registry.hpp
+@@ -2400,6 +2400,17 @@ constexpr std::array registry = {
+             {"string"},
+             "None.",
+         }},
++    MessageEntry{
++        "MotherBoardErrorDetected",
++        {
++            "Indicates specified motherboard hardware signal error",
++            "%1 MotherBoard Error Detected.",
++            "Critical",
++            // "Critical",
++            1,
++            {"string"},
++            "None.",
++        }},
+ 
+ };
+ } // namespace redfish::registries::openbmc

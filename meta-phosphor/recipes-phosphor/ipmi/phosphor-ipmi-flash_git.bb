@@ -9,8 +9,9 @@ DEPENDS += " \
   sdbusplus \
   systemd \
   ipmi-blob-tool \
+  function2 \
 "
-SRCREV = "42a44c281cce08be0ca6251955f4fb73d30c8ced"
+SRCREV = "db45fd46f6caf1dd13b4a121e3b4e38eae51146a"
 PACKAGECONFIG ?= "cleanup-delete"
 PACKAGECONFIG[cleanup-delete] = "-Dcleanup-delete=enabled,-Dcleanup-delete=disabled"
 # If using static-layout, reboot-update is a good option to handle updating.

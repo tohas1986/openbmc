@@ -14,10 +14,10 @@ DEPENDS += " \
         ${PYTHON_PN}-pyyaml-native \
         ${PYTHON_PN}-setuptools-native \
         ${PYTHON_PN}-mako-native \
-        nlohmann-json \
+        fmt \
 "
 PACKAGECONFIG ??= "${@bb.utils.contains_any('DISTRO_FEATURES', \
-         'obmc-ubi-fs phosphor-mmc obmc-static-norootfs', '', 'jffs-workaround', d)}"
+         'obmc-ubi-fs phosphor-mmc', '', 'jffs-workaround', d)}"
 PACKAGECONFIG[jffs-workaround] = "-Djffs-workaround=enabled, \
         -Djffs-workaround=disabled"
 PACKAGECONFIG[host-dump-transport-pldm] = " \
@@ -45,7 +45,6 @@ inherit pkgconfig meson \
         phosphor-debug-collector
 
 EXTRA_OEMESON = " \
-    -Dtests=disabled \
     -DBMC_DUMP_PATH=${bmc_dump_path} \
     -DERROR_MAP_YAML=${STAGING_DIR_NATIVE}/${datadir}/dump/errors_watch.yaml \
     "
@@ -126,7 +125,49 @@ install_dreport_include_scripts() {
     install -m 0755 ${S}/tools/dreport.d/include.d/* \
                 ${D}${dreport_include_dir}/
 }
-
+# Make the links for a single user plugin script
+# Create user directories based on the dump type value in the config section
+# Create softlinks for the base scripts in the user directories
+def install_dreport_user_script(script_path, d):
+    import re
+    import configparser
+    #Read the user types from the dreport.conf file
+    configure = configparser.ConfigParser()
+    conf_dir  = d.getVar('D', True) + d.getVar('dreport_conf_dir', True)
+    confsource = os.path.join(conf_dir, "dreport.conf")
+    configure.read(confsource)
+    config = ("config:")
+    section = "DumpType"
+    dreport_dir = d.getVar('D', True) + d.getVar('dreport_dir', True)
+    script = os.path.basename(script_path)
+    srclink = os.path.join(d.getVar('dreport_plugin_dir', True), script)
+    file = open(script_path, "r")
+    for line in file:
+        if not config in line:
+            continue
+        revalue = re.search('[0-9]+.[0-9]+', line)
+        if not revalue:
+            bb.warn("Invalid format for config value =%s" % line)
+            continue
+        parse_value = revalue.group(0)
+        config_values = re.split(r'\W+', parse_value, 1)
+        if(len(config_values) != 2):
+            bb.warn("Invalid config value=%s" % parse_value)
+            break;
+        priority = config_values[1]
+        types = [int(d) for d in str(config_values[0])]
+        for type in types:
+            if not configure.has_option(section, str(type)):
+                bb.warn("Invalid dump type id =%s" % (str(type)))
+                continue
+            typestr = configure.get(section, str(type))
+            destdir = os.path.join(dreport_dir, ("pl_" + typestr + ".d"))
+            if not os.path.exists(destdir):
+                os.makedirs(destdir)
+            linkname = "E" + priority + script
+            destlink = os.path.join(destdir, linkname)
+            os.symlink(srclink, destlink)
+    file.close()
 #Make the links for all the plugins
 python install_dreport_user_scripts() {
     source = d.getVar('S', True)
@@ -134,5 +175,5 @@ python install_dreport_user_scripts() {
     scripts = os.listdir(source_path)
     for script in scripts:
         srcname = os.path.join(source_path, script)
-        install_dreport_user_script("dreport.conf", srcname, d)
+        install_dreport_user_script(srcname, d)
 }

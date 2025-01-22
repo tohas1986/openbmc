@@ -1,0 +1,651 @@
+From 54f0243521f129837bd916d186ba270b11110e9c Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Mon, 5 Apr 2021 09:03:48 +0000
+Subject: [PATCH] Reading-CPU-and-DIMM-temperature-on-Intel-Platforms
+
+---
+ include/IpmbSensor.hpp |  26 ++-
+ src/IpmbSensor.cpp     | 480 ++++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 439 insertions(+), 67 deletions(-)
+
+diff --git a/include/IpmbSensor.hpp b/include/IpmbSensor.hpp
+index d19742c..f354177 100644
+--- a/include/IpmbSensor.hpp
++++ b/include/IpmbSensor.hpp
+@@ -16,7 +16,11 @@ enum class IpmbType
+     PXE1410CVR,
+     IR38363VR,
+     ADM1278HSC,
+-    mpsVR
++    mpsVR,
++    DIMMSensor,
++    dtsTemp,
++    cpuTemp,
++    cpuTjMax
+ };
+ 
+ enum class IpmbSubType
+@@ -34,7 +38,11 @@ enum class ReadingFormat
+     byte3,
+     elevenBit,
+     elevenBitShift,
+-    linearElevenBit
++    linearElevenBit,
++    medimmsensor,
++    cpu,
++    dts,
++    tjmax
+ };
+ 
+ namespace ipmi
+@@ -80,8 +88,9 @@ struct IpmbSensor : public Sensor
+                const std::string& sensorConfiguration,
+                sdbusplus::asio::object_server& objectServer,
+                std::vector<thresholds::Threshold>&& thresholds,
+-               uint8_t deviceAddress, uint8_t hostSMbusIndex,
+-               std::string& sensorTypeName);
++               uint8_t hostSMbusIndex,
++               uint8_t& deviceAddress,  uint8_t& deviceCPUID, uint8_t& deviceChannelID,
++               uint8_t& deviceDIMMID, std::string& deviceTypeName,std::string& sensorTypeName);
+     ~IpmbSensor() override;
+ 
+     void checkThresholds(void) override;
+@@ -90,6 +99,7 @@ struct IpmbSensor : public Sensor
+     void loadDefaults(void);
+     void runInitCmd(void);
+     bool processReading(const std::vector<uint8_t>& data, double& resp);
++    uint8_t getMeData(const std::vector<uint8_t>& meDataDIMMandCPU, std::string& deviceTypeName);
+ 
+     IpmbType type;
+     IpmbSubType subType;
+@@ -97,6 +107,14 @@ struct IpmbSensor : public Sensor
+     double offsetVal;
+     uint8_t commandAddress;
+     uint8_t netfn;
++    uint8_t deviceCPUID = 0;
++    uint8_t deviceChannelID = 0;
++    uint8_t deviceDIMMID = 0;
++    std::string deviceTypeName;
++    std::vector<uint8_t> SecondRequestCommandData = {0x57, 0x01, 0x00, 0x40, 0xff,  0xff, 0xff,
++                        0xff, 0x00, 0x00, 0x00, 0x00};
++    std::vector<uint8_t> temp;
++
+     uint8_t command;
+     uint8_t deviceAddress;
+     uint8_t errorCount;
+diff --git a/src/IpmbSensor.cpp b/src/IpmbSensor.cpp
+index 598b873..84a5341 100644
+--- a/src/IpmbSensor.cpp
++++ b/src/IpmbSensor.cpp
+@@ -37,6 +37,8 @@
+ #include <vector>
+ #include <CLI/CLI.hpp>
+ 
++#include <chrono>
++
+ bool DEBUG = false;
+ 
+ constexpr const char* configInterface =
+@@ -50,6 +52,11 @@ static constexpr uint8_t hostSMbusIndexDefault = 0x03;
+ 
+ static constexpr const char* sensorPathPrefix = "/xyz/openbmc_project/sensors/";
+ 
++std::vector<uint8_t> meDataDIMMandCPU;
++static uint64_t readingMeDIMMDataTime = 0;
++double TjmaxValue = 100;
++int requestCnt = 0;
++
+ using IpmbMethodType =
+     std::tuple<int, uint8_t, uint8_t, uint8_t, uint8_t, std::vector<uint8_t>>;
+ 
+@@ -63,13 +70,14 @@ IpmbSensor::IpmbSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+                        const std::string& sensorConfiguration,
+                        sdbusplus::asio::object_server& objectServer,
+                        std::vector<thresholds::Threshold>&& thresholdData,
+-                       uint8_t deviceAddress, uint8_t hostSMbusIndex,
+-                       std::string& sensorTypeName) :
++                       uint8_t hostSMbusIndex,
++                       uint8_t& deviceAddress, uint8_t& deviceCPUID, uint8_t& deviceChannelID,
++                       uint8_t& deviceDIMMID, std::string& deviceTypeName,std::string& sensorTypeName) :
+     Sensor(boost::replace_all_copy(sensorName, " ", "_"),
+            std::move(thresholdData), sensorConfiguration,
+            "xyz.openbmc_project.Configuration.ExitAirTemp", ipmbMaxReading,
+            ipmbMinReading, conn, PowerState::on),
+-    deviceAddress(deviceAddress), hostSMbusIndex(hostSMbusIndex),
++    deviceAddress(deviceAddress), deviceCPUID(deviceCPUID), deviceChannelID(deviceChannelID), deviceDIMMID(deviceDIMMID), deviceTypeName(deviceTypeName), hostSMbusIndex(hostSMbusIndex),
+     objectServer(objectServer), waitTimer(io)
+ {
+     std::string dbusPath = sensorPathPrefix + sensorTypeName + "/" + name;
+@@ -142,6 +150,43 @@ void IpmbSensor::loadDefaults()
+         commandData = {deviceAddress};
+         readingFormat = ReadingFormat::byte0;
+     }
++    else if(type == IpmbType::DIMMSensor)
++    {
++        commandAddress = meAddress;
++        netfn = 0x2e;       // me bridge
++        command = 0x4b;     // Get CPU and DIMM Temperature
++
++        commandData = {0x57, 0x01, 0x00, 0x00, 0xff,  0xff, 0xff,
++                        0xff, 0x00, 0x00, 0x00, 0x00};
++
++        readingFormat = ReadingFormat::medimmsensor;
++    }
++    else if (type == IpmbType::cpuTjMax)
++    {
++        commandAddress = meAddress;
++        netfn = ipmi::sensor::netFn;
++        command = ipmi::sensor::getSensorReading;
++        commandData = {deviceAddress};   //CPU TjMax
++        readingFormat = ReadingFormat::tjmax;
++    }
++    else if (type == IpmbType::dtsTemp)
++    {
++        commandAddress = meAddress;
++        netfn = 0x2e;       // me bridge
++        command = 0x4b;     // Get CPU DTS
++        commandData = {0x57, 0x01, 0x00, deviceAddress, 0x00,  0x00, 0x00,
++                              0x00, 0x00, 0x00, 0x00, 0x00};
++        readingFormat = ReadingFormat::dts;
++    }
++    else if (type == IpmbType::cpuTemp)
++    {
++        commandAddress = meAddress;
++        netfn = 0x2e;       // me bridge
++        command = 0x4b;     // Get CPU
++        commandData = {0x57, 0x01, 0x00, deviceAddress, 0x00,  0x00, 0x00,
++                            0x00, 0x00, 0x00, 0x00, 0x00};
++        readingFormat = ReadingFormat::cpu;
++    }
+     else if (type == IpmbType::PXE1410CVR)
+     {
+         commandAddress = meAddress;
+@@ -315,6 +360,62 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+             resp = value;
+             return true;
+         }
++        case (ReadingFormat::medimmsensor):
++        {
++            if (data.size() < 3)
++            {
++                return false;
++            }
++
++            if(meDataDIMMandCPU.size() >= (deviceDIMMID + deviceChannelID*4 + 3))
++            {
++                resp = meDataDIMMandCPU[deviceDIMMID + deviceChannelID*4 + 3];
++                readingMeDIMMDataTime = std::chrono::duration_cast<std::chrono::seconds>(
++                std::chrono::system_clock::now().time_since_epoch()).count();
++
++                return true;
++            }
++            else
++            {
++                return false;
++            }
++        }
++        case (ReadingFormat::tjmax):
++        {
++            if (data.size() < 3)
++            {
++                return false;
++            }
++            TjmaxValue = data[0];
++            resp = data[0];
++            return true;
++        }
++        case (ReadingFormat::dts):
++        {
++            if (data.size() < 3)
++            {
++                return false;
++            }
++            resp = data[3];
++            return true;
++        }
++        case (ReadingFormat::cpu):
++        {
++            if (data.size() < 3)
++            {
++                return false;
++            }
++            if (TjmaxValue > 0)
++            {
++                resp = TjmaxValue - data[3];
++                return true;
++            } else
++            {
++                resp = 100 - data[3];
++                return true;
++            }
++            return false;
++        }
+         default:
+             throw std::runtime_error("Invalid reading type");
+     }
+@@ -322,76 +423,241 @@ bool IpmbSensor::processReading(const std::vector<uint8_t>& data, double& resp)
+ 
+ void IpmbSensor::read(void)
+ {
+-    static constexpr size_t pollTime = 1; // in seconds
++    if(deviceTypeName != "DIMM")
++    {
++        static constexpr size_t pollTime = 1; // in seconds
+ 
+-    waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
+-    waitTimer.async_wait([this](const boost::system::error_code& ec) {
+-        if (ec == boost::asio::error::operation_aborted)
+-        {
+-            return; // we're being canceled
+-        }
+-        if (!readingStateGood())
+-        {
+-            updateValue(std::numeric_limits<double>::quiet_NaN());
+-            read();
+-            return;
+-        }
+-        dbusConnection->async_method_call(
+-            [this](boost::system::error_code ec,
+-                   const IpmbMethodType& response) {
+-                const int& status = std::get<0>(response);
+-                if (ec || status)
+-                {
+-                    incrementError();
+-                    read();
+-                    return;
+-                }
+-                const std::vector<uint8_t>& data = std::get<5>(response);
+-                if (DEBUG)
+-                {
+-                    std::cout << name << ": ";
+-                    for (size_t d : data)
++        waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
++        waitTimer.async_wait([this](const boost::system::error_code& ec) {
++            if (ec == boost::asio::error::operation_aborted)
++            {
++                std::cerr << "read: Error occured, exiting\n";
++                exit(-1);
++            }
++            if (!readingStateGood())
++            {
++                updateValue(std::numeric_limits<double>::quiet_NaN());
++                read();
++                return;
++            }
++            dbusConnection->async_method_call(
++                [this](boost::system::error_code ec,
++                       const IpmbMethodType& response) {
++                    const int& status = std::get<0>(response);
++                    if (ec || status)
+                     {
+-                        std::cout << d << " ";
++                        incrementError();
++                        read();
++                        return;
++                    }
++                    const std::vector<uint8_t>& data = std::get<5>(response);
++                    if (data.empty())
++                    {
++                        incrementError();
++                        read();
++                        return;
++                    }
++
++                    if (DEBUG)
++                    {
++                        std::cerr << "Data from ME to: " << deviceTypeName << " : ";
++
++                        for (size_t d : data)
++                        {
++                            std::cerr << std::hex << d << " ";
++                        }
++                        std::cerr << "\n";
++                    }
++
++                    double value = 0;
++
++                    if (!processReading(data, value))
++                    {
++                        incrementError();
++                        read();
++                        return;
++                    }
++
++                    value = (value * scaleVal) + offsetVal;
++
++                    if (value >= 161 && value <= 255)
++                    {
++                        updateValue(std::numeric_limits<double>::quiet_NaN());
++                    }
++                    else if (value <= 0)
++                    {
++                        updateValue(std::numeric_limits<double>::quiet_NaN());
++                    }
++                    else
++                    {
++                        updateValue(value);
+                     }
+-                    std::cout << "\n";
+-                }
+-                if (data.empty())
+-                {
+-                    incrementError();
+                     read();
+-                    return;
+-                }
++                },
++                "xyz.openbmc_project.Ipmi.Channel.Ipmb",
++                "/xyz/openbmc_project/Ipmi/Channel/Ipmb", "org.openbmc.Ipmb",
++                "sendRequest", commandAddress, netfn, lun, command, commandData);
++            });
++    }
+ 
++    if(deviceTypeName == "DIMM")
++    {
++        static constexpr size_t pollTime = 3; // in seconds
++
++        waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
++        waitTimer.async_wait([this](const boost::system::error_code& ec) {
++            if (ec == boost::asio::error::operation_aborted)
++            {
++                std::cerr << "read: Error occured, exiting\n";
++                exit(-1);
++            }
++
++            if (!readingStateGood())
++            {
++                updateValue(std::numeric_limits<double>::quiet_NaN());
++                read();
++                return;
++            }
++
++            if (requestCnt > 2)
++            {
+                 double value = 0;
+ 
+-                if (!processReading(data, value))
++                if (!processReading(meDataDIMMandCPU, value))
+                 {
+                     incrementError();
+                     read();
+                     return;
+                 }
++                value = (value * scaleVal) + offsetVal;
+ 
+-                // rawValue only used in debug logging
+-                // up to 5th byte in data are used to derive value
+-                size_t end = std::min(sizeof(uint64_t), data.size());
+-                uint64_t rawData = 0;
+-                for (size_t i = 0; i < end; i++)
++                if (value >= 161 && value <= 255)
+                 {
+-                    reinterpret_cast<uint8_t*>(&rawData)[i] = data[i];
++                    updateValue(std::numeric_limits<double>::quiet_NaN());
+                 }
+-                rawValue = static_cast<double>(rawData);
+-
+-                /* Adjust value as per scale and offset */
+-                value = (value * scaleVal) + offsetVal;
+-                updateValue(value);
++                else if (value <= 0)
++                {
++                    updateValue(std::numeric_limits<double>::quiet_NaN());
++                }
++                else
++                {
++                    updateValue(value);
++                }
++                requestCnt++;
+                 read();
+-            },
+-            "xyz.openbmc_project.Ipmi.Channel.Ipmb",
+-            "/xyz/openbmc_project/Ipmi/Channel/Ipmb", "org.openbmc.Ipmb",
+-            "sendRequest", commandAddress, netfn, lun, command, commandData);
+-    });
++                return;
++            }
++            dbusConnection->async_method_call(
++                [this](boost::system::error_code ec,
++                       const IpmbMethodType& response) {
++                    const int& status = std::get<0>(response);
++                    if (ec || status)
++                    {
++                        incrementError();
++                        read();
++                        return;
++                    }
++                    const std::vector<uint8_t>& data = std::get<5>(response);
++
++                    if (data.empty())
++                    {
++                        incrementError();
++                        read();
++                        return;
++                    }
++
++                    if (DEBUG)
++                    {
++                        std::cerr << "First bunch of Data from ME to: " << deviceTypeName << " : ";
++
++                        for (size_t d : data)
++                        {
++                            std::cerr << std::hex << d << " ";
++                        }
++                        std::cerr << "\n";
++                    }
++
++                    meDataDIMMandCPU.clear();
++
++                    for (int i=0; i < data.size(); i++)
++                    {
++                        meDataDIMMandCPU.push_back(data[i]);
++                    }
++
++                    dbusConnection->async_method_call(
++                        [this](boost::system::error_code ec,
++                            const IpmbMethodType& response) {
++
++                            const int& status = std::get<0>(response);
++
++                                if (ec || status)
++                                {
++                                    incrementError();
++                                    read();
++                                    return;
++                                }
++
++                                const std::vector<uint8_t>& data = std::get<5>(response);
++
++                                if (data.empty())
++                                {
++                                    incrementError();
++                                    read();
++                                    return;
++                                }
++
++                                if (DEBUG)
++                                {
++                                    std::cerr << "Second bunch of Data from ME to: " << deviceTypeName << " : ";
++
++                                    for (size_t d : data)
++                                    {
++                                        std::cerr << std::hex << d << " ";
++                                    }
++                                    std::cerr << "\n";
++                                }
++
++                                for (int i=3; i < data.size(); i++)
++                                {
++                                    meDataDIMMandCPU.push_back(data[i]);
++                                }
++
++                                double value = 0;
++
++                                if (!processReading(meDataDIMMandCPU, value))
++                                {
++                                    incrementError();
++                                    read();
++                                    return;
++                                }
++                                value = (value * scaleVal) + offsetVal;
++
++                                if (value >= 161 && value <= 255)
++                                {
++                                    updateValue(std::numeric_limits<double>::quiet_NaN());
++                                }
++                                else if (value <= 0)
++                                {
++                                    updateValue(std::numeric_limits<double>::quiet_NaN());
++                                }
++                                else
++                                {
++                                    updateValue(value);
++                                }
++                                requestCnt++;
++                                read();
++                        },
++                        "xyz.openbmc_project.Ipmi.Channel.Ipmb",
++                        "/xyz/openbmc_project/Ipmi/Channel/Ipmb", "org.openbmc.Ipmb",
++                        "sendRequest", commandAddress, netfn, lun, command, SecondRequestCommandData);
++                },
++                "xyz.openbmc_project.Ipmi.Channel.Ipmb",
++                "/xyz/openbmc_project/Ipmi/Channel/Ipmb", "org.openbmc.Ipmb",
++                "sendRequest", commandAddress, netfn, lun, command, commandData);
++        });
++    }
+ }
++
+ void createSensors(
+     boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,
+     boost::container::flat_map<std::string, std::unique_ptr<IpmbSensor>>&
+@@ -418,8 +684,17 @@ void createSensors(
+                     {
+                         continue;
+                     }
+-                    std::string name =
+-                        loadVariant<std::string>(entry.second, "Name");
++
++                    std::string name;
++                    try
++                    {
++                        name =
++                            loadVariant<std::string>(entry.second, "Name");
++                    }
++                    catch(...)
++                    {
++                        std::cerr << "Unable to get Name, setting to default" << "\n";
++                    }
+ 
+                     std::vector<thresholds::Threshold> sensorThresholds;
+                     if (!parseThresholdsFromConfig(pathPair.second,
+@@ -428,11 +703,73 @@ void createSensors(
+                         std::cerr << "error populating thresholds for " << name
+                                   << "\n";
+                     }
+-                    uint8_t deviceAddress =
+-                        loadVariant<uint8_t>(entry.second, "Address");
++                    uint8_t deviceAddress =  0;
++                    try
++                    {
++                        deviceAddress =
++                            loadVariant<uint8_t>(entry.second, "Address");
++                    }
++                    catch(...)
++                    {
++                        std::cerr << "Unable to get Address, setting to default" << "\n";
++                    }
++
++                    uint8_t deviceCPUID = 0;
++                    try
++                    {
++                        deviceCPUID =
++                            loadVariant<uint8_t>(entry.second, "CPUID");
++                    }
++                    catch(...)
++                    {
++                        std::cerr << "Unable to get CPUID, setting to default" << "\n";
++                    }
++
++                    uint8_t deviceChannelID = 0;
++                    try
++                    {
++                        deviceChannelID =
++                            loadVariant<uint8_t>(entry.second, "ChannelID");
++                    }
++                    catch(...)
++                    {
++                        std::cerr << "Unable to get ChannelID, setting to default" << "\n";
++                    }
++
++                    uint8_t deviceDIMMID = 0;
++                    try
++                    {
++                        deviceDIMMID =
++                            loadVariant<uint8_t>(entry.second, "DIMMID");
++                    }
++                    catch(...)
++                    {
++                        std::cerr << "Unable to get DIMMID, setting to default" << "\n";
++                    }
++
++                    std::string deviceTypeName;
++                    try
++                    {
++                        deviceTypeName =
++                            loadVariant<std::string>(entry.second, "TypeName");
++                        //std::cout << deviceTypeName << "\n";
++                    }
++                    catch(...)
++                    {
++                        std::cerr << "Unable to get deviceTypeName, setting to default" << "\n";
++                    }
++
++                    std::string sensorClass;
++                    try
++                    {
++                        sensorClass  =
++                           loadVariant<std::string>(entry.second, "Class");
++                    }
++                    catch(...)
++                    {
++                        std::cerr << "Unable to get Class, setting to default" << "\n";
++                    }
+ 
+-                    std::string sensorClass =
+-                        loadVariant<std::string>(entry.second, "Class");
+                     uint8_t hostSMbusIndex = hostSMbusIndexDefault;
+                     auto findSmType = entry.second.find("HostSMbusIndex");
+                     if (findSmType != entry.second.end())
+@@ -454,7 +791,8 @@ void createSensors(
+                     sensor = std::make_unique<IpmbSensor>(
+                         dbusConnection, io, name, pathPair.first, objectServer,
+                         std::move(sensorThresholds), deviceAddress,
+-                        hostSMbusIndex, sensorTypeName);
++                        hostSMbusIndex, deviceCPUID,
++                        deviceChannelID, deviceDIMMID, deviceTypeName, sensorTypeName);
+ 
+                     /* Initialize scale and offset value */
+                     sensor->scaleVal = 1;
+@@ -505,6 +843,22 @@ void createSensors(
+                     {
+                         sensor->type = IpmbType::meSensor;
+                     }
++                    else if (sensorClass == "DIMMSensor")
++                    {
++                        sensor->type = IpmbType::DIMMSensor;
++                    }
++                    else if (sensorClass == "cpuTjMax")
++                    {
++                        sensor->type = IpmbType::cpuTjMax;
++                    }
++                    else if (sensorClass == "dtsTemp")
++                    {
++                        sensor->type = IpmbType::dtsTemp;
++                    }
++                    else if (sensorClass == "cpuTemp")
++                    {
++                        sensor->type = IpmbType::cpuTemp;
++                    }
+                     else
+                     {
+                         std::cerr << "Invalid class " << sensorClass << "\n";

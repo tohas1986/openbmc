@@ -1,0 +1,14 @@
+[Unit]
+Description=Setting BMC self test
+Requires=multi-user.target
+Wants=xyz.openbmc_project.Chassis.Control.Power.service
+After=xyz.openbmc_project.Chassis.Control.Power.service
+Wants=xyz.openbmc_project.EntityManager.service
+After=xyz.openbmc_project.EntityManager.service
+
+[Service]
+ExecStart=/usr/sbin/bmc-self-test
+SyslogIdentifier=bmc-self-test
+
+[Install]
+WantedBy=multi-user.target

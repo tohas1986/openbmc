@@ -1,0 +1,25 @@
+From 3bc04f0743762dd0d40854d5204c3d33fa5e956d Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 4 Feb 2021 09:56:25 +0000
+Subject: [PATCH 1/1] nct7802: Instantiate despite the error
+
+---
+ drivers/hwmon/nct7802.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/drivers/hwmon/nct7802.c b/drivers/hwmon/nct7802.c
+index a696b93..854d2a7 100644
+--- a/drivers/hwmon/nct7802.c
++++ b/drivers/hwmon/nct7802.c
+@@ -1254,8 +1254,6 @@ static int nct7802_probe(struct i2c_client *client,
+ 		ret = nct7802_platform_data_set(data, pdata);
+ 	else
+ 		ret = nct7802_init_chip(data);
+-	if (ret < 0)
+-		return ret;
+ 
+ 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
+ 							   data,
+-- 
+2.7.4
+

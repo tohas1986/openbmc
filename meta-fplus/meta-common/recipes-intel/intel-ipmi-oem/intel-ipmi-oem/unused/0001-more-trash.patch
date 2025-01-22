@@ -1,0 +1,30 @@
+From 307731bd1b1b510b2df30ed791156af0606cf6a1 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 17 Apr 2020 15:12:03 +0300
+Subject: [PATCH 1/1] more trash
+
+---
+ src/yandexoem.cpp | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/yandexoem.cpp b/src/yandexoem.cpp
+index cbb1ded..79cec49 100644
+--- a/src/yandexoem.cpp
++++ b/src/yandexoem.cpp
+@@ -40,8 +40,10 @@ void register_yandex_commands()
+     ipmi::registerHandler(ipmi::prioOemBase, ipmi::intel::netFnPlatform,
+                           ipmi::intel::platform::cmdPrintTest,
+                           ipmi::Privilege::Admin, ipmi::printTest);
+-    ipmi::registerOemHandler(ipmi::prioOemBase, 0x2e,
+-                          0x99,
++    std::cerr << "register_yandex_commands: registered handler" << std::endl;
++    ipmi::registerHandler(ipmi::prioOemBase, 0x2e, 0x99,
++                          ipmi::Privilege::Admin, ipmi::printTest);
++    std::cerr << "register_yandex_commands: registered oemhandler" << std::endl;
++    ipmi::registerOemHandler(ipmi::prioOemBase, 0x2e, 0x99,
+                           ipmi::Privilege::Admin, ipmi::printTest);
+-    std::cerr << "register_yandex_commands: registered handlers with rc=" << std::endl;
+ }
+-- 
+1.9.1
+

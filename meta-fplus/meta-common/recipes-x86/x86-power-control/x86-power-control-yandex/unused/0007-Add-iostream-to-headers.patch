@@ -1,0 +1,24 @@
+From c4c44014e2e1f994f32dcb788e0391cf30e2786e Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 08:49:52 +0000
+Subject: [PATCH 1/1] Add iostream to headers
+
+---
+ power-control-x86/src/power_control.cpp | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index b0cd799..e56ce6d 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -30,6 +30,7 @@
+ 
+ #include <filesystem>
+ #include <fstream>
++#include <iostream>
+ #include <string_view>
+ 
+ namespace power_control
+-- 
+2.7.4
+

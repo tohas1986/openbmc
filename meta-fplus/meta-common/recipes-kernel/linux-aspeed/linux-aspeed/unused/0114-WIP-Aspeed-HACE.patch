@@ -1,0 +1,130 @@
+From 551c42043b75092c4ae3aa58a9a8188e85030f3b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 19 Aug 2020 10:06:38 +0000
+Subject: [PATCH 1/1] WIP: Aspeed HACE
+
+---
+ drivers/crypto/aspeed/Kconfig              | 5 ++++-
+ drivers/crypto/aspeed/aspeed-acry-rsa.c    | 6 +++---
+ drivers/crypto/aspeed/aspeed-hace-crypto.c | 6 +++---
+ drivers/crypto/aspeed/aspeed-hace-hash.c   | 3 ++-
+ drivers/crypto/aspeed/aspeed-hace-rsa.c    | 2 +-
+ drivers/crypto/aspeed/aspeed-hace.h        | 1 +
+ 6 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/crypto/aspeed/Kconfig b/drivers/crypto/aspeed/Kconfig
+index 69e45b3..4c7bb8c 100644
+--- a/drivers/crypto/aspeed/Kconfig
++++ b/drivers/crypto/aspeed/Kconfig
+@@ -4,6 +4,9 @@ config CRYPTO_DEV_ASPEED
+ 	select CRYPTO_CBC
+ 	select CRYPTO_ECB
+ 	select CRYPTO_AES
++	select CRYPTO_DES
++	select CRYPTO_LIB_DES
++	select CRYPTO_RSA
+ 	select CRYPTO_MD5
+ 	select CRYPTO_SHA256
+ 	select CRYPTO_SHA512
+@@ -27,4 +30,4 @@ config CRYPTO_DEV_ASPEED_AKCIPHER_INT
+ config CRYPTO_DEV_ASPEED_AHASH_INT
+         bool "Enable Ahash Interrupt"
+         depends on CRYPTO_DEV_ASPEED
+-        default y
+\ No newline at end of file
++        default y
+diff --git a/drivers/crypto/aspeed/aspeed-acry-rsa.c b/drivers/crypto/aspeed/aspeed-acry-rsa.c
+index 9565f43..f1378ab 100644
+--- a/drivers/crypto/aspeed/aspeed-acry-rsa.c
++++ b/drivers/crypto/aspeed/aspeed-acry-rsa.c
+@@ -207,7 +207,7 @@ static int aspeed_acry_rsa_transfer(struct aspeed_acry_dev *acry_dev)
+ 		scatterwalk_map_and_copy(dram_buffer, out_sg, 0, result_nbytes, 1);// TODO check sram DW write
+ 		req->dst_len = result_nbytes;
+ 	} else {
+-		printk("RSA engine error!\n")
++		printk("RSA engine error!\n");
+ 	}
+ 	aspeed_acry_write(acry_dev, ACRY_CMD_DMA_SRAM_AHB_ENGINE, ASPEED_ACRY_DMA_CMD);
+ 	return aspeed_acry_rsa_complete(acry_dev, 0);
+@@ -373,7 +373,7 @@ static int aspeed_acry_rsa_set_priv_key(struct crypto_akcipher *tfm, const void
+ 	return aspeed_acry_rsa_setkey(tfm, key, keylen, 1);
+ }
+ 
+-static int aspeed_acry_rsa_max_size(struct crypto_akcipher *tfm)
++static unsigned int aspeed_acry_rsa_max_size(struct crypto_akcipher *tfm)
+ {
+ 	struct aspeed_acry_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+ 
+@@ -449,4 +449,4 @@ int aspeed_register_acry_rsa_algs(struct aspeed_acry_dev *acry_dev)
+ 			return err;
+ 	}
+ 	return 0;
+-}
+\ No newline at end of file
++}
+diff --git a/drivers/crypto/aspeed/aspeed-hace-crypto.c b/drivers/crypto/aspeed/aspeed-hace-crypto.c
+index 6e150de..8fd0458 100644
+--- a/drivers/crypto/aspeed/aspeed-hace-crypto.c
++++ b/drivers/crypto/aspeed/aspeed-hace-crypto.c
+@@ -380,7 +380,7 @@ static int aspeed_des_setkey(struct crypto_skcipher *cipher, const u8 *key,
+ {
+ 	struct crypto_tfm *tfm = crypto_skcipher_tfm(cipher);
+ 	struct aspeed_cipher_ctx *ctx = crypto_skcipher_ctx(cipher);
+-	u32 tmp[DES_EXPKEY_WORDS];
++	struct des_ctx tmp_ctx;
+ 
+ 	CIPHER_DBG("bits : %d : \n", keylen);
+ 
+@@ -391,8 +391,8 @@ static int aspeed_des_setkey(struct crypto_skcipher *cipher, const u8 *key,
+ 	}
+ 
+ 	if (keylen == DES_KEY_SIZE) {
+-		if (!des_ekey(tmp, key) &&
+-		    (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
++		if (!des_expand_key(&tmp_ctx, key, keylen) &&
++		    (tfm->crt_flags & CRYPTO_TFM_RES_WEAK_KEY)) {
+ 			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
+ 			return -EINVAL;
+ 		}
+diff --git a/drivers/crypto/aspeed/aspeed-hace-hash.c b/drivers/crypto/aspeed/aspeed-hace-hash.c
+index ecb9d5b..becf25a 100644
+--- a/drivers/crypto/aspeed/aspeed-hace-hash.c
++++ b/drivers/crypto/aspeed/aspeed-hace-hash.c
+@@ -482,7 +482,8 @@ static int aspeed_sham_shash_digest(struct crypto_shash *tfm, u32 flags,
+ 	SHASH_DESC_ON_STACK(shash, tfm);
+ 
+ 	shash->tfm = tfm;
+-	shash->flags = flags & CRYPTO_TFM_REQ_MAY_SLEEP;
++	//crypto_shash_set_flags(shash, flags & CRYPTO_TFM_REQ_MAY_SLEEP);
++	//shash->flags = flags & CRYPTO_TFM_REQ_MAY_SLEEP;
+ 
+ 	return crypto_shash_digest(shash, data, len, out);
+ }
+diff --git a/drivers/crypto/aspeed/aspeed-hace-rsa.c b/drivers/crypto/aspeed/aspeed-hace-rsa.c
+index 1f0250c..0f41f47 100644
+--- a/drivers/crypto/aspeed/aspeed-hace-rsa.c
++++ b/drivers/crypto/aspeed/aspeed-hace-rsa.c
+@@ -784,7 +784,7 @@ static int aspeed_rsa_set_priv_key(struct crypto_akcipher *tfm, const void *key,
+ 	return aspeed_rsa_setkey(tfm, key, keylen, 1);
+ }
+ 
+-static int aspeed_rsa_max_size(struct crypto_akcipher *tfm)
++static unsigned int aspeed_rsa_max_size(struct crypto_akcipher *tfm)
+ {
+ 	struct aspeed_rsa_ctx *ctx = akcipher_tfm_ctx(tfm);
+ 	struct aspeed_rsa_key *key = &ctx->key;
+diff --git a/drivers/crypto/aspeed/aspeed-hace.h b/drivers/crypto/aspeed/aspeed-hace.h
+index fc4404f..64c557c 100644
+--- a/drivers/crypto/aspeed/aspeed-hace.h
++++ b/drivers/crypto/aspeed/aspeed-hace.h
+@@ -10,6 +10,7 @@
+ #include <crypto/internal/hash.h>
+ #include <crypto/internal/kpp.h>
+ #include <crypto/internal/rsa.h>
++#include <crypto/internal/des.h>
+ #include <crypto/internal/akcipher.h>
+ #include <crypto/internal/skcipher.h>
+ #include <crypto/internal/aead.h>
+-- 
+2.7.4
+

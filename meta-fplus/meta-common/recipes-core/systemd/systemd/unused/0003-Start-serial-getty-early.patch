@@ -1,0 +1,27 @@
+From d3273a243d6aeb8d4f41121f88429935b9ad0a66 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 8 Dec 2020 08:04:39 +0000
+Subject: [PATCH 1/1] Start serial getty early
+
+---
+ units/serial-getty@.service.m4 | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/units/serial-getty@.service.m4 b/units/serial-getty@.service.m4
+index cab89fb..4fc962d 100644
+--- a/units/serial-getty@.service.m4
++++ b/units/serial-getty@.service.m4
+@@ -12,9 +12,8 @@ Description=Serial Getty on %I
+ Documentation=man:agetty(8) man:systemd-getty-generator(8)
+ Documentation=http://0pointer.de/blog/projects/serial-console.html
+ BindsTo=dev-%i.device
+-After=dev-%i.device systemd-user-sessions.service plymouth-quit-wait.service getty-pre.target
++After=dev-%i.device
+ m4_ifdef(`HAVE_SYSV_COMPAT',
+-After=rc-local.service
+ )m4_dnl
+ 
+ # If additional gettys are spawned during boot then we should make
+-- 
+2.7.4
+

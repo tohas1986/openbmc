@@ -3,6 +3,7 @@
 
 SUMMARY = "Basic task to get a device online"
 
+PR = "r13"
 
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 inherit packagegroup

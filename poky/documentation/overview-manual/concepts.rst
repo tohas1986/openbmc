@@ -34,10 +34,10 @@ itself is of various types:
 
 BitBake knows how to combine multiple data sources together and refers
 to each data source as a layer. For information on layers, see the
-":ref:`dev-manual/layers:understanding and creating layers`"
+":ref:`dev-manual/common-tasks:understanding and creating layers`"
 section of the Yocto Project Development Tasks Manual.
 
-Here are some brief details on these core components. For
+Following are some brief details on these core components. For
 additional information on how these components interact during a build,
 see the
 ":ref:`overview-manual/concepts:openembedded build system concepts`"
@@ -69,10 +69,12 @@ type the following::
 
    $ bitbake matchbox-desktop
 
-Several different versions of ``matchbox-desktop`` might exist. BitBake chooses
-the one selected by the distribution configuration. You can get more details
-about how BitBake chooses between different target versions and providers in the
-":ref:`bitbake-user-manual/bitbake-user-manual-execution:preferences`" section
+Several different
+versions of ``matchbox-desktop`` might exist. BitBake chooses the one
+selected by the distribution configuration. You can get more details
+about how BitBake chooses between different target versions and
+providers in the
+":ref:`bitbake:bitbake-user-manual/bitbake-user-manual-execution:preferences`" section
 of the BitBake User Manual.
 
 BitBake also tries to execute any dependent tasks first. So for example,
@@ -105,7 +107,8 @@ Classes
 -------
 
 Class files (``.bbclass``) contain information that is useful to share
-between recipes files. An example is the :ref:`ref-classes-autotools` class,
+between recipes files. An example is the
+:ref:`autotools <ref-classes-autotools>` class,
 which contains common settings for any application that is built with
 the :wikipedia:`GNU Autotools <GNU_Autotools>`.
 The ":ref:`ref-manual/classes:Classes`" chapter in the Yocto Project
@@ -146,7 +149,7 @@ Conforming to a known structure allows BitBake to make assumptions
 during builds on where to find types of metadata. You can find
 procedures and learn about tools (i.e. ``bitbake-layers``) for creating
 layers suitable for the Yocto Project in the
-":ref:`dev-manual/layers:understanding and creating layers`"
+":ref:`dev-manual/common-tasks:understanding and creating layers`"
 section of the Yocto Project Development Tasks Manual.
 
 OpenEmbedded Build System Concepts
@@ -304,7 +307,7 @@ during the build. By default, the layers listed in this file include
 layers minimally needed by the build system. However, you must manually
 add any custom layers you have created. You can find more information on
 working with the ``bblayers.conf`` file in the
-":ref:`dev-manual/layers:enabling your layer`"
+":ref:`dev-manual/common-tasks:enabling your layer`"
 section in the Yocto Project Development Tasks Manual.
 
 The files ``site.conf`` and ``auto.conf`` are not created by the
@@ -395,7 +398,7 @@ a ``README`` file as good practice and especially if the layer is to be
 distributed, a configuration directory, and recipe directories. You can
 learn about the general structure for layers used with the Yocto Project
 in the
-":ref:`dev-manual/layers:creating your own layer`"
+":ref:`dev-manual/common-tasks:creating your own layer`"
 section in the
 Yocto Project Development Tasks Manual. For a general discussion on
 layers and the many layers from which you can draw, see the
@@ -558,26 +561,29 @@ reside somewhere local to a project --- perhaps a directory into which the
 user checks in items (e.g. a local directory containing a development
 source tree used by the group).
 
-The canonical method through which to include a local project is to use the
-:ref:`ref-classes-externalsrc` class to include that local project. You use
-either the ``local.conf`` or a recipe's append file to override or set the
-recipe to point to the local directory on your disk to pull in the whole
-source tree.
+The canonical method through which to include a local project is to use
+the :ref:`externalsrc <ref-classes-externalsrc>`
+class to include that local project. You use either the ``local.conf``
+or a recipe's append file to override or set the recipe to point to the
+local directory on your disk to pull in the whole source tree.
 
 Source Control Managers (Optional)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Another place from which the build system can get source files is with
-:ref:`bitbake-user-manual/bitbake-user-manual-fetching:fetchers` employing
-various Source Control Managers (SCMs) such as Git or Subversion. In such
-cases, a repository is cloned or checked out. The :ref:`ref-tasks-fetch` task
-inside BitBake uses the :term:`SRC_URI` variable and the argument's prefix to
-determine the correct fetcher module.
+:ref:`bitbake:bitbake-user-manual/bitbake-user-manual-fetching:fetchers` employing various Source
+Control Managers (SCMs) such as Git or Subversion. In such cases, a
+repository is cloned or checked out. The
+:ref:`ref-tasks-fetch` task inside
+BitBake uses the :term:`SRC_URI`
+variable and the argument's prefix to determine the correct fetcher
+module.
 
 .. note::
 
    For information on how to have the OpenEmbedded build system generate
-   tarballs for Git repositories and place them in the :term:`DL_DIR`
+   tarballs for Git repositories and place them in the
+   DL_DIR
    directory, see the :term:`BB_GENERATE_MIRROR_TARBALLS`
    variable in the Yocto Project Reference Manual.
 
@@ -623,7 +629,8 @@ types, and you specify which classes to enable through the
 :term:`PACKAGE_CLASSES`
 variable. Before placing the packages into package feeds, the build
 process validates them with generated output quality assurance checks
-through the :ref:`ref-classes-insane` class.
+through the :ref:`insane <ref-classes-insane>`
+class.
 
 The package feed area resides in the :term:`Build Directory`. The directory the
 build system uses to temporarily store packages is determined by a
@@ -638,8 +645,9 @@ package files are kept:
    type sub-folder. Given RPM, IPK, or DEB packaging and tarball
    creation, the
    :term:`DEPLOY_DIR_RPM`,
-   :term:`DEPLOY_DIR_IPK`, or
-   :term:`DEPLOY_DIR_DEB`
+   :term:`DEPLOY_DIR_IPK`,
+   :term:`DEPLOY_DIR_DEB`, or
+   :term:`DEPLOY_DIR_TAR`,
    variables are used, respectively.
 
 -  :term:`PACKAGE_ARCH`: Defines
@@ -652,8 +660,9 @@ tasks to generate packages and place them into the package holding area
 (e.g. ``do_package_write_ipk`` for IPK packages). See the
 ":ref:`ref-tasks-package_write_deb`",
 ":ref:`ref-tasks-package_write_ipk`",
+":ref:`ref-tasks-package_write_rpm`",
 and
-":ref:`ref-tasks-package_write_rpm`"
+":ref:`ref-tasks-package_write_tar`"
 sections in the Yocto Project Reference Manual for additional
 information. As an example, consider a scenario where an IPK packaging
 manager is being used and there is package architecture support for both
@@ -674,7 +683,7 @@ closer look at each of those areas.
 .. note::
 
    Documentation for the BitBake tool is available separately. See the
-   :doc:`BitBake User Manual <bitbake:index>`
+   BitBake User Manual
    for reference material on BitBake.
 
 Source Fetching
@@ -789,7 +798,7 @@ For more information on how the source directories are created, see the
 ":ref:`overview-manual/concepts:source fetching`" section. For
 more information on how to create patches and how the build system
 processes patches, see the
-":ref:`dev-manual/new-recipe:patching code`"
+":ref:`dev-manual/common-tasks:patching code`"
 section in the
 Yocto Project Development Tasks Manual. You can also see the
 ":ref:`sdk-manual/extensible:use \`\`devtool modify\`\` to modify the source of an existing component`"
@@ -832,12 +841,14 @@ This step in the build process consists of the following tasks:
    are specific to configurations for the source code being built by the
    recipe.
 
-   If you are using the :ref:`ref-classes-autotools` class,
+   If you are using the
+   :ref:`autotools <ref-classes-autotools>` class,
    you can add additional configuration options by using the
    :term:`EXTRA_OECONF` or
    :term:`PACKAGECONFIG_CONFARGS`
    variables. For information on how this variable works within that
-   class, see the :ref:`ref-classes-autotools` class
+   class, see the
+   :ref:`autotools <ref-classes-autotools>` class
    :yocto_git:`here </poky/tree/meta/classes-recipe/autotools.bbclass>`.
 
 -  *do_compile*: Once a configuration task has been satisfied,
@@ -910,7 +921,7 @@ the analysis and package splitting process use several areas:
 -  :term:`STAGING_DIR_TARGET`:
    The path for the sysroot used when a component that is built to
    execute on a system and it generates code for yet another machine
-   (e.g. :ref:`ref-classes-cross-canadian` recipes).
+   (e.g. cross-canadian recipes).
 
 The :term:`FILES` variable defines the
 files that go into each package in
@@ -988,7 +999,7 @@ stage of package installation, post installation scripts that are part
 of the packages are run. Any scripts that fail to run on the build host
 are run on the target when the target system is first booted. If you are
 using a
-:ref:`read-only root filesystem <dev-manual/read-only-rootfs:creating a read-only root filesystem>`,
+:ref:`read-only root filesystem <dev-manual/common-tasks:creating a read-only root filesystem>`,
 all the post installation scripts must succeed on the build host during
 the package installation phase since the root filesystem on the target
 is read-only.
@@ -996,11 +1007,13 @@ is read-only.
 The final stages of the :ref:`ref-tasks-rootfs` task handle post processing. Post
 processing includes creation of a manifest file and optimizations.
 
-The manifest file (``.manifest``) resides in the same directory as the root
-filesystem image. This file lists out, line-by-line, the installed packages.
-The manifest file is useful for the :ref:`ref-classes-testimage` class,
+The manifest file (``.manifest``) resides in the same directory as the
+root filesystem image. This file lists out, line-by-line, the installed
+packages. The manifest file is useful for the
+:ref:`testimage <ref-classes-testimage>` class,
 for example, to determine whether or not to run specific tests. See the
-:term:`IMAGE_MANIFEST` variable for additional information.
+:term:`IMAGE_MANIFEST`
+variable for additional information.
 
 Optimizing processes that are run across the image include ``mklibs``
 and any other post-processing commands as defined by the
@@ -1109,7 +1122,8 @@ checksum <overview-manual/concepts:checksums (signatures)>`.
 
 .. note::
 
-   This naming scheme assumes that :term:`BB_SIGNATURE_HANDLER`
+   This naming scheme assumes that
+   BB_SIGNATURE_HANDLER
    is "OEBasicHash", which is almost always the case in current
    OpenEmbedded.
 
@@ -1139,12 +1153,12 @@ Since :term:`STAMPS_DIR` is usually a subdirectory of :term:`TMPDIR`, removing
 properly be rerun to repopulate :term:`TMPDIR`.
 
 If you want some task to always be considered "out of date", you can
-mark it with the :ref:`nostamp <bitbake-user-manual/bitbake-user-manual-metadata:variable flags>`
+mark it with the :ref:`nostamp <bitbake:bitbake-user-manual/bitbake-user-manual-metadata:variable flags>`
 varflag. If some other task depends on such a task, then that task will
 also always be considered out of date, which might not be what you want.
 
 For details on how to view information about a task's signature, see the
-":ref:`dev-manual/debugging:viewing task variable dependencies`"
+":ref:`dev-manual/common-tasks:viewing task variable dependencies`"
 section in the Yocto Project Development Tasks Manual.
 
 Setscene Tasks and Shared State
@@ -1321,7 +1335,7 @@ can initialize the environment before using the tools.
 All the output files for an SDK are written to the ``deploy/sdk`` folder
 inside the :term:`Build Directory` as shown in the previous figure. Depending
 on the type of SDK, there are several variables to configure these files.
-The variables associated with an extensible SDK are:
+Here are the variables associated with an extensible SDK:
 
 -  :term:`DEPLOY_DIR`: Points to
    the ``deploy`` directory.
@@ -1375,7 +1389,7 @@ This next list, shows the variables associated with a standard SDK:
    Lists packages that make up the target part of the SDK (i.e. the part
    built for the target hardware).
 
--  :term:`SDKPATHINSTALL`: Defines the
+-  :term:`SDKPATH`: Defines the
    default SDK installation path offered by the installation script.
 
 -  :term:`SDK_HOST_MANIFEST`:
@@ -1569,15 +1583,15 @@ them if they are deemed to be valid.
       the shared state packages. Consequently, there are considerations that
       affect maintaining shared state feeds. For information on how the
       build system works with packages and can track incrementing :term:`PR`
-      information, see the ":ref:`dev-manual/packages:automatically incrementing a package version number`"
+      information, see the ":ref:`dev-manual/common-tasks:automatically incrementing a package version number`"
       section in the Yocto Project Development Tasks Manual.
 
    -  The code in the build system that supports incremental builds is
       complex. For techniques that help you work around issues
       related to shared state code, see the
-      ":ref:`dev-manual/debugging:viewing metadata used to create the input signature of a shared state task`"
+      ":ref:`dev-manual/common-tasks:viewing metadata used to create the input signature of a shared state task`"
       and
-      ":ref:`dev-manual/debugging:invalidating shared state to force a task to run`"
+      ":ref:`dev-manual/common-tasks:invalidating shared state to force a task to run`"
       sections both in the Yocto Project Development Tasks Manual.
 
 The rest of this section goes into detail about the overall incremental
@@ -1739,11 +1753,12 @@ half the problem of supporting a shared state. The other half of the
 problem is being able to use checksum information during the build and
 being able to reuse or rebuild specific components.
 
-The :ref:`ref-classes-sstate` class is a relatively generic implementation of
-how to "capture" a snapshot of a given task. The idea is that the build process
-does not care about the source of a task's output. Output could be freshly
-built or it could be downloaded and unpacked from somewhere. In other words,
-the build process does not need to worry about its origin.
+The :ref:`sstate <ref-classes-sstate>` class is a
+relatively generic implementation of how to "capture" a snapshot of a
+given task. The idea is that the build process does not care about the
+source of a task's output. Output could be freshly built or it could be
+downloaded and unpacked from somewhere. In other words, the build
+process does not need to worry about its origin.
 
 Two types of output exist. One type is just about creating a directory
 in :term:`WORKDIR`. A good example is
@@ -1754,9 +1769,10 @@ type of output occurs when a set of data is merged into a shared
 directory tree such as the sysroot.
 
 The Yocto Project team has tried to keep the details of the
-implementation hidden in the :ref:`ref-classes-sstate` class. From a user's perspective,
+implementation hidden in the :ref:`sstate <ref-classes-sstate>` class. From a user's perspective,
 adding shared state wrapping to a task is as simple as this
-:ref:`ref-tasks-deploy` example taken from the :ref:`ref-classes-deploy` class::
+:ref:`ref-tasks-deploy` example taken
+from the :ref:`deploy <ref-classes-deploy>` class::
 
    DEPLOYDIR = "${WORKDIR}/deploy-${PN}"
    SSTATETASKS += "do_deploy"
@@ -1772,9 +1788,11 @@ adding shared state wrapping to a task is as simple as this
 
 The following list explains the previous example:
 
--  Adding ``do_deploy`` to ``SSTATETASKS`` adds some required sstate-related
-   processing, which is implemented in the :ref:`ref-classes-sstate` class, to
-   before and after the :ref:`ref-tasks-deploy` task.
+-  Adding ``do_deploy`` to ``SSTATETASKS`` adds some required
+   sstate-related processing, which is implemented in the
+   :ref:`sstate <ref-classes-sstate>` class, to
+   before and after the
+   :ref:`ref-tasks-deploy` task.
 
 -  The ``do_deploy[sstate-inputdirs] = "${DEPLOYDIR}"`` declares that
    :ref:`ref-tasks-deploy` places its output in ``${DEPLOYDIR}`` when run normally
@@ -1805,18 +1823,19 @@ The following list explains the previous example:
       }
       addtask do_deploy_setscene
 
-   ``sstate_setscene()`` takes the flags above as input and accelerates the
-   :ref:`ref-tasks-deploy` task through the shared state cache if possible. If
-   the task was accelerated, ``sstate_setscene()`` returns True. Otherwise, it
-   returns False, and the normal :ref:`ref-tasks-deploy` task runs. For more
-   information, see the ":ref:`bitbake-user-manual/bitbake-user-manual-execution:setscene`"
-   section in the BitBake User Manual.
+  ``sstate_setscene()`` takes the flags above as input and accelerates the :ref:`ref-tasks-deploy` task
+  through the shared state cache if possible. If the task was
+  accelerated, ``sstate_setscene()`` returns True. Otherwise, it
+  returns False, and the normal :ref:`ref-tasks-deploy` task runs. For more
+  information, see the ":ref:`bitbake:bitbake-user-manual/bitbake-user-manual-execution:setscene`"
+  section in the BitBake User Manual.
 
--  The ``do_deploy[dirs] = "${DEPLOYDIR} ${B}"`` line creates ``${DEPLOYDIR}``
-   and ``${B}`` before the :ref:`ref-tasks-deploy` task runs, and also sets the
-   current working directory of :ref:`ref-tasks-deploy` to ``${B}``. For more
-   information, see the ":ref:`bitbake-user-manual/bitbake-user-manual-metadata:variable flags`"
-   section in the BitBake User Manual.
+-  The ``do_deploy[dirs] = "${DEPLOYDIR} ${B}"`` line creates
+   ``${DEPLOYDIR}`` and ``${B}`` before the :ref:`ref-tasks-deploy` task runs, and
+   also sets the current working directory of :ref:`ref-tasks-deploy` to ``${B}``.
+   For more information, see the ":ref:`bitbake:bitbake-user-manual/bitbake-user-manual-metadata:variable flags`"
+   section in the BitBake
+   User Manual.
 
    .. note::
 
@@ -1828,10 +1847,12 @@ The following list explains the previous example:
               do_package[sstate-plaindirs] = "${PKGD} ${PKGDEST}"
 
 
--  The ``do_deploy[stamp-extra-info] = "${MACHINE_ARCH}"`` line appends extra
-   metadata to the :ref:`stamp file <overview-manual/concepts:stamp files and the rerunning of tasks>`.
-   In this case, the metadata makes the task specific to a machine's architecture.
-   See the ":ref:`bitbake-user-manual/bitbake-user-manual-execution:the task list`"
+-  The ``do_deploy[stamp-extra-info] = "${MACHINE_ARCH}"`` line appends
+   extra metadata to the :ref:`stamp
+   file <overview-manual/concepts:stamp files and the rerunning of tasks>`. In
+   this case, the metadata makes the task specific to a machine's architecture.
+   See
+   ":ref:`bitbake:bitbake-user-manual/bitbake-user-manual-execution:the task list`"
    section in the BitBake User Manual for more information on the
    ``stamp-extra-info`` flag.
 
@@ -1941,7 +1962,7 @@ Thanks to this, the depending tasks will keep a previously recorded
 task hash, and BitBake will be able to retrieve their output from
 the Shared State cache, instead of re-executing them. Similarly, the
 output of further downstream tasks can also be retrieved from Shared
-State.
+Shate.
 
 If the output hash is unknown, a new entry will be created on the Hash
 Equivalence server, matching the task hash to that output.
@@ -1962,15 +1983,6 @@ task output from the Shared State cache.
    Having :doc:`/test-manual/reproducible-builds` is a key ingredient for
    the stability of the task's output hash. Therefore, the effectiveness
    of Hash Equivalence strongly depends on it.
-
-   Recipes that are not reproducible may have undesired behavior if hash
-   equivalence is enabled, since the non-reproducible diverging output maybe be
-   remapped to an older sstate object in the cache by the server. If a recipe
-   is non-reproducible in trivial ways, such as different timestamps, this is
-   likely not a problem. However recipes that have more dramatic changes (such
-   as completely different file names) will likely outright fail since the
-   downstream sstate objects are not actually equivalent to what was just
-   built.
 
 This applies to multiple scenarios:
 
@@ -1998,7 +2010,7 @@ variables:
 -  :term:`BB_HASHSERVE_UPSTREAM`, when ``BB_HASHSERVE = "auto"``,
    allowing to connect the local server to an upstream one.
 
--  :term:`bitbake:BB_SIGNATURE_HANDLER`, which must be set to ``OEEquivHash``.
+-  :term:`bitbake:BB_SIGNATURE_HANDLER`, which must be set  to ``OEEquivHash``.
 
 Therefore, the default configuration in Poky corresponds to the
 below settings::
@@ -2122,12 +2134,12 @@ dependencies, you must manually declare the dependencies.
    :term:`ALLOW_EMPTY` variable
    for more information.
 
-The :ref:`ref-tasks-package` task depends on the :ref:`ref-tasks-packagedata`
-task of each recipe in :term:`DEPENDS` through use of a
-``[``\ :ref:`deptask <bitbake-user-manual/bitbake-user-manual-metadata:variable flags>`\ ``]``
-declaration, which guarantees that the required shared-library /
-module-to-package mapping information will be available when needed as long as
-:term:`DEPENDS` has been correctly set.
+The :ref:`ref-tasks-package` task depends on the :ref:`ref-tasks-packagedata` task of each
+recipe in :term:`DEPENDS` through use
+of a ``[``\ :ref:`deptask <bitbake:bitbake-user-manual/bitbake-user-manual-metadata:variable flags>`\ ``]``
+declaration, which guarantees that the required
+shared-library/module-to-package mapping information will be available
+when needed as long as :term:`DEPENDS` has been correctly set.
 
 Fakeroot and Pseudo
 ===================
@@ -2189,173 +2201,3 @@ For more information, see the
 BitBake User Manual. You can also reference the "`Why Not
 Fakeroot? <https://github.com/wrpseudo/pseudo/wiki/WhyNotFakeroot>`__"
 article for background information on Fakeroot and Pseudo.
-
-BitBake Tasks Map
-=================
-
-To understand how BitBake operates in the build directory and environment
-we can consider the following recipes and diagram, to have full picture
-about the tasks that BitBake runs to generate the final package file
-for the recipe.
-
-We will have two recipes as an example:
-
--  ``libhello``: A recipe that provides a shared library
--  ``sayhello``: A recipe that uses ``libhello`` library to do its job
-
-.. note::
-
-   ``sayhello`` depends on ``libhello`` at compile time as it needs the shared
-   library to do the dynamic linking process. It also depends on it at runtime
-   as the shared library loader needs to find the library.
-   For more details about dependencies check :ref:`ref-varlocality-recipe-dependencies`.
-
-``libhello`` sources are as follows:
-
--  ``LICENSE``: This is the license associated with this library
--  ``Makefile``: The file used by ``make`` to build the library
--  ``hellolib.c``: The implementation of the library
--  ``hellolib.h``: The C header of the library
-
-``sayhello`` sources are as follows:
-
--  ``LICENSE``: This is the license associated with this project
--  ``Makefile``: The file used by ``make`` to build the project
--  ``sayhello.c``: The source file of the project
-
-Before presenting the contents of each file, here are the steps
-that we need to follow to accomplish what we want in the first place,
-which is integrating ``sayhello`` in our root file system:
-
-#.  Create a Git repository for each project with the corresponding files
-
-#.  Create a recipe for each project
-
-#.  Make sure that ``sayhello`` recipe :term:`DEPENDS` on ``libhello``
-
-#.  Make sure that ``sayhello`` recipe :term:`RDEPENDS` on ``libhello``
-
-#.  Add ``sayhello`` to :term:`IMAGE_INSTALL` to integrate it into
-    the root file system
-
-The contents of ``libhello/Makefile`` are::
-
-   LIB=libhello.so
-
-   all: $(LIB)
-
-   $(LIB): hellolib.o
-      $(CC) $< -Wl,-soname,$(LIB).1 -fPIC $(LDFLAGS) -shared -o $(LIB).1.0
-
-   %.o: %.c
-      $(CC) -c $<
-
-   clean:
-      rm -rf *.o *.so*
-
-.. note::
-
-   When creating shared libraries, it is strongly recommended to follow the Linux
-   conventions and guidelines (see `this article
-   <https://tldp.org/HOWTO/Program-Library-HOWTO/shared-libraries.html>`__
-   for some background).
-
-.. note::
-
-   When creating ``Makefile`` files, it is strongly recommended to use ``CC``, ``LDFLAGS``
-   and ``CFLAGS`` as BitBake will set them as environment variables according
-   to your build configuration.
-
-The contents of ``libhello/hellolib.h`` are::
-
-   #ifndef HELLOLIB_H
-   #define HELLOLIB_H
-
-   void Hello();
-
-   #endif
-
-The contents of ``libhello/hellolib.c`` are::
-
-   #include <stdio.h>
-
-   void Hello(){
-      puts("Hello from a Yocto demo \n");
-   }
-
-The contents of ``sayhello/Makefile`` are::
-
-   EXEC=sayhello
-   LDFLAGS += -lhello
-
-   all: $(EXEC)
-
-   $(EXEC): sayhello.c
-      $(CC) $< $(LDFLAGS) $(CFLAGS) -o $(EXEC)
-
-   clean:
-      rm -rf $(EXEC) *.o
-
-The contents of ``sayhello/sayhello.c`` are::
-
-   #include <hellolib.h>
-
-   int main(){
-      Hello();
-      return 0;
-   }
-
-The contents of ``libhello_0.1.bb`` are::
-
-   SUMMARY = "Hello demo library"
-   DESCRIPTION = "Hello shared library used in Yocto demo"
-
-   # NOTE: Set the License according to the LICENSE file of your project
-   #       and then add LIC_FILES_CHKSUM accordingly
-   LICENSE = "CLOSED"
-
-   # Assuming the branch is main
-   # Change <username> accordingly
-   SRC_URI = "git://github.com/<username>/libhello;branch=main;protocol=https"
-
-   S = "${WORKDIR}/git"
-
-   do_install(){
-      install -d ${D}${includedir}
-      install -d ${D}${libdir}
-
-      install hellolib.h ${D}${includedir}
-      oe_soinstall ${PN}.so.${PV} ${D}${libdir}
-   }
-
-The contents of ``sayhello_0.1.bb`` are::
-
-   SUMMARY = "SayHello demo"
-   DESCRIPTION = "SayHello project used in Yocto demo"
-
-   # NOTE: Set the License according to the LICENSE file of your project
-   #       and then add LIC_FILES_CHKSUM accordingly
-   LICENSE = "CLOSED"
-
-   # Assuming the branch is main
-   # Change <username> accordingly
-   SRC_URI = "git://github.com/<username>/sayhello;branch=main;protocol=https"
-
-   DEPENDS += "libhello"
-   RDEPENDS:${PN} += "libhello"
-
-   S = "${WORKDIR}/git"
-
-   do_install(){
-      install -d ${D}/usr/bin
-      install -m 0700 sayhello ${D}/usr/bin
-   }
-
-After placing the recipes in a custom layer we can run ``bitbake sayhello``
-to build the recipe.
-
-The following diagram shows the sequences of tasks that BitBake
-executes to accomplish that.
-
-.. image:: svg/bitbake_tasks_map.*
-   :width: 100%

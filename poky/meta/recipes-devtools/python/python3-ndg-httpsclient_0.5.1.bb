@@ -1,4 +1,4 @@
-SUMMARY = "Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL"
+DESCRIPTION = "Provides enhanced HTTPS support for httplib and urllib2 using PyOpenSSL"
 HOMEPAGE = "https://github.com/cedadev/ndg_httpsclient/"
 LICENSE = "BSD-3-Clause"
 LIC_FILES_CHKSUM = "file://MANIFEST.in;md5=ce22c0cd986d2de3f7073cd6b5523ae0"
@@ -11,15 +11,15 @@ inherit pypi setuptools3 update-alternatives
 PYPI_PACKAGE = "ndg_httpsclient"
 
 DEPENDS += " \
-    python3-pyopenssl \
-    python3-pyasn1 \
+    ${PYTHON_PN}-pyopenssl \
+    ${PYTHON_PN}-pyasn1 \
 "
 
 RDEPENDS:${PN} += " \
-    python3-datetime \
-    python3-logging \
-    python3-pyopenssl \
-    python3-pyasn1 \
+    ${PYTHON_PN}-datetime \
+    ${PYTHON_PN}-logging \
+    ${PYTHON_PN}-pyopenssl \
+    ${PYTHON_PN}-pyasn1 \
 "
 
 BBCLASSEXTEND = "native nativesdk"

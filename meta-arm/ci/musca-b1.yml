@@ -1,5 +1,5 @@
 header:
-  version: 14
+  version: 11
   includes:
     - ci/base.yml
     - ci/meta-openembedded.yml

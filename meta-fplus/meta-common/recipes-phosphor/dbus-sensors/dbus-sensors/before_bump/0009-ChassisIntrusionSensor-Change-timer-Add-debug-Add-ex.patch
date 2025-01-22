@@ -1,0 +1,80 @@
+From 94d9d7860377b9d7feae96fa565a86ab19d832d7 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 10:09:26 +0000
+Subject: [PATCH 09/16] ChassisIntrusionSensor: Change timer; Add debug; Add
+ exit on error
+
+---
+ include/ChassisIntrusionSensor.hpp |  5 ++---
+ src/ChassisIntrusionSensor.cpp     | 11 ++++++-----
+ 2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/include/ChassisIntrusionSensor.hpp b/include/ChassisIntrusionSensor.hpp
+index 142ced3..ac4b7fc 100644
+--- a/include/ChassisIntrusionSensor.hpp
++++ b/include/ChassisIntrusionSensor.hpp
+@@ -1,6 +1,6 @@
+ #pragma once
+ 
+-#include <boost/asio/deadline_timer.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <boost/asio/io_service.hpp>
+ #include <gpiod.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+@@ -39,8 +39,7 @@ class ChassisIntrusionSensor
+     // valid if it is PCH register via i2c
+     int mBusId;
+     int mSlaveAddr;
+-    boost::asio::deadline_timer mPollTimer;
+-
++    boost::asio::steady_timer mPollTimer;
+     // valid if it is via GPIO
+     bool mGpioInverted;
+     std::string mPinName = "CHASSIS_INTRUSION";
+diff --git a/src/ChassisIntrusionSensor.cpp b/src/ChassisIntrusionSensor.cpp
+index af5ced3..8474873 100644
+--- a/src/ChassisIntrusionSensor.cpp
++++ b/src/ChassisIntrusionSensor.cpp
+@@ -142,7 +142,7 @@ void ChassisIntrusionSensor::pollSensorStatusByPch()
+ {
+     // setting a new experation implicitly cancels any pending async wait
+     mPollTimer.expires_from_now(
+-        boost::posix_time::seconds(intrusionSensorPollSec));
++        boost::asio::chrono::seconds(intrusionSensorPollSec));
+ 
+     mPollTimer.async_wait([&](const boost::system::error_code& ec) {
+         // case of timer expired
+@@ -162,10 +162,10 @@ void ChassisIntrusionSensor::pollSensorStatusByPch()
+             pollSensorStatusByPch();
+         }
+         // case of being canceled
+-        else if (ec == boost::asio::error::operation_aborted)
++        else
+         {
+             std::cerr << "Timer of intrusion sensor is cancelled. Return \n";
+-            return;
++            exit(0);
+         }
+     });
+ }
+@@ -197,14 +197,15 @@ void ChassisIntrusionSensor::pollSensorStatusByGpio(void)
+     mGpioFd.async_wait(
+         boost::asio::posix::stream_descriptor::wait_read,
+         [this](const boost::system::error_code& ec) {
+-            if (ec == boost::system::errc::bad_file_descriptor)
++            /*if (ec == boost::system::errc::bad_file_descriptor)
+             {
+                 return; // we're being destroyed
+-            }
++            }*/
+             if (ec)
+             {
+                 std::cerr
+                     << "Error on GPIO based intrusion sensor wait event\n";
++                exit(0);
+             }
+             else
+             {
+-- 
+2.7.4
+

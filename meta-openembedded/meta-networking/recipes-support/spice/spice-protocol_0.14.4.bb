@@ -16,6 +16,4 @@ S = "${WORKDIR}/git"
 
 inherit meson pkgconfig
 
-ALLOW_EMPTY:${PN} = "1"
-
 BBCLASSEXTEND = "native nativesdk"

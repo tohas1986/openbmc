@@ -1,0 +1,25 @@
+From 19ea5ad5dea07d1c27efd7c5c09e60ed7c40af30 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 21 Jan 2020 14:23:43 +0300
+Subject: [PATCH 1/1] pinctrl-aspeed-g5 hack to set SCU94 lower bit to 1
+
+---
+ drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
+index a8d6418..d505a47 100644
+--- a/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
++++ b/drivers/pinctrl/aspeed/pinctrl-aspeed-g5.c
+@@ -1020,7 +1020,7 @@
+ 
+ FUNC_GROUP_DECL(MDIO1, D8, E10);
+ 
+-#define VPOOFF0_DESC	{ ASPEED_IP_SCU, SCU94, GENMASK(1, 0), 0, 0 }
++#define VPOOFF0_DESC	{ ASPEED_IP_SCU, SCU94, GENMASK(1, 0), 1, 0 }
+ #define VPO_DESC	{ ASPEED_IP_SCU, SCU94, GENMASK(1, 0), 1, 0 }
+ #define VPOOFF1_DESC	{ ASPEED_IP_SCU, SCU94, GENMASK(1, 0), 2, 0 }
+ #define VPOOFF2_DESC	{ ASPEED_IP_SCU, SCU94, GENMASK(1, 0), 3, 0 }
+-- 
+1.9.1
+

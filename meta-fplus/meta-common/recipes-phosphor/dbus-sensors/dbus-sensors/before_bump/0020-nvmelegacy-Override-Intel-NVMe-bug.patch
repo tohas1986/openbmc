@@ -1,0 +1,28 @@
+From e279d9c0b81648b34ce2200c29f3f89884ecc73f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 19 Jul 2021 08:42:00 +0000
+Subject: [PATCH] nvmelegacy: Override Intel NVMe bug
+
+---
+ src/NVMELegacySensor.cpp | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/NVMELegacySensor.cpp b/src/NVMELegacySensor.cpp
+index f825350..177c39f 100644
+--- a/src/NVMELegacySensor.cpp
++++ b/src/NVMELegacySensor.cpp
+@@ -220,6 +220,11 @@ void NVMELegacySensor::readSensor(void)
+                 {
+                     if (value >= 0x80 && value < 0xc4) { ret = -1; }
+                 }
++                /* Intel NVMe bug override */
++                if (value == 0 || value == 1)
++                {
++                    value = 75;
++                }
+             }
+             else if (type == SensorTypes::pdlu)
+             {
+-- 
+2.7.4
+

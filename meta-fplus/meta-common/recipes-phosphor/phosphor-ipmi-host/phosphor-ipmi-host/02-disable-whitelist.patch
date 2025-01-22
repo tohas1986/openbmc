@@ -1,0 +1,27 @@
+From 4c0016466c23c63ff09c651a0fb0d1a17b21001c Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 30 Sep 2022 07:30:14 +0000
+Subject: [PATCH] Disable whitelist
+
+---
+ whitelist-filter.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/whitelist-filter.cpp b/whitelist-filter.cpp
+index c40261f..2ec4035 100644
+--- a/whitelist-filter.cpp
++++ b/whitelist-filter.cpp
+@@ -233,11 +233,11 @@ ipmi::Cc WhitelistFilter::filterMessage(ipmi::message::Request::ptr request)
+                 whitelist.cbegin(), whitelist.cend(),
+                 std::make_pair(request->ctx->netFn, request->ctx->cmd)))
+         {
+-            log<level::ERR>("Net function not whitelisted",
++            log<level::DEBUG>("Net function not whitelisted, but how cares",
+                             entry("NETFN=0x%X", int(request->ctx->netFn)),
+                             entry("CMD=0x%X", int(request->ctx->cmd)));
+ 
+-            return ipmi::ccInsufficientPrivilege;
++            return ipmi::ccSuccess;
+         }
+     }
+     return ipmi::ccSuccess;

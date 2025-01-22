@@ -91,7 +91,6 @@ rst_prolog = """
 # external links and substitutions
 extlinks = {
     'cve': ('https://nvd.nist.gov/vuln/detail/CVE-%s', 'CVE-%s'),
-    'cve_mitre': ('https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-%s', 'CVE-%s'),
     'yocto_home': ('https://www.yoctoproject.org%s', None),
     'yocto_wiki': ('https://wiki.yoctoproject.org/wiki%s', None),
     'yocto_dl': ('https://downloads.yoctoproject.org%s', None),
@@ -159,8 +158,8 @@ html_last_updated_fmt = '%b %d, %Y'
 html_secnumber_suffix = " "
 
 latex_elements = {
-    'passoptionstopackages': '\\PassOptionsToPackage{bookmarksdepth=5}{hyperref}',
-    'preamble': '\\setcounter{tocdepth}{2}',
+    'passoptionstopackages': '\PassOptionsToPackage{bookmarksdepth=5}{hyperref}',
+    'preamble': '\setcounter{tocdepth}{2}',
 }
 
 # Make the EPUB builder prefer PNG to SVG because of issues rendering Inkscape SVG

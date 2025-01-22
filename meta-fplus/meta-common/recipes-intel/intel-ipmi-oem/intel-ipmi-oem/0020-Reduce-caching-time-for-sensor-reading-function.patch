@@ -1,0 +1,22 @@
+From 9f53d01866c4112739ad29689ec4c3db309a4ef9 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 3 Oct 2022 08:29:56 +0000
+Subject: [PATCH] Reduce caching time for sensor reading function
+
+---
+ src/sensorcommands.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sensorcommands.cpp b/src/sensorcommands.cpp
+index 22cfae9..0cb9511 100644
+--- a/src/sensorcommands.cpp
++++ b/src/sensorcommands.cpp
+@@ -896,7 +896,7 @@ ipmi::RspType<uint8_t, // readable
+     }
+ 
+     SensorMap sensorMap;
+-    if (!getSensorMap(ctx->yield, connection, path, sensorMap))
++    if (!getSensorMap(ctx->yield, connection, path, sensorMap, 0))
+     {
+         return ipmi::responseResponseError();
+     }

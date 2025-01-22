@@ -1,0 +1,29 @@
+From 461a7ce364efec372c8b5a684b10f4ecfa1d671f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 1 Feb 2021 12:13:26 +0000
+Subject: [PATCH] Disable 0x06 0x52 whitelisting
+
+---
+ apphandler.cpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/apphandler.cpp b/apphandler.cpp
+index f3b6755..9f0d553 100644
+--- a/apphandler.cpp
++++ b/apphandler.cpp
+@@ -1530,6 +1530,7 @@ inline std::vector<uint8_t> convertStringToData(const std::string& command)
+ 
+ static bool populateI2CMasterWRWhitelist()
+ {
++    return true;
+     nlohmann::json data = nullptr;
+     std::ifstream jsonFile(i2cMasterWRWhitelistFile);
+ 
+@@ -1641,6 +1642,7 @@ static inline bool isWriteDataWhitelisted(const std::vector<uint8_t>& data,
+ static bool isCmdWhitelisted(uint8_t busId, uint8_t slaveAddr,
+                              std::vector<uint8_t>& writeData)
+ {
++    return true;
+     std::vector<i2cMasterWRWhitelist>& whiteList = getWRWhitelist();
+     for (const auto& wlEntry : whiteList)
+     {

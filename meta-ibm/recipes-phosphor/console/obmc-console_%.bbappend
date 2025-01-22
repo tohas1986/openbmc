@@ -1,25 +1,25 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
-SRC_URI:remove:df-openpower = "file://${BPN}.conf"
-SRC_URI:append:df-openpower = " file://server.ttyVUART0.conf"
+SRC_URI:remove = "file://${BPN}.conf"
+SRC_URI += "file://server.ttyVUART0.conf"
 
 install_concurrent_console_config() {
         # Install configuration for the servers and clients. Keep commandline
         # compatibility with previous configurations by defaulting to not
-        # specifying a console-id for VUART0/2200
+        # specifying a socket-id for VUART0/2200
         install -m 0755 -d ${D}${sysconfdir}/${BPN}
 
         # Remove the default client configuration as we don't to define a
-        # console-id for the 2200 console
+        # socket-id for the 2200 console
         rm -f ${D}${sysconfdir}/${BPN}/client.2200.conf
 
         # However, now link to /dev/null as a way of not specifying a
-        # console-id while having a configuration file present. We need to
+        # socket-id while having a configuration file present. We need to
         # provide a configuration path to meet the requirements of the packaged
         # unit file.
         ln -sr ${D}/dev/null ${D}${sysconfdir}/${BPN}/client.2200.conf
 
-        # We need to populate console-id for remaining consoles
+        # We need to populate socket-id for remaining consoles
         install -m 0644 ${WORKDIR}/client.2201.conf ${D}${sysconfdir}/${BPN}/
 
         # Install configuration for remaining servers - the base recipe
@@ -39,7 +39,7 @@ SYSTEMD_SERVICE:${PN}:remove:p10bmc = "obmc-console-ssh.socket"
 
 FILES:${PN}:remove:p10bmc = "${systemd_system_unitdir}/obmc-console-ssh@.service.d/use-socket.conf"
 
-PACKAGECONFIG:append:p10bmc = " concurrent-servers"
+EXTRA_OECONF:append:p10bmc = " --enable-concurrent-servers"
 
 do_install:append:p10bmc() {
         install_concurrent_console_config
@@ -62,6 +62,3 @@ EXTRA_OECONF:append:witherspoon-tacoma = " --enable-concurrent-servers"
 do_install:append:witherspoon-tacoma() {
         install_concurrent_console_config
 }
-
-SRC_URI:append:sbp1 = " file://server.ttyVUART0.conf"
-SRC_URI:append:system1 = " file://server.ttyVUART0.conf"

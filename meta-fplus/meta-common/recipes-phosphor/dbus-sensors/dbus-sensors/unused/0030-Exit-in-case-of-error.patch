@@ -1,0 +1,442 @@
+From bf8fcb52edb47ff53b4cccbc53409df8ba79083c Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Mon, 5 Apr 2021 11:16:19 +0000
+Subject: [PATCH] Exit-in-case-of-error
+
+---
+ src/ADCSensor.cpp              | 25 ++++++++++++-------------
+ src/CPUSensor.cpp              |  2 ++
+ src/ChassisIntrusionSensor.cpp |  9 +++++----
+ src/HealthSensor.cpp           | 18 ++++--------------
+ src/HwmonTempSensor.cpp        | 42 +++++++++++++++++++++++-------------------
+ src/MCUTempSensor.cpp          | 14 ++++++++------
+ src/NVMELegacySensor.cpp       | 16 ++++------------
+ src/NVMeSensor.cpp             | 13 ++++---------
+ src/TachSensor.cpp             | 33 ++++++++++++++++-----------------
+ 9 files changed, 78 insertions(+), 94 deletions(-)
+
+diff --git a/src/ADCSensor.cpp b/src/ADCSensor.cpp
+index b73d976..1ffdc6d 100644
+--- a/src/ADCSensor.cpp
++++ b/src/ADCSensor.cpp
+@@ -131,6 +131,11 @@ void ADCSensor::setupRead(void)
+                             }
+                         });
+                 }
++                else
++                {
++                    std::cerr << "setupRead: no self, exiting\n";
++                    exit(-1);
++                }
+             });
+     }
+     else
+@@ -145,6 +150,11 @@ void ADCSensor::setupRead(void)
+                     self->readBuf = buffer;
+                     self->handleResponse(ec);
+                 }
++                else
++                {
++                    std::cerr << "setupRead: no self, exiting\n";
++                    exit(-1);
++                }
+             });
+     }
+ }
+@@ -198,18 +208,6 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+     waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+     waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+         std::shared_ptr<ADCSensor> self = weakRef.lock();
+-        if (ec == boost::asio::error::operation_aborted)
+-        {
+-            if (self)
+-            {
+-                std::cerr << "adcsensor " << self->name << " read cancelled\n";
+-            }
+-            else
+-            {
+-                std::cerr << "adcsensor read cancelled no self\n";
+-            }
+-            return; // we're being canceled
+-        }
+ 
+         if (self)
+         {
+@@ -217,7 +215,8 @@ void ADCSensor::handleResponse(const boost::system::error_code& err)
+         }
+         else
+         {
+-            std::cerr << "adcsensor weakref no self\n";
++            std::cerr << "setupRead: no self, exiting\n";
++            exit(-1);
+         }
+     });
+ }
+diff --git a/src/CPUSensor.cpp b/src/CPUSensor.cpp
+index badd45e..f148fe7 100644
+--- a/src/CPUSensor.cpp
++++ b/src/CPUSensor.cpp
+@@ -140,6 +140,7 @@ void CPUSensor::setupRead(void)
+     waitTimer.async_wait([&](const boost::system::error_code& ec) {
+         if (ec == boost::asio::error::operation_aborted)
+         {
++            exit(-1);
+             return; // we're being canceled
+         }
+         setupRead();
+@@ -201,6 +202,7 @@ void CPUSensor::handleResponse(const boost::system::error_code& err)
+ 
+     if (err == boost::system::errc::bad_file_descriptor)
+     {
++        exit(-1);
+         return; // we're being destroyed
+     }
+     if (err == boost::system::errc::operation_canceled)
+diff --git a/src/ChassisIntrusionSensor.cpp b/src/ChassisIntrusionSensor.cpp
+index 1557a9e..3ef7c7e 100644
+--- a/src/ChassisIntrusionSensor.cpp
++++ b/src/ChassisIntrusionSensor.cpp
+@@ -162,10 +162,10 @@ void ChassisIntrusionSensor::pollSensorStatusByPch()
+             pollSensorStatusByPch();
+         }
+         // case of being canceled
+-        else if (ec == boost::asio::error::operation_aborted)
++        else
+         {
+             std::cerr << "Timer of intrusion sensor is cancelled. Return \n";
+-            return;
++            exit(-1);
+         }
+     });
+ }
+@@ -197,14 +197,15 @@ void ChassisIntrusionSensor::pollSensorStatusByGpio(void)
+     mGpioFd.async_wait(
+         boost::asio::posix::stream_descriptor::wait_read,
+         [this](const boost::system::error_code& ec) {
+-            if (ec == boost::system::errc::bad_file_descriptor)
++            /*if (ec == boost::system::errc::bad_file_descriptor)
+             {
+                 return; // we're being destroyed
+-            }
++            }*/
+             if (ec)
+             {
+                 std::cerr
+                     << "Error on GPIO based intrusion sensor wait event\n";
++                exit(-1);
+             }
+             else
+             {
+diff --git a/src/HealthSensor.cpp b/src/HealthSensor.cpp
+index 2e99453..627b10f 100644
+--- a/src/HealthSensor.cpp
++++ b/src/HealthSensor.cpp
+@@ -263,15 +263,10 @@ void HealthSensor::readSensor(void)
+ {
+     waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
+     waitTimer.async_wait([this](const boost::system::error_code& ec) {
+-        if (ec == boost::asio::error::operation_aborted)
+-        {
+-            return; // we're being cancelled
+-        }
+-        // read timer error
+-        else if (ec)
++        if (ec)
+         {
+             std::cerr << "timer error\n";
+-            return;
++            exit(-1);
+         }
+         double value;
+         int ret;
+@@ -427,15 +422,10 @@ int main(int argc, char* argv[])
+             configTimer.expires_from_now(boost::asio::chrono::seconds(1));
+             // create a timer because normally multiple properties change
+             configTimer.async_wait([&](const boost::system::error_code& ec) {
+-                if (ec == boost::asio::error::operation_aborted)
+-                {
+-                    return; // we're being canceled
+-                }
+-                // config timer error
+-                else if (ec)
++                if (ec)
+                 {
+                     std::cerr << "timer error\n";
+-                    return;
++                    exit(-1);
+                 }
+                 createSensors(io, objectServer, sensors, systemBus);
+                 if (sensors.empty())
+diff --git a/src/HwmonTempSensor.cpp b/src/HwmonTempSensor.cpp
+index b49d7a4..2172caa 100644
+--- a/src/HwmonTempSensor.cpp
++++ b/src/HwmonTempSensor.cpp
+@@ -94,14 +94,15 @@ void HwmonTempSensor::setupRead(void)
+         std::weak_ptr<HwmonTempSensor> weakRef = weak_from_this();
+         waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+             std::shared_ptr<HwmonTempSensor> self = weakRef.lock();
+-            if (ec == boost::asio::error::operation_aborted)
+-            {
+-                return; // we're being canceled
+-            }
+             if (self)
+             {
+                 self->setupRead();
+             }
++            else
++            {
++                std::cerr << "setupRead: no self, exiting\n";
++                exit(-1);
++            }
+         });
+         return;
+     }
+@@ -117,6 +118,11 @@ void HwmonTempSensor::setupRead(void)
+                                       {
+                                           self->handleResponse(ec);
+                                       }
++                                      else
++                                      {
++                                        std::cerr << "setupRead: no self, exiting\n";
++                                        exit(-1);
++                                      }
+                                   });
+ }
+ 
+@@ -128,7 +134,8 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+         std::cerr << "Hwmon temp sensor " << name << " removed " << path
+                   << "\n";
+         updateValue(std::numeric_limits<double>::quiet_NaN());
+-        return; // we're being destroyed
++        //return; // we're being destroyed
++        exit(-1);
+     }
+ 
+     if (readState == PowerState::on && !isPowerOn())
+@@ -143,6 +150,11 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+               self->setupRead();
+               return;
+          }
++         else
++         {
++            std::cerr << "handleResponse: no self, exiting\n";
++            exit(-1);
++         }
+     }
+ 
+     std::istream responseStream(&readBuf);
+@@ -173,30 +185,22 @@ void HwmonTempSensor::handleResponse(const boost::system::error_code& err)
+     {
+         std::cerr << "Hwmon temp sensor " << name << " not valid " << path
+                   << "\n";
+-        return; // we're no longer valid
++        exit(-1); // we're no longer valid
+     }
+     inputDev.assign(fd);
+     waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+     std::weak_ptr<HwmonTempSensor> weakRef = weak_from_this();
+     waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+         std::shared_ptr<HwmonTempSensor> self = weakRef.lock();
+-        if (ec == boost::asio::error::operation_aborted)
+-        {
+-            if (self)
+-            {
+-                std::cerr << "Hwmon temp sensor " << self->name
+-                          << " read cancelled " << self->path << "\n";
+-            }
+-            else
+-            {
+-                std::cerr << "Hwmon sensor read cancelled, no self\n";
+-            }
+-            return; // we're being canceled
+-        }
+         if (self)
+         {
+             self->setupRead();
+         }
++        else
++        {
++            std::cerr << "Hwmon sensor read cancelled, no self\n";
++            exit(-1);
++        }
+     });
+ }
+ 
+diff --git a/src/MCUTempSensor.cpp b/src/MCUTempSensor.cpp
+index 9d7cfec..8c10193 100644
+--- a/src/MCUTempSensor.cpp
++++ b/src/MCUTempSensor.cpp
+@@ -158,15 +158,16 @@ void MCUTempSensor::read(void)
+ 
+     waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
+     waitTimer.async_wait([this](const boost::system::error_code& ec) {
+-        if (ec == boost::asio::error::operation_aborted)
++        /*if (ec == boost::asio::error::operation_aborted)
+         {
+             return; // we're being cancelled
+-        }
++        }*/
+         // read timer error
+         if (ec)
+         {
+             std::cerr << "timer error\n";
+-            return;
++            //return;
++            exit(-1);
+         }
+         int16_t temp;
+         int ret;
+@@ -294,15 +295,16 @@ int main()
+             configTimer.expires_from_now(boost::asio::chrono::seconds(1));
+             // create a timer because normally multiple properties change
+             configTimer.async_wait([&](const boost::system::error_code& ec) {
+-                if (ec == boost::asio::error::operation_aborted)
++                /*if (ec == boost::asio::error::operation_aborted)
+                 {
+                     return; // we're being canceled
+-                }
++                }*/
+                 // config timer error
+                 if (ec)
+                 {
+                     std::cerr << "timer error\n";
+-                    return;
++                    //return;
++                    exit(-1);
+                 }
+                 createSensors(io, objectServer, sensors, systemBus);
+                 if (sensors.empty())
+diff --git a/src/NVMELegacySensor.cpp b/src/NVMELegacySensor.cpp
+index fe9f319..1e95cf7 100644
+--- a/src/NVMELegacySensor.cpp
++++ b/src/NVMELegacySensor.cpp
+@@ -194,15 +194,11 @@ void NVMELegacySensor::readSensor(void)
+ 
+     waitTimer.expires_from_now(boost::asio::chrono::seconds(pollTime));
+     waitTimer.async_wait([this](const boost::system::error_code& ec) {
+-        if (ec == boost::asio::error::operation_aborted)
+-        {
+-            return; // we're being cancelled
+-        }
+         // read timer error
+-        else if (ec)
++        if (ec)
+         {
+             std::cerr << "timer error\n";
+-            return;
++            exit(-1);
+         }
+         int8_t value;
+         int ret;
+@@ -355,15 +351,11 @@ int main(int argc, char* argv[])
+             configTimer.expires_from_now(boost::asio::chrono::seconds(1));
+             // create a timer because normally multiple properties change
+             configTimer.async_wait([&](const boost::system::error_code& ec) {
+-                if (ec == boost::asio::error::operation_aborted)
+-                {
+-                    return; // we're being canceled
+-                }
+                 // config timer error
+-                else if (ec)
++                if (ec)
+                 {
+                     std::cerr << "timer error\n";
+-                    return;
++                    exit(-1);
+                 }
+                 createSensors(io, objectServer, sensors, systemBus);
+                 if (sensors.empty())
+diff --git a/src/NVMeSensor.cpp b/src/NVMeSensor.cpp
+index a9bc9d3..e77806e 100644
+--- a/src/NVMeSensor.cpp
++++ b/src/NVMeSensor.cpp
+@@ -116,7 +116,7 @@ void readResponse(const std::shared_ptr<NVMeContext>& nvmeDevice)
+         [nvmeDevice](const boost::system::error_code errorCode) {
+             if (errorCode)
+             {
+-                return;
++                exit(-1);
+             }
+ 
+             mctp_smbus_set_in_fd(nvmeMCTP::smbus,
+@@ -225,7 +225,7 @@ void readAndProcessNVMeSensor(const std::shared_ptr<NVMeContext>& nvmeDevice)
+             if (errorCode)
+             {
+                 // timer cancelled successfully
+-                return;
++                exit(-1);
+             }
+ 
+             sensor->incrementError();
+@@ -398,15 +398,10 @@ void NVMeContext::pollNVMeDevices()
+     scanTimer.expires_from_now(boost::asio::chrono::seconds(5));
+     scanTimer.async_wait(
+         [self{shared_from_this()}](const boost::system::error_code errorCode) {
+-            if (errorCode == boost::asio::error::operation_aborted)
+-            {
+-                if (DEBUG) std::cerr << "pollNVMeDevices operation aborted\n";
+-                return; // we're being canceled
+-            }
+-            else if (errorCode)
++            if (errorCode)
+             {
+                 std::cerr << "Error:" << errorCode.message() << "\n";
+-                return;
++                exit(-1);
+             }
+             else
+             {
+diff --git a/src/TachSensor.cpp b/src/TachSensor.cpp
+index 6c9866c..d17bcf3 100644
+--- a/src/TachSensor.cpp
++++ b/src/TachSensor.cpp
+@@ -184,9 +184,9 @@ void TachSensor::handleResponse(const boost::system::error_code& err)
+     inputDev.assign(fd);
+     waitTimer.expires_from_now(boost::asio::chrono::milliseconds(pollTime));
+     waitTimer.async_wait([&](const boost::system::error_code& ec) {
+-        if (ec == boost::asio::error::operation_aborted)
++        if (ec)
+         {
+-            return; // we're being canceled
++            exit(-1); // we're being canceled
+         }
+         setupRead();
+     });
+@@ -257,23 +257,22 @@ PresenceSensor::~PresenceSensor()
+ void PresenceSensor::monitorPresence(void)
+ {
+     gpioFd.async_wait(boost::asio::posix::stream_descriptor::wait_read,
+-                      [this](const boost::system::error_code& ec) {
+-                          if (ec == boost::system::errc::bad_file_descriptor)
++                    [this](const boost::system::error_code& ec) {
++                          /*if (ec == boost::system::errc::bad_file_descriptor)
+                           {
+                               return; // we're being destroyed
+-                          }
+-                          if (ec)
+-                          {
+-                              std::cerr << "Error on presence sensor " << name
+-                                        << " \n";
+-                              ;
+-                          }
+-                          else
+-                          {
+-                              read();
+-                          }
+-                          monitorPresence();
+-                      });
++                          }*/
++                        if (ec)
++                        {
++                            std::cerr << "Error on presence sensor " << name << " \n";
++                            exit(-1);
++                        }
++                        else
++                        {
++                            read();
++                        }
++                        monitorPresence();
++                    });
+ }
+ 
+ void PresenceSensor::read(void)

@@ -33,7 +33,7 @@ class Crate(Wget):
         return ud.type in ['crate']
 
     def recommends_checksum(self, urldata):
-        return True
+        return False
 
     def urldata_init(self, ud, d):
         """
@@ -56,14 +56,12 @@ class Crate(Wget):
         if len(parts) < 5:
             raise bb.fetch2.ParameterError("Invalid URL: Must be crate://HOST/NAME/VERSION", ud.url)
 
-        # version is expected to be the last token
-        # but ignore possible url parameters which will be used
-        # by the top fetcher class
-        version = parts[-1].split(";")[0]
+        # last field is version
+        version = parts[len(parts) - 1]
         # second to last field is name
-        name = parts[-2]
+        name = parts[len(parts) - 2]
         # host (this is to allow custom crate registries to be specified
-        host = '/'.join(parts[2:-2])
+        host = '/'.join(parts[2:len(parts) - 2])
 
         # if using upstream just fix it up nicely
         if host == 'crates.io':
@@ -71,8 +69,7 @@ class Crate(Wget):
 
         ud.url = "https://%s/%s/%s/download" % (host, name, version)
         ud.parm['downloadfilename'] = "%s-%s.crate" % (name, version)
-        if 'name' not in ud.parm:
-            ud.parm['name'] = '%s-%s' % (name, version)
+        ud.parm['name'] = name
 
         logger.debug2("Fetching %s to %s" % (ud.url, ud.parm['downloadfilename']))
 
@@ -98,13 +95,11 @@ class Crate(Wget):
         save_cwd = os.getcwd()
         os.chdir(rootdir)
 
-        bp = d.getVar('BP')
-        if bp == ud.parm.get('name'):
+        pn = d.getVar('BPN')
+        if pn == ud.parm.get('name'):
             cmd = "tar -xz --no-same-owner -f %s" % thefile
-            ud.unpack_tracer.unpack("crate-extract", rootdir)
         else:
             cargo_bitbake = self._cargo_bitbake_path(rootdir)
-            ud.unpack_tracer.unpack("cargo-extract", cargo_bitbake)
 
             cmd = "tar -xz --no-same-owner -f %s -C %s" % (thefile, cargo_bitbake)
 

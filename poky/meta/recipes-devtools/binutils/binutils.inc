@@ -33,8 +33,6 @@ FILES:${PN}-dev = " \
 	${libdir}/libctf-nobfd.so \
 	${libdir}/libopcodes.so"
 
-FILES:${PN}-staticdev += "${libdir}/gprofng/*.a"
-
 # Rather than duplicating multiple entries for these, make one
 # list and reuse it.
 
@@ -59,7 +57,6 @@ GPROFNG_ALTS:aarch64 = "${GPROFNGS}"
 LDGOLD_ALTS ?= "ld.gold dwp"
 LDGOLD_ALTS:riscv64 = ""
 LDGOLD_ALTS:riscv32 = ""
-LDGOLD_ALTS:loongarch64 = ""
 LDGOLD_ALTS:libc-glibc:mipsarch = ""
 
 USE_ALTERNATIVES_FOR = " \
@@ -98,7 +95,6 @@ EXTRA_OECONF = "--program-prefix=${TARGET_PREFIX} \
                 --disable-werror \
                 --enable-deterministic-archives \
                 --enable-plugins \
-                --enable-new-dtags \
                 --disable-gdb \
                 --disable-gdbserver \
                 --disable-libdecnumber \
@@ -202,6 +198,6 @@ ALTERNATIVE_PRIORITY = "100"
 ALTERNATIVE:${PN}:class-target = "${USE_ALTERNATIVES_FOR}"
 
 python () {
-    if bb.utils.contains('DISTRO_FEATURES', 'ld-is-gold', True, False, d) and bb.utils.contains_any('TARGET_ARCH', 'riscv32 riscv64 loongarch64', True, False, d):
-        bb.fatal("Gold linker does not _yet_ support RISC-V and LoongArch architecture please remove ld-is-gold from DISTRO_FEATURES")
+    if bb.utils.contains('DISTRO_FEATURES', 'ld-is-gold', True, False, d) and bb.utils.contains_any('TARGET_ARCH', 'riscv32 riscv64', True, False, d):
+        bb.fatal("Gold linker does not _yet_ support RISC-V architecture please remove ld-is-gold from DISTRO_FEATURES")
 }

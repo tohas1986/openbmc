@@ -16,13 +16,12 @@ SRC_URI += " \
 "
 
 RDEPENDS:${PN} += " \
-    python3-datetime \
-    python3-stringold \
+    ${PYTHON_PN}-datetime \
+    ${PYTHON_PN}-stringold \
     "
 
 RDEPENDS:${PN}-ptest += " \
-    python3-pytest \
-    python3-unittest-automake-output \
+	${PYTHON_PN}-pytest \
 "
 
 do_install_ptest() {

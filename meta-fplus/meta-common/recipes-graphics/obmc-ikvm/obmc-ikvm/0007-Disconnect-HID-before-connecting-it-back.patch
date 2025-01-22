@@ -1,0 +1,28 @@
+From 0f7c53bbe21dc00da2c0ef9f8f320b02a903c19a Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Sun, 5 Mar 2023 13:49:57 +0000
+Subject: [PATCH] Disconnect HID before connecting it back
+
+---
+ ikvm_input.cpp | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/ikvm_input.cpp b/ikvm_input.cpp
+index 6b0ba28..5ecf3ac 100644
+--- a/ikvm_input.cpp
++++ b/ikvm_input.cpp
+@@ -54,6 +54,11 @@ void Input::connect()
+ {
+     try
+     {
++        hidUdcStream.close();
++        // hidUdcStream.open(hidUdcPath, std::ios::out | std::ios::app);
++        // hidUdcStream << "" << std::endl;
++        // hidUdcStream.close();
++        hidUdcStream.open(hidUdcPath, std::ios::out | std::ios::app);
+         if (udcName.empty())
+         {
+             hidUdcStream << usbVirtualHubPort << std::endl;
+-- 
+2.34.1
+

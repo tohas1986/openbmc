@@ -22,7 +22,7 @@ PACKAGE_ARCH_EXPANDED := "${PACKAGE_ARCH}"
 
 LICENSE ?= "MIT"
 
-inherit_defer ${@oe.utils.ifelse(d.getVar('PACKAGE_ARCH_EXPANDED') == 'all', 'allarch', '')}
+inherit ${@oe.utils.ifelse(d.getVar('PACKAGE_ARCH_EXPANDED') == 'all', 'allarch', '')}
 
 # This automatically adds -dbg and -dev flavours of all PACKAGES
 # to the list. Their dependencies (RRECOMMENDS) are handled as usual
@@ -53,9 +53,6 @@ deltask do_configure
 deltask do_compile
 deltask do_install
 deltask do_populate_sysroot
-
-do_create_runtime_spdx[deptask] = "do_create_spdx"
-do_create_runtime_spdx[rdeptask] = ""
 
 INHIBIT_DEFAULT_DEPS = "1"
 

@@ -9,6 +9,7 @@ repos:
       ../meta-security:
       meta-tpm:
       meta-integrity:
+      meta-security-compliance:
       meta-hardening:
 
   poky:

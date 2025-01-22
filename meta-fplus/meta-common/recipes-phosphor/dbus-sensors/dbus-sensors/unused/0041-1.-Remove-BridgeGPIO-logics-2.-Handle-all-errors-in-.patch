@@ -1,0 +1,219 @@
+From 6e51e2f741e4acbc7056424bdc385c935e3ac0e7 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 1 Dec 2020 09:25:16 +0000
+Subject: [PATCH 1/1] 1. Remove BridgeGPIO logics; 2. Handle all errors in
+ callbacks, not only aborted
+
+---
+ src/PSUEvent.cpp  | 23 ++++++++-----
+ src/PSUSensor.cpp | 99 +++++++++++++++----------------------------------------
+ 2 files changed, 42 insertions(+), 80 deletions(-)
+
+diff --git a/src/PSUEvent.cpp b/src/PSUEvent.cpp
+index de4798c..208b9b7 100644
+--- a/src/PSUEvent.cpp
++++ b/src/PSUEvent.cpp
+@@ -192,14 +192,15 @@ void PSUSubEvent::setupRead(void)
+         std::weak_ptr<PSUSubEvent> weakRef = weak_from_this();
+         waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+             std::shared_ptr<PSUSubEvent> self = weakRef.lock();
+-            if (ec == boost::asio::error::operation_aborted)
+-            {
+-                return; // we're being canceled
+-            }
+             if (self)
+             {
+                 self->setupRead();
+             }
++            else
++            {
++                std::cerr << "Event setupRead: error occured, exiting\n";
++                exit(-1);
++            }
+         });
+         return;
+     }
+@@ -218,6 +219,11 @@ void PSUSubEvent::setupRead(void)
+                 self->readBuf = buffer;
+                 self->handleResponse(ec);
+             }
++            else
++            {
++                std::cerr << "Event setupRead: error occured, exiting\n";
++                exit(-1);
++            }
+         });
+ }
+ 
+@@ -272,14 +278,15 @@ void PSUSubEvent::handleResponse(const boost::system::error_code& err)
+     std::weak_ptr<PSUSubEvent> weakRef = weak_from_this();
+     waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+         std::shared_ptr<PSUSubEvent> self = weakRef.lock();
+-        if (ec == boost::asio::error::operation_aborted)
+-        {
+-            return;
+-        }
+         if (self)
+         {
+             self->setupRead();
+         }
++        else
++        {
++            std::cerr << "Event handleResponse: error occured, exiting\n";
++            exit(-1);
++        }
+     });
+ }
+ 
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index 1ec6565..2846b3e 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -146,16 +146,15 @@ void PSUSensor::setupRead(void)
+         std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+         waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+             std::shared_ptr<PSUSensor> self = weakRef.lock();
+-            if (ec == boost::asio::error::operation_aborted)
+-            {
+-                // TODO FIXME Silent exit
+-                exit(-1);
+-                return;
+-            }
+             if (self)
+             {
+                 self->setupRead();
+             }
++            else
++            {
++                std::cerr << "Sensor setupRead: Error occured, exiting\n";
++                exit(-1);
++            }
+         });
+         return;
+     }
+@@ -182,71 +181,32 @@ void PSUSensor::setupRead(void)
+             std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+             waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+                 std::shared_ptr<PSUSensor> self = weakRef.lock();
+-                if (ec == boost::asio::error::operation_aborted)
+-                {
+-                    // TODO FIXME Silent exit
+-                    exit(-1);
+-                    return; // we're being canceled
+-                }
+                 if (self)
+                 {
+                     self->setupRead();
+                 }
++                else
++                {
++                    std::cerr << "Sensor setupRead: Error occured, exiting\n";
++                    exit(-1);
++                }
+             });
+             return;
+         }
+     }
+ 
+-    if (bridgeGpio.has_value())
+-    {
+-        (*bridgeGpio).request();
+-        // In case a channel has a bridge circuit,we have to turn the bridge on
+-        // prior to reading a value at least for one scan cycle to get a valid
+-        // value. Guarantee that the HW signal can be stable, the HW signal
+-        // could be instability.
+-        waitTimer.expires_from_now(
+-            boost::asio::chrono::milliseconds(gpioBridgeEnableMs));
+-        waitTimer.async_wait(
+-            [weakRef, buffer](const boost::system::error_code& ec) {
++    if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " Scheduling async read \n";
++    boost::asio::async_read_until(
++        inputDev, *buffer, '\n',
++        [weakRef, buffer](const boost::system::error_code& ec,
++                          std::size_t /*bytes_transfered*/) {
+                 std::shared_ptr<PSUSensor> self = weakRef.lock();
+-                if (ec == boost::asio::error::operation_aborted)
+-                {
+-                    // TODO FIXME Silent exit
+-                    exit(-1);
+-                    return; // we're being canceled
+-                }
+-
+-                if (self)
+-                {
+-                    boost::asio::async_read_until(
+-                        self->inputDev, *buffer, '\n',
+-                        [weakRef, buffer](const boost::system::error_code& ec,
+-                                          std::size_t /*bytes_transfered*/) {
+-                            std::shared_ptr<PSUSensor> self = weakRef.lock();
+-                            if (self)
+-                            {
+-                                self->readBuf = buffer;
+-                                self->handleResponse(ec);
+-                            }
+-                        });
+-                }
+-            });
+-    }
+-    else
+-    {
+-        if (DEBUG) std::cerr << __FUNCTION__ << " " << sensorName << " Scheduling async read \n";
+-        boost::asio::async_read_until(
+-            inputDev, *buffer, '\n',
+-            [weakRef, buffer](const boost::system::error_code& ec,
+-                              std::size_t /*bytes_transfered*/) {
+-                    std::shared_ptr<PSUSensor> self = weakRef.lock();
+-                if (self)
+-                {
+-                    self->readBuf = buffer;
+-                    self->handleResponse(ec);
+-                }
+-            });
+-    }
++            if (self)
++            {
++                self->readBuf = buffer;
++                self->handleResponse(ec);
++            }
++        });
+ }
+ 
+ void PSUSensor::updateMinMaxValues(void)
+@@ -310,11 +270,6 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+             incrementError();
+         }
+ 
+-        if (bridgeGpio.has_value())
+-        {
+-            (*bridgeGpio).release();
+-        }
+-
+         lseek(fd, 0, SEEK_SET);
+     }
+ 
+@@ -322,16 +277,16 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+     std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+     waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+         std::shared_ptr<PSUSensor> self = weakRef.lock();
+-        if (ec == boost::asio::error::operation_aborted)
+-        {
+-            // TODO FIXME Silent exit
+-            exit(-1);
+-            return;
+-        }
++        //if (ec == boost::asio::error::operation_aborted)
+         if (self)
+         {
+             self->setupRead();
+         }
++        else
++        {
++            std::cerr << "Sensor handleResponse: Error occured, exiting\n";
++            exit(-1);
++        }
+     });
+ }
+ 
+-- 
+2.7.4
+

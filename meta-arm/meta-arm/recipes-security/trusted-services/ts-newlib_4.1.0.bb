@@ -22,7 +22,9 @@ OECMAKE_SOURCEPATH = "${S}/deployments/newlib/${TS_ENV}/"
 
 # TS ships a patch that needs to be applied to newlib
 apply_ts_patch() {
-    ( cd ${WORKDIR}/git/newlib;    git stash; git branch -f bf_am; git am ${S}/external/newlib/*.patch; git reset bf_am )
+    for p in ${S}/external/newlib/*.patch; do
+        patch -p1 -d ${WORKDIR}/git/newlib < ${p}
+    done
 }
 do_patch[postfuncs] += "apply_ts_patch"
 

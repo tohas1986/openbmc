@@ -26,6 +26,9 @@ OBMC_IMAGE_EXTRA_INSTALL:append:gbs = " phosphor-health-monitor"
 # Add back packages that were part of packagegroup-obmc-apps-extras
 OBMC_IMAGE_EXTRA_INSTALL:append:gbs = " phosphor-hwmon"
 OBMC_IMAGE_EXTRA_INSTALL:append:gbs = " phosphor-inventory-manager"
+# Required for obmc-bmcweb
+OBMC_IMAGE_EXTRA_INSTALL:append:gbs = " bmcweb"
+OBMC_IMAGE_EXTRA_INSTALL:append:gbs = " phosphor-certificate-manager"
 OBMC_IMAGE_EXTRA_INSTALL:append:gbs = " phosphor-user-manager"
 # Required for LEDs. Part of obmc-leds
 OBMC_IMAGE_EXTRA_INSTALL:append:gbs = " phosphor-led-manager"
@@ -39,3 +42,5 @@ OBMC_IMAGE_EXTRA_INSTALL:append:gbs = " x86-power-control"
 OBMC_IMAGE_EXTRA_INSTALL:append:gbs = " phosphor-pid-control"
 # Required for phosphor-ipmi-kcs
 OBMC_IMAGE_EXTRA_INSTALL:append:gbs = " virtual-obmc-host-ipmi-hw"
+# Required for some services, such as phosphor-virtual-sensors
+OBMC_IMAGE_EXTRA_INSTALL:append:gbs = " obmc-targets"

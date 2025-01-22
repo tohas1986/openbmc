@@ -3,8 +3,9 @@ DESCRIPTION = "This package handles receiving OEM IPMI commands to provide ether
 HOMEPAGE = "http://github.com/openbmc/phosphor-ipmi-ethstats"
 LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=86d3f3a95c324c9479bd8986968f4327"
+DEPENDS += "autoconf-archive-native"
 DEPENDS += "phosphor-ipmi-host"
-SRCREV = "ed0a15ed70567aa78a569d1b5fa907628c7b905c"
+SRCREV = "1e34d327c7f25a744102d0279155aeacc9f453f5"
 PV = "0.1+git${SRCPV}"
 PR = "r1"
 
@@ -12,12 +13,10 @@ SRC_URI = "git://github.com/openbmc/phosphor-ipmi-ethstats;branch=master;protoco
 
 S = "${WORKDIR}/git"
 
-inherit meson pkgconfig
+inherit autotools pkgconfig
 inherit obmc-phosphor-ipmiprovider-symlink
 
-EXTRA_OEMESON:append = " -Dtests=disabled"
-
-PACKAGECONFIG[google-oen] = "-Dgoogle_oen=true,-Dgoogle_oen=false"
+EXTRA_OECONF += "--disable-tests"
 
 FILES:${PN}:append = " ${libdir}/ipmid-providers/lib*${SOLIBS}"
 FILES:${PN}:append = " ${libdir}/host-ipmid/lib*${SOLIBS}"

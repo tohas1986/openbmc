@@ -74,8 +74,7 @@ do_install:append () {
 		mv ${D}${bindir}/bash ${D}${base_bindir}
 	fi
 }
-
-fix_absolute_paths () {
+do_install:append:class-target () {
 	# Clean buildhost references in bashbug
 	sed -i -e "s,--sysroot=${STAGING_DIR_TARGET},,g" \
 		-e "s,-I${WORKDIR}/\S* ,,g" \
@@ -94,14 +93,6 @@ fix_absolute_paths () {
 		${D}${libdir}/bash/Makefile.inc
 }
 
-do_install:append:class-target () {
-	fix_absolute_paths
-}
-
-do_install:append:class-nativesdk () {
-	fix_absolute_paths
-}
-
 do_install_ptest () {
 	make INSTALL_TEST_DIR=${D}${PTEST_PATH}/tests install-test
 	cp ${B}/Makefile ${D}${PTEST_PATH}
@@ -111,7 +102,6 @@ do_install_ptest () {
 	install -D ${WORKDIR}/run-bash-ptests ${D}${PTEST_PATH}/run-bash-ptests
         sed -i -e 's/^Makefile/_Makefile/' -e "s,--sysroot=${STAGING_DIR_TARGET},,g" \
 	    -e 's|${DEBUG_PREFIX_MAP}||g' \
-	    -e 's|${BUILD_LDFLAGS}||g' \
 	    -e "s,${S},,g" -e "s,${B},,g" -e "s,${STAGING_DIR_NATIVE},,g" \
 	    -e 's:${HOSTTOOLS_DIR}/::g' \
 	    -e 's:${UNINATIVE_LOADER}:${base_bindir}/false:g' \
@@ -138,6 +128,4 @@ PACKAGE_BEFORE_PN += "${PN}-loadable"
 RDEPENDS:${PN}-loadable += "${PN}"
 FILES:${PN}-loadable += "${libdir}/bash/*"
 
-# Limit the RPROVIDES here to class target so that if usrmerge is enabled for nativesdk, it does not
-# include host system paths in /bin/
-RPROVIDES:${PN}:append:class-target = " ${@bb.utils.contains('DISTRO_FEATURES', 'usrmerge', '/bin/sh /bin/bash', '', d)}"
+RPROVIDES:${PN} += "${@bb.utils.contains('DISTRO_FEATURES', 'usrmerge', '/bin/sh /bin/bash', '', d)}"

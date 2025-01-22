@@ -1,0 +1,116 @@
+From 10967899a709fc994f4d8036df173e5909dd3279 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 14 Apr 2020 17:24:19 +0300
+Subject: [PATCH 1/1] Add Yandex-specific OEM commands
+
+---
+ CMakeLists.txt                |  3 ++-
+ include/oemcommands.hpp       |  1 +
+ ipmi-whitelist.conf           |  1 +
+ src/manufacturingcommands.cpp |  1 +
+ src/yandexoem.cpp             | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 48 insertions(+), 1 deletion(-)
+ create mode 100644 src/yandexoem.cpp
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f484d47..73ff3a6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -103,7 +103,8 @@ add_library (zinteloemcmds
+              src/smbiosmdrv2handler.cpp src/manufacturingcommands.cpp
+              src/bmccontrolservices.cpp src/bridgingcommands.cpp
+              src/ipmi_to_redfish_hooks.cpp src/chassiscommands.cpp
+-             src/whitelist-filter.cpp include/ipmi-whitelist.hpp)
++             src/whitelist-filter.cpp include/ipmi-whitelist.hpp
++             src/yandexoem.cpp)
+ set_target_properties (zinteloemcmds PROPERTIES VERSION "0.1.0")
+ set_target_properties (zinteloemcmds PROPERTIES SOVERSION "0")
+ target_link_libraries (zinteloemcmds stdc++fs)
+diff --git a/include/oemcommands.hpp b/include/oemcommands.hpp
+index 13586c5..47baf7a 100644
+--- a/include/oemcommands.hpp
++++ b/include/oemcommands.hpp
+@@ -84,6 +84,7 @@ namespace platform
+ {
+ static constexpr Cmd cmdCfgHostSerialPortSpeed = 0x90;
+ static constexpr Cmd cmdClearCMOS = 0x91;
++static constexpr Cmd cmdPrintTest = 0x92;
+ } // namespace platform
+ 
+ namespace app
+diff --git a/ipmi-whitelist.conf b/ipmi-whitelist.conf
+index 9a399f4..e9a84bf 100644
+--- a/ipmi-whitelist.conf
++++ b/ipmi-whitelist.conf
+@@ -287,6 +287,7 @@
+ 0x32:0x8d:0xff7f   //<Intel OEM Platform>:<Get SSD Power>
+ 0x32:0x90:0x7f7f   //<Intel OEM Platform>:<Get-Set Serial Port Speed>
+ 0x32:0x91:0x7f7f   //<Intel OEM Platform>:<Clear CMOS>
++0x32:0x92:0x7f7f   //<Yandex OEM MZ81>:<Print Test>
+ 0x3e:0x02:0xff7f   //<Intel Managed Data Region>:<BMC Data Region Update Event Message>
+ 0x3e:0x20:0x7f7f   //<Intel Managed Data Region>:<BMC Region Status>
+ 0x3e:0x21:0x7f7f   //<Intel Managed Data Region>:<BMC Region Update Complete>
+diff --git a/src/manufacturingcommands.cpp b/src/manufacturingcommands.cpp
+index 6fed043..e712dc7 100644
+--- a/src/manufacturingcommands.cpp
++++ b/src/manufacturingcommands.cpp
+@@ -977,6 +977,7 @@ ipmi::RspType<> clearCMOS()
+     ipmi::Cc retI2C = ipmi::i2cWriteRead(i2cBus, slaveAddr, writeData, readBuf);
+     return ipmi::response(retI2C);
+ }
++
+ } // namespace ipmi
+ 
+ void register_mtm_commands() __attribute__((constructor));
+diff --git a/src/yandexoem.cpp b/src/yandexoem.cpp
+new file mode 100644
+index 0000000..4b9f79e
+--- /dev/null
++++ b/src/yandexoem.cpp
+@@ -0,0 +1,43 @@
++/*
++// Copyright (c) 2018 Intel Corporation
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++*/
++
++#include <linux/input.h>
++
++#include <boost/container/flat_map.hpp>
++#include <filesystem>
++#include <fstream>
++#include <ipmid/api.hpp>
++#include <oemcommands.hpp>
++
++namespace ipmi
++{
++
++ipmi::RspType<uint8_t> printTest()
++{
++   uint8_t rc = 1;
++   phosphor::logging::log<phosphor::logging::level::INFO>("Hue moe commad is working");
++   return ipmi::responseSuccess(rc);
++}
++
++} // namespace ipmi
++
++void register_yandex_commands() __attribute__((constructor));
++void register_yandex_commands()
++{
++    ipmi::registerHandler(ipmi::prioOemBase, ipmi::intel::netFnPlatform,
++                          ipmi::intel::platform::cmdPrintTest,
++                          ipmi::Privilege::Admin, ipmi::printTest);
++}
+-- 
+1.9.1
+

@@ -1,0 +1,42 @@
+From b70dc614dde391e2c59430fa9b80a1f7b5e678da Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 8 Apr 2021 07:49:20 +0000
+Subject: [PATCH] Return possibility to set up logging via cmdline
+
+Commit 811f31d614af241ab88487739c9922ddb0be6ff6
+disables logging set up via command-line parameter.
+This patch returns back this possibility.
+---
+ main.cpp | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/main.cpp b/main.cpp
+index 37418e6..cb0c8da 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -232,7 +232,7 @@ int main(int argc, char* argv[])
+ 
+     // If this file exists, enable logging at runtime
+     std::ifstream fsLogging(loggingEnablePath);
+-    if (fsLogging)
++    if (fsLogging && loggingPath.empty())
+     {
+         // Unless file contents are a valid directory path, use system default
+         std::getline(fsLogging, loggingPath);
+@@ -243,6 +243,13 @@ int main(int argc, char* argv[])
+         fsLogging.close();
+ 
+         loggingEnabled = true;
++    } else if (!loggingPath.empty() && std::filesystem::exists(loggingPath))
++    {
++        loggingEnabled = true;
++    }
++
++    if (loggingEnabled)
++    {
+         std::cerr << "Logging enabled: " << loggingPath << "\n";
+     }
+ 
+-- 
+2.7.4
+

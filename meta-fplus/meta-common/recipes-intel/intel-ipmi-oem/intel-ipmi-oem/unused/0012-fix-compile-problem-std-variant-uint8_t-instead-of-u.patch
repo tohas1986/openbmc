@@ -1,0 +1,54 @@
+From 9fced22f74e2f9b74e939aea00b06a890ec1d2ea Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 1 Jun 2020 13:36:19 +0000
+Subject: [PATCH] fix compile problem (std::variant<uint8_t> instead of
+ uint8_t)
+
+---
+ include/smbiosmdrv2handler.hpp | 2 +-
+ src/smbiosmdrv2handler.cpp     | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/include/smbiosmdrv2handler.hpp b/include/smbiosmdrv2handler.hpp
+index 3d9b627..0d20961 100644
+--- a/include/smbiosmdrv2handler.hpp
++++ b/include/smbiosmdrv2handler.hpp
+@@ -273,7 +273,7 @@ class MDRV2
+     bool smbiosTryLock(uint8_t flag, uint8_t index, uint16_t *session,
+                        uint16_t timeout);
+     int sdplusMdrv2GetProperty(const std::string &name,
+-                               std::variant<uint8_t> &value,
++                               uint8_t value,
+                                const std::string &service);
+ 
+     Mdr2DirStruct smbiosDir{smbiosAgentVersion,
+diff --git a/src/smbiosmdrv2handler.cpp b/src/smbiosmdrv2handler.cpp
+index 425a890..e5bd60e 100644
+--- a/src/smbiosmdrv2handler.cpp
++++ b/src/smbiosmdrv2handler.cpp
+@@ -59,7 +59,7 @@ int MDRV2::agentLookup(const uint16_t &agentId)
+ }
+ 
+ int MDRV2::sdplusMdrv2GetProperty(const std::string &name,
+-                                  std::variant<uint8_t> &value,
++                                  uint8_t value,
+                                   const std::string &service)
+ {
+     std::shared_ptr<sdbusplus::asio::connection> bus = getSdBus();
+@@ -296,14 +296,14 @@ ipmi::RspType<std::vector<uint8_t>> mdr2GetDir(uint16_t agentId,
+         return ipmi::responseParmOutOfRange();
+     }
+ 
+-    std::variant<uint8_t> value = 0;
++    uint8_t value = 0;
+     if (0 != mdrv2->sdplusMdrv2GetProperty("DirectoryEntries", value, service))
+     {
+         phosphor::logging::log<phosphor::logging::level::ERR>(
+             "Error getting DirEnries");
+         return ipmi::responseUnspecifiedError();
+     }
+-    if (dirIndex > std::get<uint8_t>(value))
++    if (dirIndex > value)
+     {
+         return ipmi::responseParmOutOfRange();
+     }

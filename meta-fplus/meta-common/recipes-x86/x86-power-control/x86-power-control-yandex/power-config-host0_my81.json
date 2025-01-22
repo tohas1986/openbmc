@@ -1,0 +1,13 @@
+{
+  "IdButton": "ID_BUTTON",
+  "PostComplete": "POST_COMPLETE",
+  "NMIButton": "NMI_BUTTON",
+  "NMIOut": "NMI_OUT",
+  "NMIInvert": "true",
+  "PwrButton": "POWER_BUTTON",
+  "PwrOK": "PS_PWROK",
+  "PwrOut": "POWER_OUT",
+  "RstButton": "RESET_BUTTON",
+  "RstOut": "RESET_OUT",
+  "PowerPulseTimeMs": 5000
+}

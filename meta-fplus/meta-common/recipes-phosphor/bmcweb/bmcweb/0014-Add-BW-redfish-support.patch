@@ -1,0 +1,272 @@
+From 95c052d97a12469caf1eb843489b820506206ae7 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 31 Oct 2022 11:20:16 +0000
+Subject: [PATCH] Add BW redfish support
+
+---
+ redfish-core/include/redfish.hpp              |   2 +
+ .../registries/openbmc_message_registry.hpp   |  11 ++
+ .../include/registries/privilege_registry.hpp |   8 ++
+ redfish-core/lib/bw.hpp                       | 108 ++++++++++++++++++
+ redfish-core/lib/chassis.hpp                  |   4 +-
+ scripts/update_schemas.py                     |   1 +
+ static/redfish/v1/$metadata/index.xml         |  14 +++
+ .../v1/JsonSchemas/BWService/index.json       |  21 ++++
+ 8 files changed, 168 insertions(+), 1 deletion(-)
+ create mode 100644 redfish-core/lib/bw.hpp
+ create mode 100644 static/redfish/v1/JsonSchemas/BWService/index.json
+
+diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
+index a4867900..223ad964 100644
+--- a/redfish-core/include/redfish.hpp
++++ b/redfish-core/include/redfish.hpp
+@@ -51,6 +51,7 @@
+ #include "update_service.hpp"
+ #include "virtual_media.hpp"
+ #include "rmt.hpp"
++#include "bw.hpp"
+ 
+ namespace redfish
+ {
+@@ -102,6 +103,7 @@ class RedfishService
+         requestRoutesStorage(app);
+         requestRoutesDrive(app);
+         requestRoutesRmtService(app);
++        requestRoutesBWService(app);
+         requestRoutesCable(app);
+         requestRoutesCableCollection(app);
+ #ifdef BMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE
+diff --git a/redfish-core/include/registries/openbmc_message_registry.hpp b/redfish-core/include/registries/openbmc_message_registry.hpp
+index 5e70b335..08a7e0ee 100644
+--- a/redfish-core/include/registries/openbmc_message_registry.hpp
++++ b/redfish-core/include/registries/openbmc_message_registry.hpp
+@@ -2411,6 +2411,17 @@ constexpr std::array registry = {
+             {"string"},
+             "None.",
+         }},
++    MessageEntry{
++        "MotherBoardErrorDetected",
++        {
++            "Indicates specified motherboard hardware signal error",
++            "%1 MotherBoard Error Detected.",
++            "Critical",
++            // "Critical",
++            1,
++            {"string"},
++            "None.",
++        }},
+ 
+ };
+ } // namespace redfish::registries::openbmc
+diff --git a/redfish-core/include/registries/privilege_registry.hpp b/redfish-core/include/registries/privilege_registry.hpp
+index 01fd4b24..7fc972cf 100644
+--- a/redfish-core/include/registries/privilege_registry.hpp
++++ b/redfish-core/include/registries/privilege_registry.hpp
+@@ -270,6 +270,14 @@ const static auto& putRmt = privilegeSetConfigureComponents;
+ const static auto& deleteRmt = privilegeSetConfigureComponents;
+ const static auto& postRmt = privilegeSetConfigureComponents;
+ 
++// Bw
++const static auto& getBw = privilegeSetLogin;
++const static auto& headBw = privilegeSetLogin;
++const static auto& patchBw = privilegeSetConfigureComponents;
++const static auto& putBw = privilegeSetConfigureComponents;
++const static auto& deleteBw = privilegeSetConfigureComponents;
++const static auto& postBw = privilegeSetConfigureComponents;
++
+ // ChassisCollection
+ const static auto& getChassisCollection = privilegeSetLogin;
+ const static auto& headChassisCollection = privilegeSetLogin;
+diff --git a/redfish-core/lib/bw.hpp b/redfish-core/lib/bw.hpp
+new file mode 100644
+index 00000000..f4a1a44c
+--- /dev/null
++++ b/redfish-core/lib/bw.hpp
+@@ -0,0 +1,108 @@
++/*
++ *  redfish-core/lib/bw.hpp
++ *
++ *  Created on: Jan 12, 2022
++ *  Author: Nikita Vedeneev
++ *
++ */
++
++#pragma once
++
++#include <utils/sw_utils.hpp>
++#include <iostream>
++#include <fstream>
++#include <string>
++#include <boost/lexical_cast.hpp>
++
++namespace redfish
++{
++
++/*
++ * BandWidth class supports handle get method for DRAM.
++ */
++
++inline void getBwResults(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
++{
++    std::string path = "/var/lib/ipmi/bw.txt";
++    std::string line;
++    std::vector<std::string> temp;
++    std::ifstream input(path);
++    nlohmann::json j;
++
++    aResp->res.jsonValue["Description"] = { "This service provide Memory BandWidth results for DRAM validation purpose."};
++    aResp->res.jsonValue["BandWidth"] = { "Mb/s"};
++
++    std::cerr << "Looking for BW txt file..." << "\n";
++
++    if(!fileExist(path))
++    {
++        std::cerr << "File not found!" << "\n";
++        input.close();
++        return;
++    }
++
++    if(isEmpty(input))
++    {
++        std::cerr << "File Empty, no BW results found!" << "\n";
++        input.close();
++        return;
++    }
++
++    input.clear();
++    input.seekg(0);
++
++    while (getline(input, line))
++    {
++        temp.push_back(line);
++    }
++
++    input.close();
++
++    for (int i = 0; i < temp.size(); i++)
++    {
++        std::string str_key = boost::lexical_cast<std::string>(i);
++        std::string str_value = boost::lexical_cast<std::string>(temp[i]) + " MB/s";
++        try
++        {
++            aResp->res.jsonValue[str_key] = str_value;
++        }
++        catch(nlohmann::json::exception &e)
++        {
++            std::cerr << "Error in JSON object caught!" << "\n";
++            return;
++        }
++    }
++}
++
++inline void requestRoutesBWService(App& app)
++{
++    BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/BWService/")
++        .privileges(redfish::privileges::getBw)
++        .methods(boost::beast::http::verb::get)(
++            [](const crow::Request&,
++               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const std::string& param) {
++                BMCWEB_LOG_DEBUG << "Get BW method called";
++
++                if (param.empty())
++                {
++                    return;
++                }
++
++                const std::string& chassisId = param;
++
++                asyncResp->res.jsonValue = {
++                    {"@odata.type",
++                     "#BWService.v1_0_0.BWService"},
++                    {"Name", "BW Subsystem for Chassis"},
++                    {"Id", "BWService"}};
++                asyncResp->res.jsonValue["@odata.id"] =
++                    "/redfish/v1/Chassis/" + chassisId + "/BWService";
++
++                asyncResp->res.jsonValue["Status"] = {{"State", "Enabled"},
++                                                      {"Health", "OK"}};
++
++                getBwResults(asyncResp);
++            });
++}
++}
+diff --git a/redfish-core/lib/chassis.hpp b/redfish-core/lib/chassis.hpp
+index c7ac6cbe..c2bc4492 100644
+--- a/redfish-core/lib/chassis.hpp
++++ b/redfish-core/lib/chassis.hpp
+@@ -419,7 +419,9 @@ inline void
+                 asyncResp->res.jsonValue["RmtService"] = {
+                           {"@odata.id", "/redfish/v1/Chassis/" +
+                           chassisId + "/RmtService"}};
+-
++                asyncResp->res.jsonValue["BWService"] = {
++                          {"@odata.id", "/redfish/v1/Chassis/" +
++                          chassisId + "/BWService"}};
+                 nlohmann::json::array_t computerSystems;
+                 nlohmann::json::object_t system;
+                 system["@odata.id"] = "/redfish/v1/Systems/system";
+diff --git a/scripts/update_schemas.py b/scripts/update_schemas.py
+index 2c62c75e..add164b3 100755
+--- a/scripts/update_schemas.py
++++ b/scripts/update_schemas.py
+@@ -30,6 +30,7 @@ include_list = [
+     "AttributeRegistry",
+     "Bios",
+     "RmtService",
++    "BWService",
+     "Cable",
+     "CableCollection",
+     "Certificate",
+diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
+index 64f2e484..bb1d9767 100644
+--- a/static/redfish/v1/$metadata/index.xml
++++ b/static/redfish/v1/$metadata/index.xml
+@@ -2822,6 +2822,20 @@
+         <edmx:Include Namespace="RmtService.v1_4_0"/>
+         <edmx:Include Namespace="RmtService.v1_4_1"/>
+     </edmx:Reference>
++    <edmx:Reference Uri="/redfish/v1/schema/BWService_v1.xml">
++        <edmx:Include Namespace="BWService"/>
++        <edmx:Include Namespace="BWService.v1_0_0"/>
++        <edmx:Include Namespace="BWService.v1_0_1"/>
++        <edmx:Include Namespace="BWService.v1_0_2"/>
++        <edmx:Include Namespace="BWService.v1_0_3"/>
++        <edmx:Include Namespace="BWService.v1_1_0"/>
++        <edmx:Include Namespace="BWService.v1_1_1"/>
++        <edmx:Include Namespace="BWService.v1_1_2"/>
++        <edmx:Include Namespace="BWService.v1_2_0"/>
++        <edmx:Include Namespace="BWService.v1_3_0"/>
++        <edmx:Include Namespace="BWService.v1_4_0"/>
++        <edmx:Include Namespace="BWService.v1_4_1"/>
++    </edmx:Reference>
+     <edmx:Reference Uri="/redfish/v1/schema/VLanNetworkInterfaceCollection_v1.xml">
+         <edmx:Include Namespace="VLanNetworkInterfaceCollection"/>
+     </edmx:Reference>
+diff --git a/static/redfish/v1/JsonSchemas/BWService/index.json b/static/redfish/v1/JsonSchemas/BWService/index.json
+new file mode 100644
+index 00000000..1a7c9c53
+--- /dev/null
++++ b/static/redfish/v1/JsonSchemas/BWService/index.json
+@@ -0,0 +1,21 @@
++{
++    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
++    "@odata.id": "/redfish/v1/JsonSchemas/BWService",
++    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
++    "Name": "BWService Schema File",
++    "Schema": "#BWService.BWService",
++    "Description": "BWService Schema File Location",
++    "Id": "BWService",
++    "Languages": [
++        "en"
++    ],
++    "Languages@odata.count": 1,
++    "Location": [
++        {
++            "Language": "en",
++            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/BWService.json",
++            "Uri": "/redfish/v1/JsonSchemas/BWService/BWService.json"
++        }
++    ],
++    "Location@odata.count": 1
++}

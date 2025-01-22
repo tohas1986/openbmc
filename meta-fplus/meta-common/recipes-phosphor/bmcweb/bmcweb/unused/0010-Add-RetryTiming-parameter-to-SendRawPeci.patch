@@ -1,0 +1,54 @@
+From bc1fe09ff40be55267eb446a3a1fb877538f26ed Mon Sep 17 00:00:00 2001
+From: Jonathan Doman <jonathan.doman@intel.com>
+Date: Mon, 5 Apr 2021 22:43:22 -0700
+Subject: [PATCH] Add RetryTiming parameter to SendRawPeci
+
+Allows validation/debug users to set specific timing for the PECI
+commands. If provided in POST payload, it must be an array containing 3
+numbers: [retryIntervalMin, retryIntervalMax, retryTimeout]. Set any
+value to -1 to leave it unchanged. All values are in units of
+microseconds.
+
+Change-Id: Ie58ed665f234427b183077ec548e5a4c7efc02f7
+Signed-off-by: Jonathan Doman <jonathan.doman@intel.com>
+---
+ redfish-core/lib/log_services.hpp | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/redfish-core/lib/log_services.hpp b/redfish-core/lib/log_services.hpp
+index 774df6a..2f6458d 100644
+--- a/redfish-core/lib/log_services.hpp
++++ b/redfish-core/lib/log_services.hpp
+@@ -2730,12 +2730,19 @@ inline void requestRoutesSendRawPECI(App& app)
+             [](const crow::Request& req,
+                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+                 std::vector<std::vector<uint8_t>> peciCommands;
++                std::optional<std::vector<int32_t>> peciTiming;
+ 
+                 if (!json_util::readJson(req, asyncResp->res, "PECICommands",
+-                                         peciCommands))
++                                         peciCommands, "RetryTimingUs",
++                                         peciTiming))
+                 {
+                     return;
+                 }
++                if (!peciTiming)
++                {
++                    peciTiming = {-1, -1, -1};
++                }
++
+                 uint32_t idx = 0;
+                 for (auto const& cmd : peciCommands)
+                 {
+@@ -2788,7 +2795,7 @@ inline void requestRoutesSendRawPECI(App& app)
+                 crow::connections::systemBus->async_method_call(
+                     std::move(sendRawPECICallback), crashdumpObject,
+                     crashdumpPath, "com.intel.crashdump.SendRawPeci",
+-                    "SendRawPeci", peciCommands);
++                    "SendRawPeci", peciCommands, *peciTiming);
+             });
+ };
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,218 @@
+From badbdd8847db559ecdb8fffc451ae51dea6fbd5c Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 24 Aug 2023 15:57:28 +0000
+Subject: [PATCH] Fix BIOS update progress bar
+
+---
+ redfish-core/lib/update_service.hpp | 139 +++++++++++++++++++++++++---
+ 1 file changed, 124 insertions(+), 15 deletions(-)
+
+diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
+index 9f3fd495..2a7c9b2b 100644
+--- a/redfish-core/lib/update_service.hpp
++++ b/redfish-core/lib/update_service.hpp
+@@ -26,6 +26,11 @@
+ #include <utils/dbus_utils.hpp>
+ #include <utils/sw_utils.hpp>
+ #include <iostream>
++#include <sdbusplus/asio/connection.hpp>
++#include <sdbusplus/asio/object_server.hpp>
++#include <sdbusplus/bus.hpp>
++#include <sdbusplus/server/interface.hpp>
++
+ 
+ namespace redfish
+ {
+@@ -38,12 +43,72 @@ static bool fwUpdateInProgress = false;
+ // Timer for software available
+ static std::unique_ptr<boost::asio::steady_timer> fwAvailableTimer;
+ 
++#define PROPERTY_INTERFACE "org.freedesktop.DBus.Properties"
++#define UPDATER_SERVICE "xyz.openbmc_project.Software.BMC.Updater"
++
++static int getProperty(sdbusplus::bus::bus& bus, const std::string& path,
++                 const std::string& property, uint8_t& value, const std::string service, const std::string interface)
++{
++    auto method = bus.new_method_call(service.c_str(), path.c_str(), PROPERTY_INTERFACE, "Get");
++    method.append(interface.c_str(),property);
++    auto reply=bus.call(method);
++    if (reply.is_method_error())
++    {
++        BMCWEB_LOG_ERROR << "Error calling method";
++        return -1;
++    }
++
++    std::variant<uint8_t> valuetmp;
++    try
++    {
++        reply.read(valuetmp);
++    }
++    catch (const sdbusplus::exception::SdBusError& e)
++    {
++        BMCWEB_LOG_ERROR << "SdBusError";
++        return -1;
++    }
++
++    value = std::get<uint8_t>(valuetmp);
++
++    return 0;
++}
++
++static int getProperty(sdbusplus::bus::bus& bus, const std::string& path,
++                 const std::string& property, std::string& value, const std::string service, const std::string interface)
++{
++    auto method = bus.new_method_call(service.c_str(), path.c_str(), PROPERTY_INTERFACE, "Get");
++    method.append(interface.c_str(),property);
++    auto reply=bus.call(method);
++    if (reply.is_method_error())
++    {
++        BMCWEB_LOG_ERROR << "Error calling method";
++        return -1;
++    }
++
++    std::variant<std::string> valuetmp;
++    try
++    {
++        reply.read(valuetmp);
++    }
++    catch (const sdbusplus::exception::SdBusError& e)
++    {
++        std::cerr << "Non of state or progress\n";
++        return -1;
++    }
++
++    value = std::get<std::string>(valuetmp);
++
++    return 0;
++}
++
+ inline static void cleanUp()
+ {
+     fwUpdateInProgress = false;
+     fwUpdateMatcher = nullptr;
+     fwUpdateErrorMatcher = nullptr;
+ }
++
+ inline static void activateImage(const std::string& objPath,
+                                  const std::string& service)
+ {
+@@ -121,7 +186,7 @@ static void
+                 {
+                     std::shared_ptr<task::TaskData> task =
+                         task::TaskData::createTask(
+-                            [](boost::system::error_code ec,
++                            [objPath](boost::system::error_code ec,
+                                sdbusplus::message_t& msg,
+                                const std::shared_ptr<task::TaskData>&
+                                    taskData) {
+@@ -143,13 +208,30 @@ static void
+                             {
+                                 if (property.first == "Activation")
+                                 {
+-                                    const std::string* activationState =
+-                                        std::get_if<std::string>(
+-                                            &property.second);
+-                                    if (activationState == nullptr)
++                                    try
++                                    {
++                                        int rc = 0;
++                                        auto bus = sdbusplus::bus::new_default();
++
++                                        std::string value = "";
++                                        state = &value;
++                                        rc = getProperty(bus, objPath.str, property.first, value, UPDATER_SERVICE, iface);
++
++                                        *state = value;
++
++                                        if(rc < 0)
++                                        {
++                                            BMCWEB_LOG_ERROR << "Can't get state property";
++                                        } else
++                                        {
++                                            BMCWEB_LOG_DEBUG << "Progress state: " << value << "\n";
++                                            break;
++                                        }
++                                    }
++                                    catch (...)
+                                     {
+-                                        taskData->messages.emplace_back(
+-                                            messages::internalError());
++                                        BMCWEB_LOG_ERROR << "Error: Can't read state value";
++                                        taskData->messages.emplace_back(messages::internalError());
+                                         return task::completed;
+                                     }
+                                 }
+@@ -190,6 +272,10 @@ static void
+                                 taskData->messages.emplace_back(
+                                     messages::taskCompletedOK(index));
+                                 taskData->state = "Completed";
++                                taskData->percentComplete = static_cast<int>(100);
++                                taskData->messages.emplace_back(
++                                                        messages::taskProgressChanged(
++                                                            index, static_cast<size_t>(100)));
+                                 return task::completed;
+                             }
+                         }
+@@ -197,19 +283,38 @@ static void
+                             iface ==
+                             "xyz.openbmc_project.Software.ActivationProgress")
+                         {
+-
+-                            const uint8_t* progress = nullptr;
++                            uint8_t* progress = nullptr;
+                             for (const auto& property : values)
+                             {
+                                 if (property.first == "Progress")
+                                 {
+-                                    const std::string* progressStr =
+-                                        std::get_if<std::string>(
+-                                            &property.second);
+-                                    if (progressStr == nullptr)
++                                    try
++                                    {
++                                        auto bus = sdbusplus::bus::new_default();
++                                        int rc = 0;
++                                        uint8_t value = 0;
++                                        progress = &value;
++                                        rc = getProperty(bus, objPath.str, property.first, value, UPDATER_SERVICE, iface);
++
++                                        *progress = value;
++
++                                        if(rc < 0)
++                                        {
++                                            taskData->messages.emplace_back("Cant' get progress property!");
++                                            taskData->messages.emplace_back(messages::internalError());
++                                            taskData->state = "Failed";
++                                            return !task::completed;
++                                        }
++                                        std::cerr << "Progress value: " << +value << "\n";
++                                    }
++                                    catch (...)
+                                     {
+-                                        taskData->messages.emplace_back(
+-                                            messages::internalError());
++                                        taskData->messages.emplace_back("Cant' get Progress Value, update already done");
++                                        taskData->state = "Completed";
++                                        taskData->percentComplete = static_cast<int>(100);
++                                        taskData->messages.emplace_back(messages::taskProgressChanged(
++                                                index, static_cast<size_t>(100)));
++                                        taskData->messages.emplace_back(messages::taskCompletedOK(index));
+                                         return task::completed;
+                                     }
+                                 }
+@@ -217,8 +322,12 @@ static void
+ 
+                             if (progress == nullptr)
+                             {
++                                BMCWEB_LOG_ERROR << "progress == nullptr";
++                                taskData->messages.emplace_back(messages::internalError());
++                                taskData->state = "Failed";
+                                 return !task::completed;
+                             }
++
+                             taskData->percentComplete =
+                                 static_cast<int>(*progress);
+                             taskData->messages.emplace_back(
+-- 
+2.34.1
+

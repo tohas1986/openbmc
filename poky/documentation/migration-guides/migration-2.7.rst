@@ -1,5 +1,3 @@
-.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
-
 Release 2.7 (warrior)
 =====================
 
@@ -174,7 +172,8 @@ The following miscellaneous changes occurred:
 -  ``base/pixbufcache``: Obsolete ``sstatecompletions`` code has been
    removed.
 
--  :ref:`ref-classes-native` class: :term:`RDEPENDS` handling has been enabled.
+-  :ref:`native <ref-classes-native>` class:
+   :term:`RDEPENDS` handling has been enabled.
 
 -  ``inetutils``: This recipe has rsh disabled.
 

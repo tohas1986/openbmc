@@ -1,0 +1,48 @@
+From f926e35fba034a543d2adf62cb010a3bdae0507a Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 14 Dec 2021 12:37:33 +0000
+Subject: [PATCH] Add drive properties
+
+---
+ .../Inventory/Item/Drive.interface.yaml       | 25 ++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/yaml/xyz/openbmc_project/Inventory/Item/Drive.interface.yaml b/yaml/xyz/openbmc_project/Inventory/Item/Drive.interface.yaml
+index 9e50eb9d..84a20a75 100644
+--- a/yaml/xyz/openbmc_project/Inventory/Item/Drive.interface.yaml
++++ b/yaml/xyz/openbmc_project/Inventory/Item/Drive.interface.yaml
+@@ -1,7 +1,30 @@
+ description: >
+     Implement to provide drive attributes.
+-
+ properties:
++    - name: driveConnectedTo
++      type: string
++      description: >
++          Drive connection interface
++    - name: drivePortNumber
++      type: uint16
++      description: >
++          Drive port number
++    - name: driveSerial
++      type: string
++      description: >
++          Drive serial number
++    - name: driveFirmwareVersion
++      type: string
++      description: >
++          Drive firmware version
++    - name: driveProductName
++      type: string
++      description: >
++          Drive product name
++    - name: driveSizeInKB
++      type: uint64
++      description: >
++          Drive size in Kilobytes.
+     - name: Capacity
+       default: 0
+       type: uint64
+-- 
+2.33.1
+

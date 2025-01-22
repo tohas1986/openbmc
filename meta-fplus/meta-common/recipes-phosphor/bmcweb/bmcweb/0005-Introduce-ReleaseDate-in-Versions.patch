@@ -1,0 +1,53 @@
+From dacd0eacc8fb941277e760d9f1b77a6f62dc72a1 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 30 Sep 2022 10:59:30 +0000
+Subject: [PATCH] Introduce ReleaseDate in Versions
+
+---
+ redfish-core/lib/update_service.hpp | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/redfish-core/lib/update_service.hpp b/redfish-core/lib/update_service.hpp
+index 72907ba3..6eb96a53 100644
+--- a/redfish-core/lib/update_service.hpp
++++ b/redfish-core/lib/update_service.hpp
+@@ -25,6 +25,7 @@
+ #include <sdbusplus/unpack_properties.hpp>
+ #include <utils/dbus_utils.hpp>
+ #include <utils/sw_utils.hpp>
++#include <iostream>
+ 
+ namespace redfish
+ {
+@@ -836,10 +837,11 @@ inline void
+ 
+         const std::string* swInvPurpose = nullptr;
+         const std::string* version = nullptr;
++        const std::string* releaseDate = nullptr;
+ 
+         const bool success = sdbusplus::unpackPropertiesNoThrow(
+             dbus_utils::UnpackErrorPrinter(), propertiesList, "Purpose",
+-            swInvPurpose, "Version", version);
++            swInvPurpose, "Version", version, "ReleaseDate", releaseDate);
+ 
+         if (!success)
+         {
+@@ -864,7 +866,18 @@ inline void
+ 
+             return;
+         }
++        if (releaseDate == nullptr)
++        {
++            BMCWEB_LOG_DEBUG
++                  << "Can't find property \"ReleaseDate\"!";
++
++            messages::internalError(asyncResp->res);
++
++            return;
++        }
++
+         asyncResp->res.jsonValue["Version"] = *version;
++        asyncResp->res.jsonValue["ReleaseDate"] = *releaseDate;
+         asyncResp->res.jsonValue["Id"] = swId;
+ 
+         // swInvPurpose is of format:

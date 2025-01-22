@@ -1,0 +1,57 @@
+#!/bin/sh
+
+if [ $# -le 1 ]
+then
+    echo "usage: $0 <start|stop> <config> <type>" >&2
+    exit 1
+fi
+
+action=$1
+config=$2
+type=$3
+gadget_name="mass-storage0"
+
+case "$config" in
+0)
+    nbd_device=/dev/nbd0
+    gadget_name="mass-storage0"
+    ;;
+1)
+    nbd_device=/dev/nbd1
+    gadget_name="mass-storage1"
+    ;;
+*)
+    echo "invalid config $config" >&2
+    exit 1
+    ;;
+esac
+
+case "$type" in
+cdrom)
+    ;;
+usb)
+    ;;
+hdd)
+    ;;
+usb-ro)
+    type=cdrom
+    ;;
+*)
+    echo "invalid type $type, setting to cdrom" >&2
+    type=cdrom
+    ;;
+esac
+
+case "$action" in
+start)
+    /usr/sbin/usb-ctrl insert $gadget_name $nbd_device $type
+    ;;
+stop)
+    /usr/sbin/usb-ctrl eject $gadget_name
+    ;;
+*)
+    echo "invalid action $action" >&2
+    exit 1
+esac
+
+exit 0

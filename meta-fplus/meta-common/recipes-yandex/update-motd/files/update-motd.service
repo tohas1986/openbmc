@@ -1,0 +1,11 @@
+[Unit]
+Description=Update motd service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/update-motd
+
+[Install]
+WantedBy=multi-user.target

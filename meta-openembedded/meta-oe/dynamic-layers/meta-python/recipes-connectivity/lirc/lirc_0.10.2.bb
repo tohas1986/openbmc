@@ -11,18 +11,16 @@ DEPENDS = "libxslt-native alsa-lib libftdi libusb1 libusb-compat jack portaudio-
 LIC_FILES_CHKSUM = "file://COPYING;md5=b234ee4d69f5fce4486a80fdaf4a4263"
 
 SRC_URI = "http://prdownloads.sourceforge.net/lirc/lirc-${PV}.tar.bz2 \
-           file://0001-Fix-build-on-32bit-arches-with-64bit-time_t.patch \
-           file://fix_build_errors.patch \
-           file://0001-mplay-Fix-build-with-musl.patch \
-           file://lircd.service \
-           file://lircd.init \
-           file://lircexec.init \
-           file://lircd.conf \
-           file://lirc_options.conf \
-           file://lirc.tmpfiles \
-           file://0001-Makefile.am-do-not-clobber-PYTHONPATH-from-build-env.patch \
-           file://0001-Unbolt-ubuntu-hack.patch \
-           "
+    file://0001-Fix-build-on-32bit-arches-with-64bit-time_t.patch \
+    file://fix_build_errors.patch \
+    file://0001-mplay-Fix-build-with-musl.patch \
+    file://lircd.service \
+    file://lircd.init \
+    file://lircexec.init \
+    file://lircd.conf \
+    file://lirc_options.conf \
+    file://lirc.tmpfiles \
+"
 SRC_URI[sha256sum] = "3d44ec8274881cf262f160805641f0827ffcc20ade0d85e7e6f3b90e0d3d222a"
 
 SYSTEMD_PACKAGES = "lirc lirc-exec"
@@ -40,7 +38,7 @@ PACKAGECONFIG ?= " \
     ${@bb.utils.contains('DISTRO_FEATURES', 'systemd', ' systemd', '', d)} \
     ${@bb.utils.contains('DISTRO_FEATURES', 'x11', ' x11', '', d)} \
 "
-CACHED_CONFIGUREVARS = "HAVE_WORKING_POLL=yes SH_PATH=/bin/sh"
+CACHED_CONFIGUREVARS = "HAVE_WORKING_POLL=yes"
 
 #EXTRA_OEMAKE = 'SUBDIRS="lib daemons tools"'
 
@@ -51,9 +49,9 @@ do_configure:append() {
 
 # Create PYTHON_TARBALL which LIRC needs for install-nodist_pkgdataDATA
 do_install:prepend() {
-    rm -rf ${S}/python-pkg/dist/
-    mkdir ${S}/python-pkg/dist/
-    tar --exclude='${S}/python-pkg/*' -czf ${S}/python-pkg/dist/${BP}.tar.gz ${S}
+    rm -rf ${WORKDIR}/${PN}-${PV}/python-pkg/dist/
+    mkdir ${WORKDIR}/${PN}-${PV}/python-pkg/dist/
+    tar --exclude='${WORKDIR}/${PN}-${PV}/python-pkg/*' -czf ${WORKDIR}/${PN}-${PV}/python-pkg/dist/${PN}-${PV}.tar.gz ${S}
 }
 
 # In code, path to python is a variable that is replaced with path to native version of it

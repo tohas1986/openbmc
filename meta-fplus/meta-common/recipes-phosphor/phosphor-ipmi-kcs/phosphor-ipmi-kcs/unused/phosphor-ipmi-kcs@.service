@@ -1,0 +1,15 @@
+[Unit]
+Description=Phosphor IPMI KCS DBus Bridge
+Requires=phosphor-ipmi-host.service
+After=phosphor-ipmi-host.service
+ConditionPathExists=/dev/%i
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/kcsbridged -c "%i"
+SyslogIdentifier=kcsbridged-%i
+StartLimitBurst=9999999
+
+[Install]
+WantedBy=multi-user.target
+RequiredBy=

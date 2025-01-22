@@ -1,0 +1,71 @@
+From 12ad9c14dfcdf24de699e6dcd00e19b967fe0b6b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 30 Jun 2020 10:15:40 +0000
+Subject: [PATCH] Reduce logging
+
+%% original patch: 0002-Reduce-logging.patch
+---
+ kcsbridged.cpp | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/kcsbridged.cpp b/kcsbridged.cpp
+index b28d261..2d555b6 100644
+--- a/kcsbridged.cpp
++++ b/kcsbridged.cpp
+@@ -207,7 +207,7 @@ class SmsChannel
+             std::string rawstr = ss.str();
+             std::cerr << time_in_HH_MM_SS_MMM() << " <<<< " << rawstr << "\n";
+ 
+-            log<level::INFO>("Read req msg", entry("NETFN=0x%02x", netfn),
++            log<level::DEBUG>("Read req msg", entry("NETFN=0x%02x", netfn),
+                              entry("LUN=0x%02x", lun),
+                              entry("CMD=0x%02x", cmd),
+                              entry("RAW=0x%s", rawstr.c_str()));
+@@ -235,7 +235,7 @@ class SmsChannel
+                 const auto& [netfn, lun, cmd, cc, payload] = response;
+                 if (ec)
+                 {
+-                    log<level::ERR>(
++                    log<level::DEBUG>(
+                         "kcs<->ipmid bus error:", entry("NETFN=0x%02x", netfn),
+                         entry("LUN=0x%02x", lun), entry("CMD=0x%02x", cmd),
+                         entry("ERROR=%s", ec.message().c_str()));
+@@ -276,7 +276,7 @@ class SmsChannel
+                     std::string rawstr = ss.str();
+                     std::cerr << time_in_HH_MM_SS_MMM() << " >>>> " << rawstr << "\n";
+ 
+-                    log<level::INFO>(
++                    log<level::DEBUG>(
+                         "Send rsp msg", entry("NETFN=0x%02x", netfn),
+                         entry("LUN=0x%02x", lun), entry("CMD=0x%02x", cmd),
+                         entry("CC=0x%02x", cc));
+@@ -302,7 +302,7 @@ class SmsChannel
+     {
+         if (verbose)
+         {
+-            log<level::INFO>("Sending SET_SMS_ATTENTION");
++            log<level::DEBUG>("Sending SET_SMS_ATTENTION");
+         }
+         io_control::SetSmsAttention command;
+         boost::system::error_code ec;
+@@ -320,7 +320,7 @@ class SmsChannel
+     {
+         if (verbose)
+         {
+-            log<level::INFO>("Sending CLEAR_SMS_ATTENTION");
++            log<level::DEBUG>("Sending CLEAR_SMS_ATTENTION");
+         }
+         io_control::ClearSmsAttention command;
+         boost::system::error_code ec;
+@@ -338,7 +338,7 @@ class SmsChannel
+     {
+         if (verbose)
+         {
+-            log<level::INFO>("Sending FORCE_ABORT");
++            log<level::DEBUG>("Sending FORCE_ABORT");
+         }
+         io_control::ForceAbort command;
+         boost::system::error_code ec;
+-- 
+2.7.4
+

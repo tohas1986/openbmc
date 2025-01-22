@@ -1,0 +1,36 @@
+From 202f0202b88cf47b5eb9dd5969e8ce714665f743 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 5 Oct 2020 08:18:52 +0000
+Subject: [PATCH] ina219: fix unsigned/signed
+
+---
+ drivers/hwmon/ina2xx.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/hwmon/ina2xx.c b/drivers/hwmon/ina2xx.c
+index 57c336c..274545d 100644
+--- a/drivers/hwmon/ina2xx.c
++++ b/drivers/hwmon/ina2xx.c
+@@ -517,7 +517,8 @@ static ssize_t ina226_alarm_show(struct device *dev,
+ static ssize_t ina2xx_power_show(struct device *dev,
+ 				struct device_attribute *da, char *buf)
+ {
+-	int v_bus, v_shunt, err;
++	unsigned int v_bus, v_shunt;
++	int err;
+ 	long i_shunt;
+ 	struct ina2xx_data *data = dev_get_drvdata(dev);
+ 
+@@ -555,7 +556,8 @@ static ssize_t ina2xx_power_show(struct device *dev,
+ static ssize_t ina2xx_current_show(struct device *dev,
+ 				struct device_attribute *da, char *buf)
+ {
+-	int v_shunt, err;
++	unsigned int v_shunt;
++	int err;
+ 	long i_shunt;
+ 	struct ina2xx_data *data = dev_get_drvdata(dev);
+ 
+-- 
+2.7.4
+

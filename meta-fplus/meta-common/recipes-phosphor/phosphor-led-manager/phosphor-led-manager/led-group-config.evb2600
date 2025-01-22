@@ -1,0 +1,16 @@
+{
+    "leds": [
+        {
+            "group": "bmc_fault",
+            "members": [
+                {
+                    "Name": "status_amber",
+                    "Action": "On",
+                    "DutyOn": 50,
+                    "Period": 0,
+                    "Priority": "Blink"
+                }
+            ]
+        }
+    ]
+}

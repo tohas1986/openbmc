@@ -1,0 +1,21 @@
+From 0e8eb5f4dd1d8d0c9e09852116b379a7e964f5a5 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 31 Oct 2022 11:17:39 +0000
+Subject: [PATCH] Add StartLimitBurst
+
+---
+ config/bmcweb.service.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/config/bmcweb.service.in b/config/bmcweb.service.in
+index a0b6777c..bda69a0d 100644
+--- a/config/bmcweb.service.in
++++ b/config/bmcweb.service.in
+@@ -9,6 +9,7 @@ ExecReload=kill -s HUP $MAINPID
+ ExecStart=@MESON_INSTALL_PREFIX@/bin/bmcweb
+ Type=simple
+ WorkingDirectory=/home/root
++StartLimitBurst=9999999
+ 
+ [Install]
+ WantedBy=network.target

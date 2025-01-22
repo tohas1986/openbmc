@@ -1,0 +1,22 @@
+From 3b7f201511076a872db9602999e2ee00a63a9869 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 7 Apr 2021 16:10:01 +0000
+Subject: [PATCH] Remove powerDownAcFailed
+
+---
+ src/chassiscommands.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/chassiscommands.cpp b/src/chassiscommands.cpp
+index 3d876c8..201e006 100644
+--- a/src/chassiscommands.cpp
++++ b/src/chassiscommands.cpp
+@@ -490,7 +490,7 @@ ipmi::RspType<bool,    // Power is on
+         interruptButtonDisabled = *interruptButtonReading;
+     }
+ 
+-    bool powerDownAcFailed = power_policy::getACFailStatus();
++    bool powerDownAcFailed = false;
+ 
+     bool powerStatusIPMI = false;
+     if (!checkIPMIRestartCause(ctx, powerStatusIPMI))

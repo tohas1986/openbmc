@@ -1,0 +1,14 @@
+[Unit]
+Description=Service to parse RMT log
+Requires=multi-user.target
+Wants=xyz.openbmc_project.Chassis.Control.Power.service
+After=xyz.openbmc_project.Chassis.Control.Power.service
+Wants=xyz.openbmc_project.EntityManager.service
+After=xyz.openbmc_project.EntityManager.service
+
+[Service]
+ExecStart=/usr/sbin/rmtparser
+SyslogIdentifier=rmtparser.service
+
+[Install]
+WantedBy=multi-user.target

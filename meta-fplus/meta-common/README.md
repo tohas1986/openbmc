@@ -1,0 +1,2 @@
+# MY81
+[RNDEMBED-99] OpenBMC на Purley MY81/ Rome MZ81

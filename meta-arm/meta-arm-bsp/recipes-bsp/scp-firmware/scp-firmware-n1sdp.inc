@@ -1,8 +1,12 @@
 # N1SDP specific SCP configurations and build instructions
 
-COMPATIBLE_MACHINE:n1sdp = "n1sdp"
-
+SCP_PLATFORM  = "n1sdp"
 SCP_LOG_LEVEL = "INFO"
+
+SRCREV  = "de7e464ecd77130147103cf48328099c2d0e6289"
+PV .= "+git${SRCPV}"
+
+COMPATIBLE_MACHINE:n1sdp = "n1sdp"
 
 DEPENDS += "fiptool-native"
 DEPENDS += "trusted-firmware-a"

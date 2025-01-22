@@ -1,5 +1,3 @@
-.. SPDX-License-Identifier: CC-BY-SA-2.0-UK
-
 Release 2.6 (thud)
 ==================
 
@@ -128,9 +126,9 @@ missing from :term:`DEPENDS`).
 
 .. note::
 
-   This change affects classes beyond just the two mentioned (i.e. ``distutils``
-   and ``distutils3``). Any recipe that inherits ``distutils*`` classes are
-   affected. For example, the ``setuptools`` and :ref:`ref-classes-setuptools3`
+   This change affects classes beyond just the two mentioned (i.e.
+   ``distutils`` and ``distutils3``). Any recipe that inherits ``distutils*``
+   classes are affected. For example, the ``setuptools`` and ``setuptools3``
    recipes are affected since they inherit the ``distutils*`` classes.
 
 Fetching these types of dependencies that are not provided in the
@@ -210,19 +208,22 @@ The following changes have been made:
 ``SERIAL_CONSOLE`` Deprecated
 -----------------------------
 
-The ``SERIAL_CONSOLE`` variable has been functionally replaced by the
-:term:`SERIAL_CONSOLES` variable for some time. With the Yocto Project 2.6
-release, ``SERIAL_CONSOLE`` has been officially deprecated.
+The :term:`SERIAL_CONSOLE` variable has been
+functionally replaced by the
+:term:`SERIAL_CONSOLES` variable for some time.
+With the Yocto Project 2.6 release, :term:`SERIAL_CONSOLE` has been
+officially deprecated.
 
-``SERIAL_CONSOLE`` will continue to work as before for the 2.6 release.
+:term:`SERIAL_CONSOLE` will continue to work as before for the 2.6 release.
 However, for the sake of future compatibility, it is recommended that
-you replace all instances of ``SERIAL_CONSOLE`` with :term:`SERIAL_CONSOLES`.
+you replace all instances of :term:`SERIAL_CONSOLE` with
+:term:`SERIAL_CONSOLES`.
 
 .. note::
 
    The only difference in usage is that :term:`SERIAL_CONSOLES`
    expects entries to be separated using semicolons as compared to
-   ``SERIAL_CONSOLE``, which expects spaces.
+   :term:`SERIAL_CONSOLE`, which expects spaces.
 
 .. _migration-2.6-poky-sets-unknown-configure-option-to-qa-error:
 
@@ -274,16 +275,16 @@ The following changes have occurred:
    specifying list items to remove, be aware that leading and trailing
    whitespace resulting from the removal is retained.
 
-   See the ":ref:`bitbake-user-manual/bitbake-user-manual-metadata:removal (override style syntax)`"
+   See the ":ref:`bitbake:bitbake-user-manual/bitbake-user-manual-metadata:removal (override style syntax)`"
    section in the BitBake User Manual for a detailed example.
 
-.. _migration-2.6-systemd-configuration-now-split-out-to-systemd-conf:
+.. _migration-2.6-systemd-configuration-now-split-out-to-system-conf:
 
 ``systemd`` Configuration is Now Split Into ``systemd-conf``
 ------------------------------------------------------------
 
 The configuration for the ``systemd`` recipe has been moved into a
-``systemd-conf`` recipe. Moving this configuration to a separate recipe
+``system-conf`` recipe. Moving this configuration to a separate recipe
 avoids the ``systemd`` recipe from becoming machine-specific for cases
 where machine-specific configurations need to be applied (e.g. for
 ``qemu*`` machines).
@@ -314,11 +315,13 @@ This section provides information about automatic testing changes:
    exists and has been replaced by the
    :term:`TESTIMAGE_AUTO` variable.
 
--  Inheriting the :ref:`ref-classes-testimage` and :ref:`ref-classes-testsdk`
-   classes: best practices now dictate that you use the :term:`IMAGE_CLASSES`
-   variable rather than the :term:`INHERIT` variable when you inherit the
-   :ref:`ref-classes-testimage` and :ref:`ref-classes-testsdk` classes used
-   for automatic testing.
+-  Inheriting the ``testimage`` and ``testsdk`` Classes: Best
+   practices now dictate that you use the
+   :term:`IMAGE_CLASSES` variable rather than the
+   :term:`INHERIT` variable when you inherit the
+   :ref:`testimage <ref-classes-testimage>` and
+   :ref:`testsdk <ref-classes-testsdk>` classes used for automatic
+   testing.
 
 .. _migration-2.6-openssl-changes:
 
@@ -364,7 +367,7 @@ Any failure of a ``pkg_postinst()`` script (including exit 1) triggers
 an error during the :ref:`ref-tasks-rootfs` task.
 
 For more information on post-installation behavior, see the
-":ref:`dev-manual/new-recipe:post-installation scripts`"
+":ref:`dev-manual/common-tasks:post-installation scripts`"
 section in the Yocto Project Development Tasks Manual.
 
 .. _migration-2.6-python-3-profile-guided-optimizations:

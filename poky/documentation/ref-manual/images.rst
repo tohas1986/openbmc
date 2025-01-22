@@ -14,17 +14,15 @@ image you want.
    Building an image without GNU General Public License Version 3
    (GPLv3), GNU Lesser General Public License Version 3 (LGPLv3), and
    the GNU Affero General Public License Version 3 (AGPL-3.0) components
-   is only tested for core-image-minimal image. Furthermore, if you would like to
-   build an image and verify that it does not include GPLv3 and similarly licensed
-   components, you must make the following changes in the image recipe
-   file before using the BitBake command to build the image:
+   is only supported for minimal and base images. Furthermore, if you
+   are going to build an image using non-GPLv3 and similarly licensed
+   components, you must make the following changes in the ``local.conf``
+   file before using the BitBake command to build the minimal or base
+   image::
 
-       INCOMPATIBLE_LICENSE = "GPL-3.0* LGPL-3.0*"
+           1. Comment out the EXTRA_IMAGE_FEATURES line
+           2. Set INCOMPATIBLE_LICENSE = "GPL-3.0* LGPL-3.0* AGPL-3.0*"
 
-   Alternatively, you can adjust ``local.conf`` file, repeating and adjusting the line
-   for all images where the license restriction must apply:
-
-       INCOMPATIBLE_LICENSE:pn-your-image-name = "GPL-3.0* LGPL-3.0*"
 
 From within the ``poky`` Git repository, you can use the following
 command to display the list of directories within the :term:`Source Directory`
@@ -32,7 +30,7 @@ that contain image recipe files::
 
    $ ls meta*/recipes*/images/*.bb
 
-Here is a list of supported recipes:
+Following is a list of supported recipes:
 
 -  ``build-appliance-image``: An example virtual machine that contains
    all the pieces required to run builds using the build system as well
@@ -119,7 +117,7 @@ Here is a list of supported recipes:
    deployed to a separate partition so that you can boot into it and use
    it to deploy a second image to be tested. You can find more
    information about runtime testing in the
-   ":ref:`dev-manual/runtime-testing:performing automated runtime testing`"
+   ":ref:`dev-manual/common-tasks:performing automated runtime testing`"
    section in the Yocto Project Development Tasks Manual.
 
 -  ``core-image-testmaster-initramfs``: A RAM-based Initial Root
@@ -129,7 +127,7 @@ Here is a list of supported recipes:
 -  ``core-image-weston``: A very basic Wayland image with a terminal.
    This image provides the Wayland protocol libraries and the reference
    Weston compositor. For more information, see the
-   ":ref:`dev-manual/wayland:using wayland and weston`"
+   ":ref:`dev-manual/common-tasks:using wayland and weston`"
    section in the Yocto Project Development Tasks Manual.
 
 -  ``core-image-x11``: A very basic X11 image with a terminal.

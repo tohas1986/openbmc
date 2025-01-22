@@ -1,0 +1,11 @@
+[Unit]
+Description=rebooter daemon
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+Type=simple
+Restart=always
+RestartSec=0
+ExecStart=/usr/sbin/rebooter
+[Install]
+WantedBy=multi-user.target

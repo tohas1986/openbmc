@@ -12,10 +12,13 @@ function set_mux_default(){
     set_gpio_ctrl CPU_EEPROM_SEL 1
     # BMC_CPU_PMBUS_SEL
     set_gpio_ctrl CPU_VRD_SEL 1
+    # LED control
+    # LED_BMC_LIVE
+    set_gpio_ctrl LED_BMC_ALIVE 1
 }
 
 set_mux_default
-
+set_gpio_ctrl HPM_STBY_RST_N 1
 sleep 5
 set_gpio_ctrl S0_BMC_OK 1
 

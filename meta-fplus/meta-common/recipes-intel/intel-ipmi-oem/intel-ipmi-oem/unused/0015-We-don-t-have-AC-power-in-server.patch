@@ -1,0 +1,22 @@
+From f1776a6dd4f4959cae45f3c9aa6a51934d067eb0 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 26 Jun 2020 11:07:13 +0000
+Subject: [PATCH] intel-ipmi-oem: We don't have AC power in server
+
+---
+ src/chassiscommands.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/chassiscommands.cpp b/src/chassiscommands.cpp
+index 24e3322..1171441 100644
+--- a/src/chassiscommands.cpp
++++ b/src/chassiscommands.cpp
+@@ -488,7 +488,7 @@ ipmi::RspType<bool,    // Power is on
+         interruptButtonDisabled = *interruptButtonReading;
+     }
+ 
+-    bool powerDownAcFailed = power_policy::getACFailStatus();
++    bool powerDownAcFailed = false;
+ 
+     bool powerStatusIPMI = false;
+     if (!checkIPMIRestartCause(powerStatusIPMI))

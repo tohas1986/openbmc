@@ -1,0 +1,32 @@
+From 0f5509241d8e2bf3b5b063ad0e7abb9bbcc21562 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Tue, 25 Aug 2020 14:05:58 +0000
+Subject: [PATCH] Add-JC42-DIMM-temp-sensor
+
+---
+ src/HwmonTempMain.cpp | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/HwmonTempMain.cpp b/src/HwmonTempMain.cpp
+index ef603f4..4468ef0 100644
+--- a/src/HwmonTempMain.cpp
++++ b/src/HwmonTempMain.cpp
+@@ -40,7 +40,7 @@
+ static constexpr bool DEBUG = false;
+ 
+ namespace fs = std::filesystem;
+-static constexpr std::array<const char*, 12> sensorTypes = {
++static constexpr std::array<const char*, 13> sensorTypes = {
+     "xyz.openbmc_project.Configuration.EMC1413",
+     "xyz.openbmc_project.Configuration.MAX31725",
+     "xyz.openbmc_project.Configuration.MAX31730",
+@@ -52,7 +52,8 @@ static constexpr std::array<const char*, 12> sensorTypes = {
+     "xyz.openbmc_project.Configuration.TMP421",
+     "xyz.openbmc_project.Configuration.TMP441",
+     "xyz.openbmc_project.Configuration.TMP75",
+-    "xyz.openbmc_project.Configuration.NCT7802"};
++    "xyz.openbmc_project.Configuration.NCT7802",
++    "xyz.openbmc_project.Configuration.JC42"};
+ 
+ void createSensors(
+     boost::asio::io_service& io, sdbusplus::asio::object_server& objectServer,

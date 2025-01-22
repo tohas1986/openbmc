@@ -1,0 +1,53 @@
+From b6f14615f0ce75d39c244603b561dd90229c4899 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 15 Apr 2021 08:04:15 +0000
+Subject: [PATCH] Fix memory leak and too many open files bug
+
+---
+ include/hostname_monitor.hpp | 10 ++++++++++
+ include/ssl_key_handler.hpp  |  1 +
+ 2 files changed, 11 insertions(+)
+
+diff --git a/include/hostname_monitor.hpp b/include/hostname_monitor.hpp
+index 1b04af5..9b956cb 100644
+--- a/include/hostname_monitor.hpp
++++ b/include/hostname_monitor.hpp
+@@ -31,6 +31,8 @@ inline void installCertificate(const std::filesystem::path& certPath)
+         "xyz.openbmc_project.Certs.Replace", "Replace", certPath.string());
+ }
+ 
++static std::string _hostname = "";
++
+ inline int onPropertyUpdate(sd_bus_message* m, void* /* userdata */,
+                             sd_bus_error* retError)
+ {
+@@ -59,6 +61,14 @@ inline int onPropertyUpdate(sd_bus_message* m, void* /* userdata */,
+         return 0;
+     }
+ 
++    if (_hostname == *hostname)
++    {
++        BMCWEB_LOG_DEBUG << " hostname didn't change, returning\n";
++        return 0;
++    }
++
++    _hostname = *hostname;
++
+     BMCWEB_LOG_DEBUG << "Read hostname from signal: " << *hostname;
+     const std::string certFile = "/etc/ssl/certs/https/server.pem";
+ 
+diff --git a/include/ssl_key_handler.hpp b/include/ssl_key_handler.hpp
+index 24e40a4..42a284a 100644
+--- a/include/ssl_key_handler.hpp
++++ b/include/ssl_key_handler.hpp
+@@ -199,6 +199,7 @@ inline X509* loadCert(const std::string& filePath)
+         X509_free(cert);
+         return nullptr;
+     }
++    BIO_free(certFileBio);
+     return cert;
+ }
+ 
+-- 
+2.7.4
+

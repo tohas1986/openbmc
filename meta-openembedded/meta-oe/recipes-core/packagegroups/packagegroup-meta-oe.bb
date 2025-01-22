@@ -77,16 +77,14 @@ RDEPENDS:packagegroup-meta-oe-benchmarks = "\
     qperf \
     s-suite \
     stressapptest \
+    sysbench \
     tinymembench \
     tiobench \
     whetstone \
 "
-RDEPENDS:packagegroup-meta-oe-benchmarks:append:armv7a = " cpuburn-arm sysbench"
-RDEPENDS:packagegroup-meta-oe-benchmarks:append:armv7ve = " cpuburn-arm sysbench"
-RDEPENDS:packagegroup-meta-oe-benchmarks:append:aarch64 = " cpuburn-arm sysbench"
-RDEPENDS:packagegroup-meta-oe-benchmarks:append:x86 = " sysbench"
-RDEPENDS:packagegroup-meta-oe-benchmarks:append:x86-64 = " sysbench"
-RDEPENDS:packagegroup-meta-oe-benchmarks:append:mips = " sysbench"
+RDEPENDS:packagegroup-meta-oe-benchmarks:append:armv7a = " cpuburn-arm"
+RDEPENDS:packagegroup-meta-oe-benchmarks:append:armv7ve = " cpuburn-arm"
+RDEPENDS:packagegroup-meta-oe-benchmarks:append:aarch64 = " cpuburn-arm"
 
 RDEPENDS:packagegroup-meta-oe-benchmarks:remove:mipsarch = "libhugetlbfs"
 RDEPENDS:packagegroup-meta-oe-benchmarks:remove:mips64 = "tinymembench"
@@ -184,10 +182,12 @@ RDEPENDS:packagegroup-meta-oe-core = "\
     libnfc \
     libsigc++-2.0 \
     libsigc++-3 \
+    libxml++ \
     mdbus2 \
     distro-feed-configs \
     mm-common \
     ${@bb.utils.contains("DISTRO_FEATURES", "systemd", "ndctl", "", d)} \
+    opencl-icd-loader \
     pim435 \
     proxy-libintl \
     safec \
@@ -302,6 +302,7 @@ RDEPENDS:packagegroup-meta-oe-devtools ="\
     rapidjson \
     squashfs-tools-ng \
     uftrace \
+    unifex \
     valijson \
     libxerces-c \
     xerces-c-samples \
@@ -309,7 +310,6 @@ RDEPENDS:packagegroup-meta-oe-devtools ="\
     yasm \
     json-schema-validator \
     poke \
-    microsoft-gsl \
 "
 RDEPENDS:packagegroup-meta-oe-devtools:append:x86 = " cpuid msr-tools pahole pmtools"
 RDEPENDS:packagegroup-meta-oe-devtools:append:x86-64 = " cpuid msr-tools pahole pcimem pmtools"
@@ -326,7 +326,7 @@ RDEPENDS:packagegroup-meta-oe-devtools:remove:mips64el = "luajit nodejs"
 RDEPENDS:packagegroup-meta-oe-devtools:remove:powerpc = "android-tools breakpad lshw luajit uftrace"
 RDEPENDS:packagegroup-meta-oe-devtools:remove:powerpc64 = "android-tools breakpad lshw luajit ply uftrace"
 RDEPENDS:packagegroup-meta-oe-devtools:remove:powerpc64le = "android-tools breakpad lshw luajit ply uftrace"
-RDEPENDS:packagegroup-meta-oe-devtools:remove:riscv64 = "breakpad concurrencykit heaptrack lshw ltrace luajit nodejs ply"
+RDEPENDS:packagegroup-meta-oe-devtools:remove:riscv64 = "breakpad concurrencykit heaptrack lshw ltrace luajit nodejs ply uftrace"
 RDEPENDS:packagegroup-meta-oe-devtools:remove:riscv32 = "breakpad concurrencykit heaptrack lshw ltrace luajit nodejs ply uftrace"
 RDEPENDS:packagegroup-meta-oe-devtools:remove:libc-musl:riscv32 = "php"
 RDEPENDS:packagegroup-meta-oe-devtools:remove:aarch64 = "concurrencykit"
@@ -448,8 +448,8 @@ RDEPENDS:packagegroup-meta-oe-extended:remove:mips = "sysdig"
 RDEPENDS:packagegroup-meta-oe-extended:remove:powerpc = "upm mraa minifi-cpp"
 RDEPENDS:packagegroup-meta-oe-extended:remove:powerpc64 = "upm mraa minifi-cpp"
 RDEPENDS:packagegroup-meta-oe-extended:remove:powerpc64le = "upm mraa sysdig"
-RDEPENDS:packagegroup-meta-oe-extended:remove:riscv64 = "upm libleak mraa sysdig tiptop"
-RDEPENDS:packagegroup-meta-oe-extended:remove:riscv32 = "upm libleak mraa sysdig tiptop"
+RDEPENDS:packagegroup-meta-oe-extended:remove:riscv64 = "upm libleak libyang mraa sysdig tiptop"
+RDEPENDS:packagegroup-meta-oe-extended:remove:riscv32 = "upm libleak libyang mraa sysdig tiptop"
 
 RDEPENDS:packagegroup-meta-oe-extended-python2 ="\
     ${@bb.utils.contains("BBFILE_COLLECTIONS", "meta-python2", bb.utils.contains('I_SWEAR_TO_MIGRATE_TO_PYTHON3', 'yes', 'openlmi-tools', '', d), "", d)} \
@@ -464,9 +464,11 @@ RDEPENDS:packagegroup-meta-oe-gnome ="\
     gtk+ \
     gtkmm3 \
     gtkmm \
-    ${@bb.utils.contains("DISTRO_FEATURES", "gobject-introspection-data", "libpeas", "", d)} \
+    libpeas \
     pyxdg \
+    vte9 \
     gnome-theme-adwaita \
+    libxmlb \
 "
 
 RDEPENDS:packagegroup-meta-oe-graphics ="\
@@ -486,6 +488,7 @@ RDEPENDS:packagegroup-meta-oe-graphics ="\
     gphoto2 \
     imlib2 \
     libgphoto2 \
+    graphene \
     graphviz \
     gtkwave \
     jasper \
@@ -567,6 +570,7 @@ RDEPENDS:packagegroup-meta-oe-graphics ="\
     xclock \
     xfontsel \
     xkbprint \
+    xsetmode \
     xlsatoms \
     xlsclients \
     xlsfonts \
@@ -592,7 +596,9 @@ RDEPENDS:packagegroup-meta-oe-graphics ="\
     font-cursor-misc \
     font-misc-misc \
     xorg-fonts-100dpi \
+    liblbxutil \
     libxaw6 \
+    libxkbui \
     libxpresent \
     xcb-util-cursor \
     xserver-common \
@@ -636,22 +642,22 @@ RDEPENDS:packagegroup-meta-oe-kernel ="\
     usbip-tools \
 "
 RDEPENDS:packagegroup-meta-oe-kernel:append:x86 = " intel-speed-select ipmiutil pm-graph turbostat"
-RDEPENDS:packagegroup-meta-oe-kernel:append:x86-64 = " intel-speed-select ipmiutil pm-graph turbostat bpftool"
-RDEPENDS:packagegroup-meta-oe-kernel:append:x86-64:libc-glibc = " kpatch"
+RDEPENDS:packagegroup-meta-oe-kernel:append:x86-64 = " intel-speed-select ipmiutil kpatch pm-graph turbostat bpftool"
 RDEPENDS:packagegroup-meta-oe-kernel:append:powerpc64 = " libpfm4"
 
 # Kernel-selftest does not build with 5.8 and its exluded from build too so until its fixed remove it
 RDEPENDS:packagegroup-meta-oe-kernel:remove = "kernel-selftest"
 RDEPENDS:packagegroup-meta-oe-kernel:remove:libc-musl = "bpftool crash intel-speed-select kernel-selftest minicoredumper turbostat"
 
-RDEPENDS:packagegroup-meta-oe-kernel:remove:mipsarcho32 = "makedumpfile"
+RDEPENDS:packagegroup-meta-oe-kernel:remove:mipsarch = "makedumpfile"
 RDEPENDS:packagegroup-meta-oe-kernel:remove:mips64 = "crash"
 RDEPENDS:packagegroup-meta-oe-kernel:remove:mips64el = "crash"
 
-RDEPENDS:packagegroup-meta-oe-kernel:remove:riscv64 = "crash oprofile"
+RDEPENDS:packagegroup-meta-oe-kernel:remove:riscv64 = "crash makedumpfile oprofile"
 RDEPENDS:packagegroup-meta-oe-kernel:remove:riscv32 = "crash makedumpfile oprofile"
 
 RDEPENDS:packagegroup-meta-oe-multimedia ="\
+    alsa-oss \
     ${@bb.utils.contains("LICENSE_FLAGS_ACCEPTED", "commercial", "faad2", "", d)} \
     dirsplit \
     genisoimage \
@@ -663,6 +669,7 @@ RDEPENDS:packagegroup-meta-oe-multimedia ="\
     jack-server \
     jack-utils \
     libass \
+    libburn \
     libcdio-paranoia \
     libcdio \
     ${@bb.utils.contains("LICENSE_FLAGS_ACCEPTED", "commercial", "libmad", "", d)} \
@@ -683,6 +690,8 @@ RDEPENDS:packagegroup-meta-oe-multimedia ="\
     ${@bb.utils.contains("DISTRO_FEATURES", "x11", "pavucontrol", "", d)} \
     libopusenc \
 "
+
+RDEPENDS:packagegroup-meta-oe-multimedia:remove:libc-musl = "alsa-oss"
 
 RDEPENDS:packagegroup-meta-oe-navigation ="\
     geos \
@@ -821,6 +830,7 @@ RDEPENDS:packagegroup-meta-oe-support ="\
     liblinebreak \
     mailcap \
     liboauth \
+    libol \
     mg \
     monit \
     mscgen \
@@ -874,7 +884,6 @@ RDEPENDS:packagegroup-meta-oe-support ="\
     raptor2 \
     rdfind \
     re2 \
-    sdmon \
     sdparm \
     serial-forward \
     read-edid \
@@ -891,6 +900,7 @@ RDEPENDS:packagegroup-meta-oe-support ="\
     pcsc-lite \
     pcsc-tools \
     sharutils \
+    ${@bb.utils.contains("DISTRO_FEATURES", "x11", "toscoterm", "", d)} \
     sg3-utils \
     ${@bb.utils.contains("DISTRO_FEATURES", "x11", "uim", "", d)} \
     uchardet \
@@ -923,8 +933,8 @@ RDEPENDS:packagegroup-meta-oe-support ="\
     libmicrohttpd \
     yaml-cpp \
 "
-RDEPENDS:packagegroup-meta-oe-support:append:armv7a = "${@bb.utils.contains("TUNE_FEATURES","neon"," ne10","",d)}"
-RDEPENDS:packagegroup-meta-oe-support:append:armv7ve = "${@bb.utils.contains("TUNE_FEATURES","neon"," ne10","",d)}"
+RDEPENDS:packagegroup-meta-oe-support:append:armv7a = " ne10"
+RDEPENDS:packagegroup-meta-oe-support:append:armv7ve = " ne10"
 RDEPENDS:packagegroup-meta-oe-support:append:aarch64 = " ne10"
 RDEPENDS:packagegroup-meta-oe-support:append:x86 = " mcelog mce-inject mce-test vboxguestdrivers"
 RDEPENDS:packagegroup-meta-oe-support:append:x86-64 = " mcelog mce-inject mce-test vboxguestdrivers"
@@ -976,8 +986,6 @@ RDEPENDS:packagegroup-meta-oe-ptest-packages = "\
     libee-ptest \
     poco-ptest \
     cmocka-ptest \
-    minicoredumper-ptest \
-    hiredis-ptest \
 "
 RDEPENDS:packagegroup-meta-oe-ptest-packages:append:x86 = " mcelog-ptest"
 RDEPENDS:packagegroup-meta-oe-ptest-packages:append:x86-64 = " mcelog-ptest"
@@ -985,7 +993,6 @@ RDEPENDS:packagegroup-meta-oe-ptest-packages:append:x86-64 = " mcelog-ptest"
 RDEPENDS:packagegroup-meta-oe-ptest-packages:remove:riscv64 = "oprofile-ptest"
 RDEPENDS:packagegroup-meta-oe-ptest-packages:remove:riscv32 = "oprofile-ptest"
 RDEPENDS:packagegroup-meta-oe-ptest-packages:remove:arm = "numactl-ptest"
-RDEPENDS:packagegroup-meta-oe-ptest-packages:remove:libc-musl = "minicoredumper-ptest"
 
 
 RDEPENDS:packagegroup-meta-oe-fortran-packages = "\
@@ -997,7 +1004,7 @@ RDEPENDS:packagegroup-meta-oe-fortran-packages = "\
 # They wont be built as part of images but might be interesting to include
 # with dev-pkgs images
 #
-# opencl-headers sdbus-c++-libsystemd nlohmann-fifo sqlite-orm
+# opencl-headers sdbus-c++-libsystemd boost-url nlohmann-fifo sqlite-orm
 # nlohmann-json exprtk liblightmodbus p8platform gnome-doc-utils-stub
 # glm ttf-mplus xbitmaps ceres-solver cli11 fftw gnulib libeigen ade
 # spdlog span-lite uthash websocketpp catch2 properties-cpp cpp-netlib

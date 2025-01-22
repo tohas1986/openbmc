@@ -8,7 +8,7 @@ DEPENDS = "sdbusplus \
            i2c-tools \
            boost \
            nlohmann-json"
-SRCREV = "9898d612c3f3fbacd08daff934a83bdb2a7c0dd5"
+SRCREV = "0da15b5517b05685c5af70ff6ee5d67e523f47de"
 PV = "0.1+git${SRCPV}"
 
 SRC_URI = "git://github.com/openbmc/ipmbbridge.git;branch=master;protocol=https"
@@ -16,6 +16,6 @@ SRC_URI = "git://github.com/openbmc/ipmbbridge.git;branch=master;protocol=https"
 SYSTEMD_SERVICE:${PN} = "ipmb.service"
 S = "${WORKDIR}/git"
 
-inherit meson pkgconfig systemd
+inherit cmake pkgconfig systemd
 
-FILES:${PN} += "${datadir}/ipmbbridge/ipmb-channels.json"
+FILES:${PN} += "/usr/share/ipmbbridge/ipmb-channels.json"

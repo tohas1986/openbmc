@@ -20,7 +20,7 @@ class ProgressWatcher:
     def __init__(self):
         self._reports = []
 
-    def handle_event(self, event, d):
+    def handle_event(self, event):
         self._reports.append((event.progress, event.rate))
 
     def reports(self):

@@ -1,0 +1,320 @@
+From 4e3694139687e3aa0f58a3ecf581be08aac4731f Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Tue, 22 Aug 2023 09:20:32 +0000
+Subject: [PATCH] Fix-tach-sensor-bable
+
+---
+ include/TachSensor.hpp |  14 +++
+ src/TachSensor.cpp     | 239 ++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 251 insertions(+), 2 deletions(-)
+
+diff --git a/include/TachSensor.hpp b/include/TachSensor.hpp
+index 6f28396..5f5e610 100644
+--- a/include/TachSensor.hpp
++++ b/include/TachSensor.hpp
+@@ -91,10 +91,24 @@ class TachSensor :
+     std::string path;
+     std::optional<std::string> led;
+     bool ledState = false;
++    int yesFanHasErrorCnt = 0;
++    int noFanHasNoErrorCnt = 0;
++    bool currentPwmValue;
++    bool brokenFan = false;
++    bool stopFanErrorsCnt = false;
++
++    std::map <std::string, std::string> params;
++    std::string pwmCurrentValue;
++    std::string tachCurrentValue;
++    std::string tachTableValue;
+ 
+     void handleResponse(const boost::system::error_code& err, size_t bytesRead);
+     void restartRead(size_t pollTime);
+     void checkThresholds(void) override;
++    void readPwmTachConfig();
++    void getCurrentPWMorTach(std::string& value, std::string detector);
++    void getTachCorrespondingToPwmValue(std::string& pwmCurrentValue, std::string& tachTableValue);
++
+ };
+ 
+ inline void logFanInserted(const std::string& device)
+diff --git a/src/TachSensor.cpp b/src/TachSensor.cpp
+index 17f58fb..8d11b1e 100644
+--- a/src/TachSensor.cpp
++++ b/src/TachSensor.cpp
+@@ -15,7 +15,6 @@
+ */
+ 
+ #include <unistd.h>
+-
+ #include <TachSensor.hpp>
+ #include <Utils.hpp>
+ #include <boost/asio/read_until.hpp>
+@@ -36,6 +35,37 @@
+ #include <vector>
+ 
+ static constexpr unsigned int pwmPollMs = 500;
++static constexpr bool DEBUG = false;
++
++static std::map<std::string, std::string> node_pwm = {{ "CPU_FAN1", "pwm1"},
++                                                        { "CPU_FAN2", "pwm2"},
++                                                        { "SYS_FAN1", "pwm3"},
++                                                        { "SYS_FAN2", "pwm4"}};
++
++static std::map<std::string, std::string> asus_node_pwm = {{ "CPU_FAN1", "pwm3"},
++                                                            { "CPU_FAN2", "pwm4"},
++                                                            { "SYS_FAN1", "pwm1"},
++                                                            { "SYS_FAN2", "pwm2"}};
++
++static std::map<std::string, std::string> storage_pwm = {{ "SYS_FAN1", "pwm1"},
++                                                            { "SYS_FAN2", "pwm2"},
++                                                            { "SYS_FAN3", "pwm3"},
++                                                            { "SYS_FAN4", "pwm4"}};
++
++static std::map<std::string, std::string> asus_node_tach = {{ "CPU_FAN1", "fan3_input"},
++                                                            { "CPU_FAN2", "fan4_input"},
++                                                            { "SYS_FAN1", "fan1_input"},
++                                                            { "SYS_FAN2", "fan2_input"}};
++
++static std::map<std::string, std::string> node_tach = {{ "CPU_FAN1", "fan1_input"},
++                                                        { "CPU_FAN2", "fan2_input"},
++                                                        { "SYS_FAN1", "fan3_input"},
++                                                        { "SYS_FAN2", "fan4_input"}};
++
++static std::map<std::string, std::string> storage_tach = {{ "SYS_FAN1", "fan1_input"},
++                                                            { "SYS_FAN2", "fan2_input"},
++                                                            { "SYS_FAN3", "fan3_input"},
++                                                            { "SYS_FAN4", "fan4_input"}};
+ 
+ TachSensor::TachSensor(const std::string& path, const std::string& objectType,
+                        sdbusplus::asio::object_server& objectServer,
+@@ -139,6 +169,149 @@ void TachSensor::restartRead(size_t pollTime)
+     });
+ }
+ 
++std::string serverName()
++{
++    std::string board = "board";
++    std::string line;
++    std::ifstream file;
++    file.open("/usr/share/openrack/machine", std::ios::in);
++
++    if (!file.is_open())
++    {
++        throw std::runtime_error("Unable to open /usr/share/openrack/machine file");
++    }
++
++    while (getline(file, line))
++    {
++        if (line.find("model=") != std::string::npos)
++        {
++            line.erase(0, 6);
++            std::stringstream iss(line);
++            iss >> board;
++            break;
++        }
++    }
++
++    return board;
++}
++
++void TachSensor::getTachCorrespondingToPwmValue(std::string& pwmCurrentValue, std::string& tachTableValue)
++{
++    tachTableValue = params[pwmCurrentValue];
++}
++
++void TachSensor::readPwmTachConfig()
++{
++    std::ifstream file;
++    std::string line;
++    std::string pwm;
++    std::string tach;
++    std::string path = "/usr/share/swampd/" + serverName() + "_fan_data.txt";
++
++    file.open(path, std::ios::in);
++    if (!file.is_open())
++    {
++        throw std::runtime_error("Unable to open: " + path + "\n");
++    }
++
++    while ( file.good() ){
++        getline(file, line, ';');
++        std::istringstream ss(line);
++        ss >> tach >> pwm; // set the variables
++        params[pwm] = tach; // input them into the map
++    }
++    file.close();
++}
++
++std::string getFanControllerPwd(std::string board)
++{
++    std::string fanControllerPwd;
++    std::string line;
++    std::ifstream file;
++    file.open("/usr/share/swampd/fan_controller_pwd.txt", std::ios::in);
++
++    if (!file.is_open())
++    {
++        throw std::runtime_error("Unable to open /usr/share/swampd/fan_controller_pwd.txt file");
++    }
++
++    while (std::getline(file, line))
++    {
++        if (line.find(board + ":") != std::string::npos)
++        {
++            //Cut line from ":" to end of line
++            line = line.substr(line.find(":") + 1);
++            std::stringstream iss(line);
++            iss >> fanControllerPwd;
++            break;
++        }
++    }
++    
++    file.close();
++
++    return fanControllerPwd;
++}
++
++void TachSensor::getCurrentPWMorTach(std::string& value, std::string detector)
++{
++    std::string path;
++    std::string line;
++    std::fstream file;
++    std::string board = serverName();
++
++    std::string pwd = getFanControllerPwd(board);
++
++    if(board == "mzb2" || board == "my62")
++    {
++        if(detector == "pwm")
++        {
++            path = pwd + node_pwm[name];
++        }
++        else
++        {
++            path = pwd + node_tach[name];
++        }
++    }
++    else if(board == "ai1")
++    {
++        if(detector == "pwm")
++        {
++            path = pwd + asus_node_pwm[name];
++        }
++        else
++        {
++            path = pwd + asus_node_tach[name];
++        }
++    }
++    else
++    {
++        if(detector == "pwm")
++        {
++            path = pwd + storage_pwm[name];
++        }
++        else
++        {
++            path = pwd + storage_tach[name];
++        }
++    }
++
++    file.open(path, std::ios::in);
++    if (!file.is_open())
++    {
++        throw std::runtime_error("Unable to open: " + path + "\n");
++        file.close();
++    }
++
++    while (getline(file, line))
++    {
++        std::stringstream iss(line);
++        iss >> value;
++        break;
++    }
++
++    file.close();
++}
++
+ void TachSensor::handleResponse(const boost::system::error_code& err,
+                                 size_t bytesRead)
+ {
+@@ -150,6 +323,11 @@ void TachSensor::handleResponse(const boost::system::error_code& err,
+     }
+     bool missing = false;
+     size_t pollTime = pwmPollMs;
++    std::string detector;
++    std::string board = serverName();
++
++    //readPwmTachConfig();
++
+     if (presence)
+     {
+         if (!presence->getValue())
+@@ -176,7 +354,64 @@ void TachSensor::handleResponse(const boost::system::error_code& err,
+             }
+             else
+             {
+-                updateValue(nvalue);
++                if((board == "g1") || (board == "my81") || (board == "mz81"))
++                {
++                    updateValue(nvalue);
++                }
++                else
++                {
++                    //getCurrentPWMorTach(pwmCurrentValue, "pwm");
++
++                    //getCurrentPWMorTach(tachCurrentValue, "tach");
++
++                    //getTachCorrespondingToPwmValue(pwmCurrentValue, tachTableValue);
++
++                    //int tachTempOne = std::stoi(tachCurrentValue);
++                    //int tachTempTwo = std::stoi(tachTableValue);
++
++                    //if ((tachTempOne < (tachTempTwo - (tachTempTwo*0.4))) ||
++                    //    (tachTempOne > (tachTempTwo + (tachTempTwo*0.4))))
++                    if(nvalue == 0)
++                    {
++                        if(!stopFanErrorsCnt)
++                        {
++                            yesFanHasErrorCnt++;
++                            if(DEBUG)std::cerr << "Increment Error, Tach value over the limit: " << name << "\n";
++                        }
++
++                        noFanHasNoErrorCnt = 0;
++                    }
++                    else
++                    {
++                        if(brokenFan)
++                        {
++                            noFanHasNoErrorCnt++;
++                            if(DEBUG)std::cerr << "Reading normal value from broken FAN: " << name << "\n";
++                        }
++                    }
++
++                    if(yesFanHasErrorCnt > 60)
++                    {
++                        brokenFan = true;
++                        stopFanErrorsCnt = true;
++                        updateValue(std::numeric_limits<double>::quiet_NaN());
++                        if(DEBUG)std::cerr << "Fan has errors: " << name << "\n";
++                    }
++                    else
++                    {
++                        updateValue(nvalue);
++                        if(DEBUG)std::cerr << "Reading good value from FAN: " << name << "\n";
++                    }
++
++                    if((noFanHasNoErrorCnt > 60) && brokenFan)
++                    {
++                        noFanHasNoErrorCnt = 0;
++                        yesFanHasErrorCnt = 0;
++                        brokenFan = false;
++                        stopFanErrorsCnt = false;
++                        if(DEBUG)std::cerr << "Failure could be false positive, please check FAN manually: " << name << "\n";
++                    }
++                }
+             }
+         }
+         else
+-- 
+2.34.1
+

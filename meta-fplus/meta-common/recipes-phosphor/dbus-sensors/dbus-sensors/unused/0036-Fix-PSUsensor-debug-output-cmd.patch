@@ -1,0 +1,44 @@
+From 214087b890c8185f54867202e5defd0b91826edd Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 9 Apr 2021 09:04:26 +0000
+Subject: [PATCH] Fix PSUsensor debug output cmd
+
+---
+ src/PSUSensorMain.cpp | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/PSUSensorMain.cpp b/src/PSUSensorMain.cpp
+index 38137ed..25c016c 100644
+--- a/src/PSUSensorMain.cpp
++++ b/src/PSUSensorMain.cpp
+@@ -402,9 +402,12 @@ static void createSensorsCallback(
+ 
+             if ((*confBus != bus) || (*confAddr != addr))
+             {
+-                std::cerr << "Configuration skipping " << *confBus << "-"
++                if (DEBUG)
++                {
++                    std::cerr << "Configuration skipping " << *confBus << "-"
+                           << *confAddr << " because not " << bus << "-" << addr
+                           << "\n";
++                }
+                 continue;
+             }
+ 
+@@ -1010,8 +1013,12 @@ std::map<std::string, int> BridgeGpio::requests;
+ std::map<std::string, int> BridgeGpio::releases;
+ bool BridgeGpio::debug = false;
+ 
+-int main()
++int main(int argc, char* argv[])
+ {
++    CLI::App app("PSU and HWMON sensors poller");
++    app.add_option("-v,--verbose", DEBUG, "print debug output");
++    CLI11_PARSE(app, argc, argv);
++
+     boost::asio::io_service io;
+     auto systemBus = std::make_shared<sdbusplus::asio::connection>(io);
+ 
+-- 
+2.7.4
+

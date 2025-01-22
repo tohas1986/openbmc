@@ -1,0 +1,77 @@
+From 73ec0cc0dabe0dd147b540d907b2fe30d1f2ab9e Mon Sep 17 00:00:00 2001
+From: Hieu Huynh <hieuh@os.amperecomputing.com>
+Date: Fri, 3 Sep 2021 04:59:57 +0000
+Subject: [PATCH] Fix compilation error on new OpenBMC codebase
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Fix compilation error on new OpenBMC codebase by correcting tabs to fix
+"this ‘if’ clause does not guard... [-Wmisleading-indentation]" warning.
+This commit also corrects the size of variables to fix
+"[-Werror=stringop-overflow=]" error.
+
+Signed-off-by: Hieu Huynh <hieuh@os.amperecomputing.com>
+---
+ src/flash/nor/numicro.c | 6 +++---
+ src/target/arm920t.c    | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/flash/nor/numicro.c b/src/flash/nor/numicro.c
+index 7609fa81c..1971daa24 100644
+--- a/src/flash/nor/numicro.c
++++ b/src/flash/nor/numicro.c
+@@ -1243,7 +1243,7 @@ static uint32_t numicro_fmc_cmd(struct target *target, uint32_t cmd, uint32_t ad
+ 		retval = target_read_u32(target, NUMICRO_FLASH_ISPTRG, &status);
+ 		if (retval != ERROR_OK)
+ 			return retval;
+-			LOG_DEBUG("status: 0x%" PRIx32 "", status);
++		LOG_DEBUG("status: 0x%" PRIx32 "", status);
+ 		if ((status & (ISPTRG_ISPGO)) == 0)
+ 			break;
+ 		if (timeout-- <= 0) {
+@@ -1512,7 +1512,7 @@ static int numicro_erase(struct flash_bank *bank, unsigned int first,
+ 			retval = target_read_u32(target, NUMICRO_FLASH_ISPTRG, &status);
+ 			if (retval != ERROR_OK)
+ 				return retval;
+-				LOG_DEBUG("status: 0x%" PRIx32 "", status);
++			LOG_DEBUG("status: 0x%" PRIx32 "", status);
+ 			if (status == 0)
+ 				break;
+ 			if (timeout-- <= 0) {
+@@ -1601,7 +1601,7 @@ static int numicro_write(struct flash_bank *bank, const uint8_t *buffer,
+ 				retval = target_read_u32(target, NUMICRO_FLASH_ISPTRG, &status);
+ 				if (retval != ERROR_OK)
+ 					return retval;
+-					LOG_DEBUG("status: 0x%" PRIx32 "", status);
++				LOG_DEBUG("status: 0x%" PRIx32 "", status);
+ 				if (status == 0)
+ 					break;
+ 				if (timeout-- <= 0) {
+diff --git a/src/target/arm920t.c b/src/target/arm920t.c
+index c96975a77..6809492d7 100644
+--- a/src/target/arm920t.c
++++ b/src/target/arm920t.c
+@@ -245,8 +245,8 @@ static int arm920t_read_cp15_interpreted(struct target *target,
+ 	uint32_t cp15_opcode, uint32_t address, uint32_t *value)
+ {
+ 	struct arm *arm = target_to_arm(target);
+-	uint32_t *regs_p[1];
+-	uint32_t regs[2];
++	uint32_t *regs_p[16];
++	uint32_t regs[16];
+ 	uint32_t cp15c15 = 0x0;
+ 	struct reg *r = arm->core_cache->reg_list;
+ 
+@@ -295,7 +295,7 @@ int arm920t_write_cp15_interpreted(struct target *target,
+ {
+ 	uint32_t cp15c15 = 0x0;
+ 	struct arm *arm = target_to_arm(target);
+-	uint32_t regs[2];
++	uint32_t regs[16];
+ 	struct reg *r = arm->core_cache->reg_list;
+ 
+ 	/* load value, address into R0, R1 */
+-- 
+2.17.1
+

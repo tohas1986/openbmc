@@ -1,0 +1,22 @@
+From 573d6ae312c987d2e21384614926a9ca66b2a0fd Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 3 Oct 2022 07:44:52 +0000
+Subject: [PATCH] Update to C++20
+
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4aa0f03..6ebdbce 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -4,7 +4,7 @@ cmake_policy (SET CMP0054 NEW)
+ 
+ option (YOCTO "Use YOCTO depedencies system" OFF)
+ include (ExternalProject)
+-set (CMAKE_CXX_STANDARD 17)
++set (CMAKE_CXX_STANDARD 20)
+ set (CMAKE_CXX_STANDARD_REQUIRED ON)
+ set (CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+ 

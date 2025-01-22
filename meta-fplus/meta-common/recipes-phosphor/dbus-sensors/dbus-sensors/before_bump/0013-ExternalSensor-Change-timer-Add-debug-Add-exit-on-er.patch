@@ -1,0 +1,49 @@
+From 199c790bb52484065914b8d176ad53f4c1cfc17c Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 10:12:09 +0000
+Subject: [PATCH 13/16] ExternalSensor: Change timer; Add debug; Add exit on
+ error
+
+---
+ src/ExternalSensor.cpp     | 2 +-
+ src/ExternalSensorMain.cpp | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/ExternalSensor.cpp b/src/ExternalSensor.cpp
+index c6db174..a4e6ef0 100644
+--- a/src/ExternalSensor.cpp
++++ b/src/ExternalSensor.cpp
+@@ -6,7 +6,7 @@
+ 
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
++#include <boost/asio/steady_timer.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+diff --git a/src/ExternalSensorMain.cpp b/src/ExternalSensorMain.cpp
+index 19b8f60..0fbf73b 100644
+--- a/src/ExternalSensorMain.cpp
++++ b/src/ExternalSensorMain.cpp
+@@ -223,7 +223,7 @@ int main()
+         createSensors(io, objectServer, sensors, systemBus, nullptr);
+     });
+ 
+-    boost::asio::deadline_timer filterTimer(io);
++    boost::asio::steady_timer filterTimer(io);
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&io, &objectServer, &sensors, &systemBus, &sensorsChanged,
+          &filterTimer](sdbusplus::message::message& message) {
+@@ -234,7 +234,7 @@ int main()
+             }
+             sensorsChanged->insert(message.get_path());
+             // this implicitly cancels the timer
+-            filterTimer.expires_from_now(boost::posix_time::seconds(1));
++            filterTimer.expires_from_now(boost::asio::chrono::seconds(1));
+ 
+             filterTimer.async_wait([&io, &objectServer, &sensors, &systemBus,
+                                     &sensorsChanged](
+-- 
+2.7.4
+

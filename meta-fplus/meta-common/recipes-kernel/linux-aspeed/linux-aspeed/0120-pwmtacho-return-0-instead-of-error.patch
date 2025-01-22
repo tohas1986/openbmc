@@ -1,0 +1,25 @@
+From ed6d770991c73ddc9999b14a20b2540e52975873 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 28 Oct 2020 10:53:24 +0000
+Subject: [PATCH 1/1] pwmtacho: return 0 instead of error
+
+---
+ drivers/hwmon/aspeed-pwm-tacho.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/hwmon/aspeed-pwm-tacho.c b/drivers/hwmon/aspeed-pwm-tacho.c
+index 3d8239f..b1d6553 100644
+--- a/drivers/hwmon/aspeed-pwm-tacho.c
++++ b/drivers/hwmon/aspeed-pwm-tacho.c
+@@ -547,7 +547,7 @@ static int aspeed_get_fan_tach_ch_rpm(struct aspeed_pwm_tacho_data *priv,
+ 
+ 	/* return -ETIMEDOUT if we didn't get an answer. */
+ 	if (ret)
+-		return ret;
++		return 0;
+ 
+ 	raw_data = val & RESULT_VALUE_MASK;
+ 	tach_div = priv->type_fan_tach_clock_division[type];
+-- 
+2.7.4
+

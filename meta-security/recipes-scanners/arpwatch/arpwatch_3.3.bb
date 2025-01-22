@@ -23,7 +23,9 @@ ARPWATH_REPLY ?= "${ARPWATCH_UID}"
 
 PACKAGECONFIG ??= ""
 
-PACKAGECONFIG[email] = "-with-watcher=email=${APRWATCH_FROM} --with-watchee=email=${ARPWATH_REPLY}, , postfix, postfix postfix-cfg"
+PACKACONFIG[email] = "-with-watcher=email=${APRWATCH_FROM} --with-watchee=email=${ARPWATH_REPLY}, , postfix, postfix postfix-cfg"
+
+EXTRA_OECONF:append = " --srcdir=${S}"
 
 CONFIGUREOPTS = " --build=${BUILD_SYS} \
           --host=${HOST_SYS} \
@@ -39,20 +41,19 @@ CONFIGUREOPTS = " --build=${BUILD_SYS} \
           --localstatedir=${localstatedir} \
           --libdir=${libdir} \
           --includedir=${includedir} \
+          --oldincludedir=${oldincludedir} \
           --infodir=${infodir} \
           --mandir=${mandir} \
-          --srcdir=${S} \
-          --with-sendmail=${sbindir}/sendmail \
           "
 
 do_configure () {
-    ${S}/configure ${CONFIGUREOPTS}
+    ${S}/configure ${CONFIGUREOPTS} ${EXTRA_OECONF}
 }
 
 do_install () {
     install -d ${D}${bindir}
     install -d ${D}${sbindir}
-    install -d ${D}${mandir}/man8
+    install -d ${D}${mandir}
     install -d ${D}${sysconfdir}
     install -d ${D}${sysconfdir}/default
     install -d ${D}${sysconfdir}/init.d
@@ -81,6 +82,6 @@ FILES:${PN} = "${bindir} ${sbindir} ${prefix}/etc/rc.d \
 
 COMPATIBLE_HOST:riscv32 = "null"
 COMPATIBLE_HOST:riscv64 = "null"
-COMPATIBLE_HOST:libc-musl = "null"
+OMPATIBLE_HOST:libc-musl = "null"
 
 RDEPENDS:${PN} = "libpcap"

@@ -1,0 +1,213 @@
+From d0d8bfe0760b3d4e7a65cb17f566ca55dcaaa193 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 1 Feb 2022 08:26:03 +0000
+Subject: [PATCH] Add Asus OEM NIC record
+
+---
+ include/nic.hpp          | 25 +++++++++++++---
+ include/smbios_mdrv2.hpp |  3 +-
+ src/mdrv2.cpp            | 22 +++++++++++---
+ src/nic.cpp              | 65 +++++++++++++++++++++++++++-------------
+ 4 files changed, 85 insertions(+), 30 deletions(-)
+
+diff --git a/include/nic.hpp b/include/nic.hpp
+index c658769..5d45fdb 100644
+--- a/include/nic.hpp
++++ b/include/nic.hpp
+@@ -40,16 +40,16 @@ class NIC:
+     NIC& operator=(NIC&&) = default;
+ 
+     NIC(sdbusplus::bus::bus& bus, const std::string& objPath,
+-         const uint8_t& nicId, uint8_t* smbiosTableStorage) :
++         const uint8_t& nicId, uint8_t* smbiosTableStorage, uint8_t oemNICType) :
+         sdbusplus::server::object::object<
+             sdbusplus::xyz::openbmc_project::Inventory::Item::server::Ethernet>(
+             bus, objPath.c_str()),
+         nicNum(nicId), storage(smbiosTableStorage)
+     {
+-        nicInfoUpdate();
++        nicInfoUpdate(oemNICType);
+     }
+ 
+-    void nicInfoUpdate(void);
++    void nicInfoUpdate(uint8_t);
+ 
+     std::string nicMACAddress(std::string value) override;
+     std::string nicManufacturerID(std::string value) override;
+@@ -61,7 +61,7 @@ class NIC:
+ 
+     uint8_t* storage;
+ 
+-    struct NICInfo
++    struct NICInfoGBT
+     {
+         uint8_t type;
+         uint8_t length;
+@@ -84,6 +84,23 @@ class NIC:
+         uint8_t  linkSpeed;
+         uint16_t onboardIndex;
+     } __attribute__((packed));
++
++    typedef struct {
++        uint8_t  Bus;    // PCIE bus number
++        uint8_t  Dev;    // PCIE device number
++        uint8_t  Fun;    // PCIE function number
++        uint8_t  Mac[6]; // Mac address
++    } type_80_nic_info;
++
++    struct NICInfoAsus
++    {
++        uint8_t type;
++        uint8_t length;
++        uint16_t handle;
++
++        uint8_t  numOfNics;
++        type_80_nic_info nic[4];
++    } __attribute__((packed));
+ };
+ 
+ } // namespace smbios
+diff --git a/include/smbios_mdrv2.hpp b/include/smbios_mdrv2.hpp
+index 132b8ee..cb733e7 100644
+--- a/include/smbios_mdrv2.hpp
++++ b/include/smbios_mdrv2.hpp
+@@ -196,8 +196,9 @@ typedef enum
+     systemEventLogType = 15,
+     physicalMemoryArrayType = 16,
+     memoryDeviceType = 17,
++    oemNICTypeAsus = 80,
+     oemDriveType = 129,
+-    oemNICType = 131,
++    oemNICTypeGBT = 131,
+ } SmbiosType;
+ 
+ static constexpr uint8_t separateLen = 2;
+diff --git a/src/mdrv2.cpp b/src/mdrv2.cpp
+index 681b32e..69bb57e 100644
+--- a/src/mdrv2.cpp
++++ b/src/mdrv2.cpp
+@@ -467,17 +467,31 @@ void MDR_V2::systemInfoUpdate()
+         bus, systemPath, smbiosDir.dir[smbiosDirIndex].dataStorage);
+ 
+     nics.clear();
+-    num = getRecordsNumByType(oemNICType);
+-    if (num == -1)
++    uint8_t oemNICType;
++    while(1)
+     {
+-        std::cerr << __FUNCTION__ << " get oem nic records failed\n";
++        oemNICType = oemNICTypeGBT;
++        num = getRecordsNumByType(oemNICType);
++        if (num > 0)
++        {
++            std::cerr << __FUNCTION__ << " GBT oem nic records found\n";
++            break;
++        }
++        oemNICType = oemNICTypeAsus;
++        num = getRecordsNumByType(oemNICType);
++        if (num > 0)
++        {
++            std::cerr << __FUNCTION__ << " Asus oem nic records found\n";
++            break;
++        }
++        num = -1; break;
+     }
+ 
+     for (int index = 0; index < num; index++)
+     {
+         std::string path = nicPath + std::to_string(index);
+         nics.emplace_back(std::make_unique<phosphor::smbios::NIC>(
+-            bus, path, index, smbiosDir.dir[smbiosDirIndex].dataStorage));
++            bus, path, index, smbiosDir.dir[smbiosDirIndex].dataStorage, oemNICType));
+     }
+ 
+     drives.clear();
+diff --git a/src/nic.cpp b/src/nic.cpp
+index 4c251de..c4e5233 100644
+--- a/src/nic.cpp
++++ b/src/nic.cpp
+@@ -47,7 +47,7 @@ std::string NIC::nicProductID(std::string value)
+ }
+ 
+ 
+-void NIC::nicInfoUpdate(void)
++void NIC::nicInfoUpdate(uint8_t oemNICType)
+ {
+     uint8_t* dataIn = storage;
+ 
+@@ -70,32 +70,55 @@ void NIC::nicInfoUpdate(void)
+         }
+     }
+ 
+-    auto nicInfo = reinterpret_cast<struct NICInfo*>(dataIn);
++    if (oemNICType == oemNICTypeAsus)
++    {
++        auto nicInfo = reinterpret_cast<struct NICInfoAsus*>(dataIn);
+ 
+-    std::string manufacturer = positionToString(nicInfo->strManufacturer, nicInfo->length, dataIn);
+-    std::string fwVersion = positionToString(nicInfo->strFwVersion, nicInfo->length, dataIn);
++        std::stringstream ss_mac;
++        for(int i=0;i<6;i++)
++        {
++            ss_mac << std::hex << std::setfill('0') << std::setw(2) << +nicInfo->nic[0].Mac[i];
++            if (i !=5)
++            ss_mac << ":";
++        }
++        std::string macAddress = ss_mac.str();
++        std::cerr <<__FUNCTION__ << " Asus NIC found: " << macAddress << "\n";
+ 
+-    std::stringstream ss_mac;
+-    for(int i=0;i<6;i++)
+-    {
+-        ss_mac << std::hex << std::setfill('0') << std::setw(2) << +nicInfo->macAddress[i];
+-        if (i !=5)
+-          ss_mac << ":";
++        nicMACAddress(macAddress);
++        return;
+     }
+-    std::string macAddress = ss_mac.str();
+ 
+-    std::stringstream ss_vid;
+-    ss_vid << "0x" << std::hex << std::setfill('0') << std::setw(4) << +nicInfo->vendorID;
+-    std::string vendorId = ss_vid.str();
++    if (oemNICType == oemNICTypeGBT)
++    {
++        auto nicInfo = reinterpret_cast<struct NICInfoGBT*>(dataIn);
+ 
+-    std::stringstream ss_pid;
+-    ss_pid << "0x" << std::hex << std::setfill('0') << std::setw(4) << +nicInfo->deviceID;
+-    std::string productId = ss_pid.str();
++        std::string manufacturer = positionToString(nicInfo->strManufacturer, nicInfo->length, dataIn);
++        std::string fwVersion = positionToString(nicInfo->strFwVersion, nicInfo->length, dataIn);
+ 
+-    nicMACAddress(macAddress);
+-    nicManufacturerID(manufacturer);
+-    nicVendorID(vendorId);
+-    nicProductID(productId);
++        std::stringstream ss_mac;
++        for(int i=0;i<6;i++)
++        {
++            ss_mac << std::hex << std::setfill('0') << std::setw(2) << +nicInfo->macAddress[i];
++            if (i !=5)
++            ss_mac << ":";
++        }
++        std::string macAddress = ss_mac.str();
++        std::cerr <<__FUNCTION__ << " GBT NIC found: " << macAddress << "\n";
++
++        std::stringstream ss_vid;
++        ss_vid << "0x" << std::hex << std::setfill('0') << std::setw(4) << +nicInfo->vendorID;
++        std::string vendorId = ss_vid.str();
++
++        std::stringstream ss_pid;
++        ss_pid << "0x" << std::hex << std::setfill('0') << std::setw(4) << +nicInfo->deviceID;
++        std::string productId = ss_pid.str();
++
++        nicMACAddress(macAddress);
++        nicManufacturerID(manufacturer);
++        nicVendorID(vendorId);
++        nicProductID(productId);
++        return;
++    }
+ }
+ 
+ } // namespace smbios

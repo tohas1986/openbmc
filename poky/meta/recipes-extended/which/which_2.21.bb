@@ -13,6 +13,7 @@ DEPENDS     = "cwautomacros-native"
 
 inherit autotools texinfo update-alternatives
 
+PR = "r3"
 
 EXTRA_OECONF = "--disable-iberty"
 

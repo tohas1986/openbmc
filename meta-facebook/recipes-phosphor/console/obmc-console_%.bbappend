@@ -1,26 +1,26 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
+OBMC_CONSOLE_HOST_TTY = "ttyS2"
 
-require conf/recipes/fb-consoles.inc
+SRC_URI:append:fb-compute-singlehost = " file://server.ttyS2.conf"
 
-# Disable obmc-console ssh ports.
-PACKAGECONFIG:remove = "ssh"
-# Remove default config.
+SRC_URI:append:fb-compute-multihost = " file://server.ttyS0.conf \
+                                        file://server.ttyS1.conf \
+                                        file://server.ttyS2.conf \
+                                        file://server.ttyS3.conf \
+                                        file://client.2200.conf \
+                                        file://client.2201.conf \
+                                        file://client.2202.conf \
+                                        file://client.2203.conf"
+
 SRC_URI:remove = "file://${BPN}.conf"
 
-OBMC_BMC_TTY = "ttyS4"
-SERVER_CONFS = "${@ ' '.join([ f'file://server.{i}.conf' for i in d.getVar('OBMC_CONSOLE_TTYS', True).split() ])}"
-
-SRC_URI:append = " ${SERVER_CONFS}"
-SRC_URI:append = " file://client.conf "
-
-OBMC_SOL_ROUTING ?= ""
+SYSTEMD_SERVICE:${PN}:remove:fb-compute-multihost = "obmc-console-ssh.socket"
+EXTRA_OECONF:append:fb-compute-multihost = " --enable-concurrent-servers"
 
 do_install:append() {
-  install -m 0644 ${WORKDIR}/client.conf ${D}${sysconfdir}/${BPN}/client.conf
-}
-
-do_install:prepend() {
-    if [ -f "${WORKDIR}/server.${OBMC_CONSOLE_HOST_TTY}.conf" ]; then
-        sed -i "s/\"OBMC_SOL_ROUTING\"/${OBMC_SOL_ROUTING}/g" ${WORKDIR}/server.${OBMC_CONSOLE_HOST_TTY}.conf
-    fi
+        # Install the server configuration
+        install -m 0755 -d ${D}${sysconfdir}/${BPN}
+        install -m 0644 ${WORKDIR}/*.conf ${D}${sysconfdir}/${BPN}/
+        # Remove upstream-provided server configuration
+        rm -f ${D}${sysconfdir}/${BPN}/server.ttyVUART0.conf
 }

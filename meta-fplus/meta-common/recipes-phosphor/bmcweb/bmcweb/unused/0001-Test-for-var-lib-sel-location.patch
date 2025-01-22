@@ -1,0 +1,25 @@
+From 83dfaf0c7e72871a36bb76106c408038f4057ac1 Mon Sep 17 00:00:00 2001
+From: vedenena <vedenena@yandex-team.ru>
+Date: Thu, 21 May 2020 22:10:36 +0300
+Subject: [PATCH] Test for var lib sel location
+
+---
+ redfish-core/lib/log_services.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/redfish-core/lib/log_services.hpp b/redfish-core/lib/log_services.hpp
+index 73a7bb6..4007402 100644
+--- a/redfish-core/lib/log_services.hpp
++++ b/redfish-core/lib/log_services.hpp
+@@ -404,7 +404,7 @@ static bool getTimestampFromID(crow::Response &res, const std::string &entryID,
+ static bool
+     getRedfishLogFiles(std::vector<std::filesystem::path> &redfishLogFiles)
+ {
+-    static const std::filesystem::path redfishLogDir = "/var/log";
++    static const std::filesystem::path redfishLogDir = "/var/lib/ipmi";
+     static const std::string redfishLogFilename = "redfish";
+ 
+     // Loop through the directory looking for redfish log files
+-- 
+1.9.1
+

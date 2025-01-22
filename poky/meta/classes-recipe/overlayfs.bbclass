@@ -138,5 +138,4 @@ do_install:append() {
     done
 }
 
-do_create_overlayfs_units[vardeps] += "OVERLAYFS_WRITABLE_PATHS"
 addtask create_overlayfs_units before do_install

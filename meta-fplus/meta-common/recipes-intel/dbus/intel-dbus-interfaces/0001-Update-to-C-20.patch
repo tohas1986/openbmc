@@ -1,0 +1,22 @@
+From a99758ea81a1bfbbfa3b4940a4fe5388d0e4a9c3 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 3 Oct 2022 07:57:07 +0000
+Subject: [PATCH] Update to C++20
+
+---
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/configure.ac b/configure.ac
+index 2fafab1..41454d4 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -32,7 +32,7 @@ AS_IF([test "x$enable_libintel_dbus" != "xno"], [
+     AX_PKG_CHECK_MODULES([SDBUSPLUS], [], [sdbusplus])
+ 
+     # Checks for typedefs, structures, and compiler characteristics.
+-    AX_CXX_COMPILE_STDCXX_17([noext])
++    AX_CXX_COMPILE_STDCXX(20, [noext], [mandatory])
+     AX_APPEND_COMPILE_FLAGS([-Wall -Werror], [CFLAGS])
+     AX_APPEND_COMPILE_FLAGS([-Wall -Werror], [CXXFLAGS])
+ 

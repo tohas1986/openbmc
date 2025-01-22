@@ -10,6 +10,8 @@ PYPI_PACKAGE = "robotframework-seriallibrary"
 inherit pypi setuptools3
 
 RDEPENDS:${PN} += " \
-    python3-pyserial \
-    python3-robotframework \
+    ${PYTHON_PN}-pyserial \
+    ${PYTHON_PN}-robotframework \
 "
+
+BBCLASSEXTEND = "native nativesdk"

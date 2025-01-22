@@ -15,13 +15,9 @@ inherit cmake pkgconfig
 
 PACKAGES = "lib${BPN} lib${BPN}-dev lib${BPN}-staticdev ${PN} ${PN}-dbg"
 
-EXTRA_OECMAKE = " \
-    -DCMAKECONFIG_INSTALL_DIR:PATH=${@os.path.relpath(d.getVar('libdir'), d.getVar('prefix') + '/') + "/cmake/"} \
-"
-
 FILES:${PN} = "${bindir}/*"
 FILES:lib${BPN} = "${libdir}/*.so.*"
-FILES:lib${BPN}-dev = "${libdir}/*.so ${libdir}/pkgconfig ${includedir} ${libdir}/cmake"
+FILES:lib${BPN}-dev = "${libdir}/*.so ${libdir}/pkgconfig ${includedir} ${datadir}/cmake"
 FILES:lib${BPN}-staticdev = "${libdir}/lib*.a"
 
 RDEPENDS:lib${BPN}-dev = "zeromq-dev"
@@ -34,8 +30,9 @@ PACKAGECONFIG[nss] = "-DCZMQ_WITH_NSS=ON,-DCZMQ_WITH_NSS=OFF,nss"
 PACKAGECONFIG[systemd] = "-DCZMQ_WITH_SYSTEMD=ON,-DCZMQ_WITH_SYSTEMD=OFF,systemd"
 PACKAGECONFIG[uuid] = "-DCZMQ_WITH_UUID=ON,-DCZMQ_WITH_UUID=OFF,util-linux"
 
+BBCLASSEXTEND = "nativesdk"
+
 do_install:append() {
         mkdir -p ${D}/${includedir}/${BPN}
         mv ${D}/${includedir}/sha1.h ${D}/${includedir}/${BPN}/.
-        sed -i -e 's|${RECIPE_SYSROOT}||g' ${D}${libdir}/cmake/czmqTargets.cmake
 }

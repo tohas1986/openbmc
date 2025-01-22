@@ -1,0 +1,22 @@
+From d6fc57fdc46ee882671d7c250519aa123ff3a8ea Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 14 Dec 2020 10:13:48 +0000
+Subject: [PATCH] No veryfy on flash write
+
+---
+ miscutils/flashcp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/miscutils/flashcp.c b/miscutils/flashcp.c
+index 1ca9d15..eff4aef 100644
+--- a/miscutils/flashcp.c
++++ b/miscutils/flashcp.c
+@@ -123,7 +123,7 @@ int flashcp_main(int argc UNUSED_PARAM, char **argv)
+ 
+ 	/* doing this outer loop gives significantly smaller code
+ 	 * than doing two separate loops for writing and verifying */
+-	for (i = 0; i <= 1; i++) {
++	for (i = 0; i < 1; i++) {
+ 		uoff_t done;
+ 		unsigned count;
+ 

@@ -14,10 +14,7 @@ real_chown = shutil.which('chown', path=path)
 args = list()
 
 found = False
-
-args.append(real_chown)
-
-for i in sys.argv[1:]:
+for i in sys.argv:
     if i.startswith("-"):
         args.append(i)
         continue

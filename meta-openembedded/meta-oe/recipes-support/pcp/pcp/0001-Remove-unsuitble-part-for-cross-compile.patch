@@ -11,9 +11,11 @@ Signed-off-by: Lei Maohui <leimaohui@fujitsu.com>
  src/libpcp/src/GNUmakefile | 1 -
  2 files changed, 7 deletions(-)
 
+diff --git a/configure.ac b/configure.ac
+index 5b25382..5d24714 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -607,12 +607,6 @@ fi
+@@ -623,12 +623,6 @@ fi
  which=$WHICH
  AC_SUBST(which)
  
@@ -26,14 +28,18 @@ Signed-off-by: Lei Maohui <leimaohui@fujitsu.com>
  ar=$AR
  AC_SUBST(ar)
  
+diff --git a/src/libpcp/src/GNUmakefile b/src/libpcp/src/GNUmakefile
+index 3c4ccd6..d1eba19 100644
 --- a/src/libpcp/src/GNUmakefile
 +++ b/src/libpcp/src/GNUmakefile
-@@ -179,8 +179,6 @@ exports:	exports.in mk.exports
- # consistent in all placess.
+@@ -176,7 +176,6 @@ exports:	exports.in mk.exports
+ # cases
  #
  check.done:	$(OBJECTS)
 -	./check-statics
--	./check-errorcodes
  	touch check.done
  
  ifneq ($(LIBTARGET),)
+-- 
+2.25.1
+

@@ -4,18 +4,18 @@ LICENSE = "Apache-2.0"
 LIC_FILES_CHKSUM = "file://LICENCE;md5=3b83ef96387f14655fc854ddc3c6bd57"
 DEPENDS += "json-c"
 DEPENDS += "udev"
-SRCREV = "9b322cb38172985e67d755660167befe8b650ba6"
+SRCREV = "3ebe3dadd3f550d20080c8bb14dee113e322eb61"
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
-SRC_URI = " \
+SRC_URI = "\ 
     git://github.com/openbmc/jsnbd;branch=master;protocol=https \
     file://state_hook \
     "
 
 S = "${WORKDIR}/git"
 
-inherit meson pkgconfig
+inherit autotools pkgconfig
 
 do_install:append() {
     install -d ${D}${sysconfdir}/nbd-proxy/

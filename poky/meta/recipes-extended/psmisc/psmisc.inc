@@ -26,7 +26,6 @@ do_configure:prepend() {
 
 PACKAGECONFIG ??= "${@bb.utils.filter('DISTRO_FEATURES', 'ipv6', d)}"
 PACKAGECONFIG[ipv6] = "--enable-ipv6,--disable-ipv6,"
-PACKAGECONFIG[selinux] = "--enable-selinux,--disable-selinux,libselinux"
 
 ALLOW_EMPTY:${PN} = "1"
 
@@ -55,5 +54,3 @@ ALTERNATIVE_PRIORITY = "90"
 ALTERNATIVE:killall = "killall"
 
 ALTERNATIVE:fuser = "fuser"
-
-ALTERNATIVE:pstree = "pstree"

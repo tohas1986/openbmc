@@ -1,0 +1,25 @@
+From f0a10c2e7fa4d85d97b80434b4c39d3a39565610 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 13 Sep 2023 12:59:21 +0000
+Subject: [PATCH] Set usbnet interfaces unmanaged
+
+---
+ 60-phosphor-networkd-default.network.in | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/60-phosphor-networkd-default.network.in b/60-phosphor-networkd-default.network.in
+index 9b84dba..20131c2 100644
+--- a/60-phosphor-networkd-default.network.in
++++ b/60-phosphor-networkd-default.network.in
+@@ -1,6 +1,8 @@
+ [Match]
+ Name=*
+ Name=!lo
++Name=!bp*
++Name=!usb*
+ [Network]
+ DHCP=true
+ LinkLocalAddressing=@LINK_LOCAL_AUTOCONFIGURATION@
+-- 
+2.34.1
+

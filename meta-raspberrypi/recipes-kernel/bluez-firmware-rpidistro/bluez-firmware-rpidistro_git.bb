@@ -16,7 +16,7 @@ SECTION = "kernel"
 # [^1]: https://github.com/RPi-Distro/bluez-firmware/issues/1
 LICENSE = "Firmware-cypress-rpidistro"
 LIC_FILES_CHKSUM = "\
-    file://LICENCE.cypress-rpidistro;md5=be80828daf682762f392131141288a74 \
+    file://LICENCE.cypress-rpidistro;md5=c5d12ae0b24ef7177902a8e288751a4e \
 "
 
 # These are not common licenses, set NO_GENERIC_LICENSE for them
@@ -24,10 +24,11 @@ LIC_FILES_CHKSUM = "\
 NO_GENERIC_LICENSE[Firmware-cypress-rpidistro] = "LICENCE.cypress-rpidistro"
 
 SRC_URI = " \
-    git://github.com/RPi-Distro/bluez-firmware;branch=bookworm;protocol=https \
+    git://github.com/RPi-Distro/bluez-firmware;branch=master;protocol=https \
+    file://31ad68831357d2019624004f1f0846475671088f.patch \
 "
-SRCREV = "78d6a07730e2d20c035899521ab67726dc028e1c"
-PV = "1.2-9+rpt3"
+SRCREV = "e7fd166981ab4bb9a36c2d1500205a078a35714d"
+PV = "1.2-4+rpt8"
 
 S = "${WORKDIR}/git"
 
@@ -51,21 +52,19 @@ do_install() {
     install -d ${D}${nonarch_base_libdir}/firmware/brcm
 
     cp LICENCE.cypress-rpidistro ${D}${nonarch_base_libdir}/firmware
-    install -m 0644 debian/firmware/broadcom/BCM434*.hcd ${D}${nonarch_base_libdir}/firmware/brcm/
+    install -m 0644 broadcom/BCM434*.hcd ${D}${nonarch_base_libdir}/firmware/brcm/
 }
 
 PACKAGES = "\
     ${PN}-cypress-license \
     ${PN}-bcm43430a1-hcd \
     ${PN}-bcm43430b0-hcd \
-    ${PN}-bcm4343a2-hcd \
     ${PN}-bcm4345c0-hcd \
     ${PN}-bcm4345c5-hcd \
 "
 
 LICENSE:${PN}-bcm43430a1-hcd = "Firmware-cypress-rpidistro"
 LICENSE:${PN}-bcm43430b0-hcd = "Firmware-cypress-rpidistro"
-LICENSE:${PN}-bcm4343a2-hcd = "Firmware-cypress-rpidistro"
 LICENSE:${PN}-bcm4345c0-hcd = "Firmware-cypress-rpidistro"
 LICENSE:${PN}-bcm4345c5-hcd = "Firmware-cypress-rpidistro"
 LICENSE:${PN}-cypress-license = "Firmware-cypress-rpidistro"
@@ -79,9 +78,6 @@ FILES:${PN}-bcm43430a1-hcd = "\
 FILES:${PN}-bcm43430b0-hcd = "\
     ${nonarch_base_libdir}/firmware/brcm/BCM43430B0.hcd \
 "
-FILES:${PN}-bcm4343a2-hcd = "\
-    ${nonarch_base_libdir}/firmware/brcm/BCM4343A2.hcd \
-"
 FILES:${PN}-bcm4345c0-hcd = "\
     ${nonarch_base_libdir}/firmware/brcm/BCM4345C0.hcd \
 "
@@ -91,15 +87,12 @@ FILES:${PN}-bcm4345c5-hcd = "\
 
 RDEPENDS:${PN}-bcm43430a1-hcd += "${PN}-cypress-license"
 RDEPENDS:${PN}-bcm43430b0-hcd += "${PN}-cypress-license"
-RDEPENDS:${PN}-bcm4343a2-hcd += "${PN}-cypress-license"
 RDEPENDS:${PN}-bcm4345c0-hcd += "${PN}-cypress-license"
 RDEPENDS:${PN}-bcm4345c5-hcd += "${PN}-cypress-license"
 RCONFLICTS:${PN}-bcm43430a1-hcd = "linux-firmware-bcm43430a1-hcd"
 RREPLACES:${PN}-bcm43430a1-hcd = "linux-firmware-bcm43430a1-hcd"
 RCONFLICTS:${PN}-bcm43430b0-hcd = "linux-firmware-bcm43430b0-hcd"
 RREPLACES:${PN}-bcm43430b0-hcd = "linux-firmware-bcm43430b0-hcd"
-RCONFLICTS:${PN}-bcm4343a2-hcd = "linux-firmware-bcm4343a2-hcd"
-RREPLACES:${PN}-bcm4343a2-hcd = "linux-firmware-bcm4343a2-hcd"
 RCONFLICTS:${PN}-bcm43435c0-hcd = "linux-firmware-bcm4345c0-hcd"
 RREPLACES:${PN}-bcm43435c0-hcd = "linux-firmware-bcm4345c0-hcd"
 RCONFLICTS:${PN}-bcm43435c5-hcd = "linux-firmware-bcm4345c5-hcd"

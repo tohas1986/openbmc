@@ -1,0 +1,21 @@
+From c6593f9958819d5392ab8c87f94f10a9b7dd5117 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 31 Oct 2022 11:26:49 +0000
+Subject: [PATCH] Create symlink prior to service start
+
+---
+ config/bmcweb.service.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/config/bmcweb.service.in b/config/bmcweb.service.in
+index bda69a0d..d38586d1 100644
+--- a/config/bmcweb.service.in
++++ b/config/bmcweb.service.in
+@@ -10,6 +10,7 @@ ExecStart=@MESON_INSTALL_PREFIX@/bin/bmcweb
+ Type=simple
+ WorkingDirectory=/home/root
+ StartLimitBurst=9999999
++ExecStartPre=/bin/bash -c '[ -f /usr/share/www/dobby.json ] && /bin/rm /usr/share/www/dobby.json || : ; /bin/ln -s /var/run/dobby.json /usr/share/www/dobby.json || :'
+ 
+ [Install]
+ WantedBy=network.target

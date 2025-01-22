@@ -1,0 +1,27 @@
+From 0932f1c4fada37f41933374d938e32896961b6c7 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 28 Apr 2020 09:14:06 +0300
+Subject: [PATCH] disable whitelist
+
+---
+ src/whitelist-filter.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/whitelist-filter.cpp b/src/whitelist-filter.cpp
+index 3f30a41..ded2f19 100644
+--- a/src/whitelist-filter.cpp
++++ b/src/whitelist-filter.cpp
+@@ -446,11 +446,11 @@ ipmi::Cc WhitelistFilter::filterMessage(ipmi::message::Request::ptr request)
+     {
+         if (!whitelisted)
+         {
+-            log<level::INFO>("Channel/NetFn/Cmd not whitelisted",
++            log<level::DEBUG>("Channel/NetFn/Cmd not whitelisted",
+                              entry("CHANNEL=0x%X", request->ctx->channel),
+                              entry("NETFN=0x%X", int(request->ctx->netFn)),
+                              entry("CMD=0x%X", int(request->ctx->cmd)));
+-            return ipmi::ccCommandNotAvailable;
++            return ipmi::ccSuccess;
+         }
+         return ipmi::ccSuccess;
+     }

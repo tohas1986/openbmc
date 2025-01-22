@@ -1,0 +1,73 @@
+From 925d2658e09e26eadb7996ab4d5ca5eb5ac9316b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 13 Dec 2022 11:29:53 +0000
+Subject: [PATCH] Fix vhub port to p
+
+---
+ create_usbhid.sh | 12 +-----------
+ ikvm_input.cpp   | 11 +----------
+ ikvm_input.hpp   |  3 +++
+ 3 files changed, 5 insertions(+), 21 deletions(-)
+
+diff --git a/create_usbhid.sh b/create_usbhid.sh
+index f6085dd..e56a678 100644
+--- a/create_usbhid.sh
++++ b/create_usbhid.sh
+@@ -126,17 +126,7 @@ create_hid() {
+ 
+ connect_hid() {
+     if ! grep -q "${dev_name}:p" UDC; then
+-        i=0
+-        num_ports=5
+-        base_usb_dir="/sys/bus/platform/devices/${dev_name}/${dev_name}:p"
+-        while [ "${i}" -lt "${num_ports}" ]; do
+-            port=$(("${i}" + 1))
+-            i="${port}"
+-            if [ ! -e "${base_usb_dir}${port}/gadget/suspended" ]; then
+-                break
+-            fi
+-        done
+-        echo "${dev_name}:p${port}" > UDC
++        echo "${dev_name}:p1" > UDC
+     fi
+ }
+ 
+diff --git a/ikvm_input.cpp b/ikvm_input.cpp
+index 107756b..191f73e 100644
+--- a/ikvm_input.cpp
++++ b/ikvm_input.cpp
+@@ -55,16 +55,7 @@ void Input::connect()
+     {
+         if (udcName.empty())
+         {
+-            for (const auto& port : fs::directory_iterator(usbVirtualHubPath))
+-            {
+-                if (fs::is_directory(port) && !fs::is_symlink(port) &&
+-                    !fs::exists(port.path() / "gadget/suspended"))
+-                {
+-                    const std::string portId = port.path().filename();
+-                    hidUdcStream << portId << std::endl;
+-                    break;
+-                }
+-            }
++            hidUdcStream << usbVirtualHubPort << std::endl;
+         }
+         else // If UDC has been specified by '-u' parameter, connect to it.
+         {
+diff --git a/ikvm_input.hpp b/ikvm_input.hpp
+index 83e4071..1662820 100644
+--- a/ikvm_input.hpp
++++ b/ikvm_input.hpp
+@@ -85,6 +85,9 @@ class Input
+     /* @brief Path to the USB virtual hub */
+     static constexpr const char* usbVirtualHubPath =
+         "/sys/bus/platform/devices/1e6a0000.usb-vhub";
++    /* @brief Hardcoded port on USB virtual hub */
++    static constexpr const char* usbVirtualHubPort =
++        "1e6a0000.usb-vhub:p1";
+     /* @brief Retry limit for writing an HID report */
+     static constexpr int HID_REPORT_RETRY_MAX = 5;
+     /*
+-- 
+2.36.1
+

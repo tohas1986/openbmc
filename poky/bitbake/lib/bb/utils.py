@@ -13,7 +13,6 @@ import errno
 import logging
 import bb
 import bb.msg
-import locale
 import multiprocessing
 import fcntl
 import importlib
@@ -50,7 +49,7 @@ def clean_context():
 
 def get_context():
     return _context
-
+    
 
 def set_context(ctx):
     _context = ctx
@@ -212,8 +211,8 @@ def explode_dep_versions2(s, *, sort=True):
             inversion = True
             # This list is based on behavior and supported comparisons from deb, opkg and rpm.
             #
-            # Even though =<, <<, ==, !=, =>, and >> may not be supported,
-            # we list each possibly valid item.
+            # Even though =<, <<, ==, !=, =>, and >> may not be supported, 
+            # we list each possibly valid item. 
             # The build system is responsible for validation of what it supports.
             if i.startswith(('<=', '=<', '<<', '==', '!=', '>=', '=>', '>>')):
                 lastcmp = i[0:2]
@@ -347,7 +346,7 @@ def _print_exception(t, value, tb, realfile, text, context):
         exception = traceback.format_exception_only(t, value)
         error.append('Error executing a python function in %s:\n' % realfile)
 
-        # Strip 'us' from the stack (better_exec call) unless that was where the
+        # Strip 'us' from the stack (better_exec call) unless that was where the 
         # error came from
         if tb.tb_next is not None:
             tb = tb.tb_next
@@ -604,24 +603,10 @@ def preserved_envvars():
     v = [
         'BBPATH',
         'BB_PRESERVE_ENV',
+        'BB_ENV_PASSTHROUGH',
         'BB_ENV_PASSTHROUGH_ADDITIONS',
     ]
     return v + preserved_envvars_exported()
-
-def check_system_locale():
-    """Make sure the required system locale are available and configured"""
-    default_locale = locale.getlocale(locale.LC_CTYPE)
-
-    try:
-        locale.setlocale(locale.LC_CTYPE, ("en_US", "UTF-8"))
-    except:
-        sys.exit("Please make sure locale 'en_US.UTF-8' is available on your system")
-    else:
-        locale.setlocale(locale.LC_CTYPE, default_locale)
-
-    if sys.getfilesystemencoding() != "utf-8":
-        sys.exit("Please use a locale setting which supports UTF-8 (such as LANG=en_US.UTF-8).\n"
-                 "Python can't change the filesystem locale after loading so we need a UTF-8 when Python starts or things won't work.")
 
 def filter_environment(good_vars):
     """
@@ -745,9 +730,9 @@ def prunedir(topdir, ionice=False):
 # but thats possibly insane and suffixes is probably going to be small
 #
 def prune_suffix(var, suffixes, d):
-    """
+    """ 
     See if var ends with any of the suffixes listed and
-    remove it if found
+    remove it if found 
     """
     for suffix in suffixes:
         if suffix and var.endswith(suffix):
@@ -758,8 +743,7 @@ def mkdirhier(directory):
     """Create a directory like 'mkdir -p', but does not complain if
     directory already exists like os.makedirs
     """
-    if '${' in str(directory):
-        bb.fatal("Directory name {} contains unexpanded bitbake variable. This may cause build failures and WORKDIR polution.".format(directory))
+
     try:
         os.makedirs(directory)
     except OSError as e:
@@ -1001,15 +985,12 @@ def umask(new_mask):
         os.umask(current_mask)
 
 def to_boolean(string, default=None):
-    """
+    """ 
     Check input string and return boolean value True/False/None
-    depending upon the checks
+    depending upon the checks 
     """
     if not string:
         return default
-
-    if isinstance(string, int):
-        return string != 0
 
     normalized = string.lower()
     if normalized in ("y", "yes", "1", "true"):
@@ -1142,10 +1123,7 @@ def get_referenced_vars(start_expr, d):
 
 
 def cpu_count():
-    try:
-        return len(os.sched_getaffinity(0))
-    except OSError:
-        return multiprocessing.cpu_count()
+    return multiprocessing.cpu_count()
 
 def nonblockingfd(fd):
     fcntl.fcntl(fd, fcntl.F_SETFL, fcntl.fcntl(fd, fcntl.F_GETFL) | os.O_NONBLOCK)
@@ -1701,11 +1679,25 @@ def disable_network(uid=None, gid=None):
         f.write("%s %s 1" % (gid, gid))
 
 def export_proxies(d):
-    from bb.fetch2 import get_fetcher_environment
     """ export common proxies variables from datastore to environment """
-    newenv = get_fetcher_environment(d)
-    for v in newenv:
-        os.environ[v] = newenv[v]
+    import os
+
+    variables = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY',
+                    'ftp_proxy', 'FTP_PROXY', 'no_proxy', 'NO_PROXY',
+                    'GIT_PROXY_COMMAND']
+    exported = False
+
+    for v in variables:
+        if v in os.environ.keys():
+            exported = True
+        else:
+            v_proxy = d.getVar(v)
+            if v_proxy is not None:
+                os.environ[v] = v_proxy
+                exported = True
+
+    return exported
+
 
 def load_plugins(logger, plugins, pluginpath):
     def load_plugin(name):
@@ -1830,39 +1822,3 @@ def mkstemp(suffix=None, prefix=None, dir=None, text=False):
     else:
         prefix = tempfile.gettempprefix() + entropy
     return tempfile.mkstemp(suffix=suffix, prefix=prefix, dir=dir, text=text)
-
-def path_is_descendant(descendant, ancestor):
-    """
-    Returns True if the path `descendant` is a descendant of `ancestor`
-    (including being equivalent to `ancestor` itself). Otherwise returns False.
-    Correctly accounts for symlinks, bind mounts, etc. by using
-    os.path.samestat() to compare paths
-
-    May raise any exception that os.stat() raises
-    """
-
-    ancestor_stat = os.stat(ancestor)
-
-    # Recurse up each directory component of the descendant to see if it is
-    # equivalent to the ancestor
-    check_dir = os.path.abspath(descendant).rstrip("/")
-    while check_dir:
-        check_stat = os.stat(check_dir)
-        if os.path.samestat(check_stat, ancestor_stat):
-            return True
-        check_dir = os.path.dirname(check_dir).rstrip("/")
-
-    return False
-
-# If we don't have a timeout of some kind and a process/thread exits badly (for example
-# OOM killed) and held a lock, we'd just hang in the lock futex forever. It is better
-# we exit at some point than hang. 5 minutes with no progress means we're probably deadlocked.
-@contextmanager
-def lock_timeout(lock):
-    held = lock.acquire(timeout=5*60)
-    try:
-        if not held:
-            os._exit(1)
-        yield held
-    finally:
-        lock.release()

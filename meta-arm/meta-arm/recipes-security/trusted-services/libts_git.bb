@@ -24,14 +24,11 @@ do_install:append () {
     fi
 
     # Move the dynamic libraries into the standard place.
+    # Update a cmake file to use correct paths.
     install -d ${D}${libdir}
     mv ${D}${TS_INSTALL}/lib/libts* ${D}${libdir}
 
-    # Update generated cmake file to use correct paths.
-    target_cmake=$(find ${D}${TS_INSTALL}/lib/cmake/libts -type f -iname "libtsTargets-*.cmake")
-    if [ ! -z "$target_cmake" ]; then
-        sed -i -e "s#/${TS_ENV}##g" $target_cmake
-    fi
+    sed -i -e "s#/${TS_ENV}##g" ${D}${TS_INSTALL}/lib/cmake/libts/libtsTargets-noconfig.cmake
 }
 
 inherit ${@oe.utils.conditional('VIRTUAL-RUNTIME_dev_manager', 'busybox-mdev', '', 'useradd', d)}

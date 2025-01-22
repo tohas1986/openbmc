@@ -1,5 +1,6 @@
 SUMMARY = "Touchscreen calibration data"
 SECTION = "base"
+PR = "r11"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://COPYING;md5=4b5fcfc87fb615860d398b5e38685edf"
 
@@ -19,5 +20,3 @@ do_install() {
 ALLOW_EMPTY:${PN} = "1"
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 INHIBIT_DEFAULT_DEPS = "1"
-
-BBCLASSEXTEND = "native nativesdk"

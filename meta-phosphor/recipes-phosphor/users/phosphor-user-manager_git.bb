@@ -9,12 +9,12 @@ DEPENDS += "phosphor-dbus-interfaces"
 DEPENDS += "boost"
 DEPENDS += "nss-pam-ldapd"
 DEPENDS += "systemd"
-SRCREV = "e7d4559b0173596f29ceb5ba7da653b023067783"
+#SRCREV = "da401fe5d8b791d8ef2c08b02658b76fcb5864f2"
+SRCREV = "e8d664d1689cfec3449ec964262d665f7b4ec873"
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
-SRC_URI = "git://github.com/openbmc/phosphor-user-manager;branch=master;protocol=https"
-SRC_URI += "file://upgrade_hostconsole_group.sh"
+SRC_URI += "git://github.com/openbmc/phosphor-user-manager;branch=master;protocol=https"
 
 S = "${WORKDIR}/git"
 
@@ -23,15 +23,6 @@ inherit obmc-phosphor-dbus-service
 inherit useradd
 
 EXTRA_OEMESON = "-Dtests=disabled"
-
-PACKAGECONFIG ?= "root-user-mgmt"
-PACKAGECONFIG[root-user-mgmt] = "-Droot_user_mgmt=enabled, -Droot_user_mgmt=disabled"
-
-
-do_install:append() {
-  install -d ${D}${libexecdir}
-  install -m 0755 ${WORKDIR}/upgrade_hostconsole_group.sh ${D}${libexecdir}/upgrade_hostconsole_group.sh
-}
 
 FILES:phosphor-ldap += " \
         ${bindir}/phosphor-ldap-conf \
@@ -43,7 +34,6 @@ FILES:${PN} += " \
 "
 
 USERADD_PACKAGES = "${PN} phosphor-ldap"
-RDEPENDS:${PN}:append:df-google-authenticator-libpam = " pam-google-authenticator google-authenticator-libpam"
 
 PACKAGE_BEFORE_PN = "phosphor-ldap"
 DBUS_PACKAGES = "${USERADD_PACKAGES}"
@@ -54,11 +44,3 @@ DBUS_SERVICE:${PN} += "xyz.openbmc_project.User.Manager.service"
 DBUS_SERVICE:phosphor-ldap = " \
         xyz.openbmc_project.Ldap.Config.service \
 "
-
-EXTRA_USERS_PARAMS += " \
-   groupadd hostconsole; \
-   "
-
-EXTRA_USERS_PARAMS += " \
-  usermod --append --groups hostconsole root; \
-  "

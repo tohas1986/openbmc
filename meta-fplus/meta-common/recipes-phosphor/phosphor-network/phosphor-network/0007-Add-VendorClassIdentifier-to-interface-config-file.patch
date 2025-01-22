@@ -1,0 +1,64 @@
+From 9985ba6bba8cc920a0df31c2230d070713e9aec2 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 23 Mar 2023 16:30:24 +0000
+Subject: [PATCH] Add VendorClassIdentifier to interface config file
+
+---
+ 60-phosphor-networkd-default.network.in | 1 +
+ meson.build                             | 3 +++
+ meson_options.txt                       | 2 ++
+ src/ethernet_interface.cpp              | 3 +++
+ 4 files changed, 9 insertions(+)
+
+diff --git a/60-phosphor-networkd-default.network.in b/60-phosphor-networkd-default.network.in
+index 4230aeb..9b84dba 100644
+--- a/60-phosphor-networkd-default.network.in
++++ b/60-phosphor-networkd-default.network.in
+@@ -12,5 +12,6 @@ UseDomains=true
+ UseNTP=true
+ UseHostname=true
+ SendHostname=true
++VendorClassIdentifier=@VENDOR_CLASS@
+ [IPv6AcceptRA]
+ DHCPv6Client=true
+diff --git a/meson.build b/meson.build
+index 7b130ec..b6db4de 100644
+--- a/meson.build
++++ b/meson.build
+@@ -19,6 +19,9 @@ conf_data.set(
+ conf_data.set(
+   'ENABLE_IPV6_ACCEPT_RA',
+   get_option('default-ipv6-accept-ra'))
++conf_data.set(
++  'VENDOR_CLASS',
++  get_option('vendor-class'))
+ conf_data.set('SYNC_MAC_FROM_INVENTORY', get_option('sync-mac'))
+ conf_data.set('PERSIST_MAC', get_option('persist-mac'))
+ 
+diff --git a/meson_options.txt b/meson_options.txt
+index 83862af..69a5b2b 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -12,3 +12,5 @@ option('hyp-nw-config', type : 'boolean',
+        description : 'ibm-oem: Enable the hypervisor network manager')
+ option('persist-mac', type: 'boolean',
+        description: 'Permit the MAC address to be written to the systemd.network config')
++option('vendor-class', type: 'string',
++       description: 'Vendor class to be added to default and custom configs')
+diff --git a/src/ethernet_interface.cpp b/src/ethernet_interface.cpp
+index 802ec2f..63b2f27 100644
+--- a/src/ethernet_interface.cpp
++++ b/src/ethernet_interface.cpp
+@@ -845,6 +845,9 @@ void EthernetInterface::writeConfigurationFile()
+         network["IPv6AcceptRA"].emplace_back(ipv6AcceptRA() ? "true" : "false");
+         network["DHCP"].emplace_back(dhcp4() ? (dhcp6() ? "true" : "ipv4")
+                                              : (dhcp6() ? "ipv6" : "false"));
++#ifdef VENDOR_CLASS
++        network["DHCP"].emplace_back(VENDOR_CLASS);
++#endif
+         {
+             auto& vlans = network["VLAN"];
+             for (const auto& [_, intf] : manager.interfaces)
+-- 
+2.34.1
+

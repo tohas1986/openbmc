@@ -1,0 +1,74 @@
+From e6c84fd269aa1bddb75fbbe4c902aa763a6eb77e Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 7 May 2020 13:55:13 +0300
+Subject: [PATCH 1/1] logging
+
+---
+ meson.build      | 2 +-
+ nvme_manager.cpp | 3 ++-
+ sdbusplus.hpp    | 8 +++++++-
+ 3 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/meson.build b/meson.build
+index a667a69..b8dc9c4 100644
+--- a/meson.build
++++ b/meson.build
+@@ -39,7 +39,7 @@ conf_data.set('ITEM_IFACE', '"xyz.openbmc_project.Inventory.Item"')
+ conf_data.set('NVME_STATUS_IFACE', '"xyz.openbmc_project.Nvme.Status"')
+ conf_data.set('ASSET_IFACE', '"xyz.openbmc_project.Inventory.Decorator.Asset"')
+ conf_data.set('INVENTORY_BUSNAME', '"xyz.openbmc_project.Inventory.Manager"')
+-conf_data.set('NVME_INVENTORY_PATH', '"/xyz/openbmc_project/inventory/system/chassis/motherboard/nvme"')
++conf_data.set('NVME_INVENTORY_PATH', '"/xyz/openbmc_project/inventory/system/nvme"')
+ conf_data.set('INVENTORY_NAMESPACE', '"/xyz/openbmc_project/inventory"')
+ conf_data.set('INVENTORY_MANAGER_IFACE', '"xyz.openbmc_project.Inventory.Manager"')
+ 
+diff --git a/nvme_manager.cpp b/nvme_manager.cpp
+index 0e0b7b7..b3f9eb3 100644
+--- a/nvme_manager.cpp
++++ b/nvme_manager.cpp
+@@ -448,7 +448,8 @@ void Nvme::createNVMeInventory()
+ 
+     for (const auto config : configs)
+     {
+-        inventoryPath = "/system/chassis/motherboard/nvme" + config.index;
++        // inventoryPath = "/system/chassis/motherboard/nvme" + config.index;
++        inventoryPath = "/system/nvme/NVMe_" + config.index;
+ 
+         obj = {{
+             inventoryPath,
+diff --git a/sdbusplus.hpp b/sdbusplus.hpp
+index 9e26b3b..114aacf 100644
+--- a/sdbusplus.hpp
++++ b/sdbusplus.hpp
+@@ -40,7 +40,9 @@ class SDBusPlus
+         }
+         catch (const std::exception& e)
+         {
+-            log<level::ERR>("Set properties fail.",
++            std::cerr << "Set properties fail: " << e.what() << " Path:" << objPath;
++            std::cerr << " busName:" << busName << " Prop:" << property << std::endl;
++            log<level::ERR>("Set properties fail!",
+                             entry("ERROR = %s", e.what()),
+                             entry("Object path = %s", objPath.c_str()));
+             return;
+@@ -68,6 +70,8 @@ class SDBusPlus
+         }
+         catch (const std::exception& e)
+         {
++            std::cerr << "Get properties fail: " << e.what() << " Path:" << objPath;
++            std::cerr << " busName:" << busName << " Prop:" << property << std::endl;
+             log<level::ERR>("Get properties fail.",
+                             entry("ERROR = %s", e.what()),
+                             entry("Object path = %s", objPath.c_str()));
+@@ -92,6 +96,8 @@ class SDBusPlus
+         }
+         catch (const std::exception& e)
+         {
++            std::cerr << "Call methed fail: " << e.what() << " Path:" << objPath;
++            std::cerr << " busName:" << busName << " iface:" << interface << " method:" << method << std::endl;
+             log<level::ERR>("Call method fail.", entry("ERROR = %s", e.what()),
+                             entry("Object path = %s", objPath.c_str()));
+             return;
+-- 
+1.9.1
+

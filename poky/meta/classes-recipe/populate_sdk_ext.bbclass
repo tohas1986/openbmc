@@ -120,7 +120,7 @@ python write_host_sdk_ext_manifest () {
                 f.write("%s %s %s\n" % (info[1], info[2], info[3]))
 }
 
-SDK_POSTPROCESS_COMMAND:append:task-populate-sdk-ext = " write_target_sdk_ext_manifest write_host_sdk_ext_manifest"    
+SDK_POSTPROCESS_COMMAND:append:task-populate-sdk-ext = "write_target_sdk_ext_manifest; write_host_sdk_ext_manifest; "    
 
 SDK_TITLE:task-populate-sdk-ext = "${@d.getVar('DISTRO_NAME') or d.getVar('DISTRO')} Extensible SDK"
 
@@ -186,7 +186,12 @@ def create_filtered_tasklist(d, sdkbasepath, tasklistfile, conf_initpath):
         if os.path.exists(localconf + '.bak'):
             os.replace(localconf + '.bak', localconf)
 
-def copy_bitbake_and_layers(d, baseoutpath, derivative):
+python copy_buildsystem () {
+    import re
+    import shutil
+    import glob
+    import oe.copy_buildsystem
+
     oe_init_env_script = d.getVar('OE_INIT_ENV_SCRIPT')
 
     conf_bbpath = ''
@@ -195,7 +200,13 @@ def copy_bitbake_and_layers(d, baseoutpath, derivative):
 
     # Copy in all metadata layers + bitbake (as repositories)
     buildsystem = oe.copy_buildsystem.BuildSystem('extensible SDK', d)
+    baseoutpath = d.getVar('SDK_OUTPUT') + '/' + d.getVar('SDKPATH')
 
+    #check if custome templateconf path is set
+    use_custom_templateconf = d.getVar('SDK_CUSTOM_TEMPLATECONF')
+
+    # Determine if we're building a derivative extensible SDK (from devtool build-sdk)
+    derivative = (d.getVar('SDK_DERIVATIVE') or '') == '1'
     if derivative:
         workspace_name = 'orig-workspace'
     else:
@@ -209,20 +220,17 @@ def copy_bitbake_and_layers(d, baseoutpath, derivative):
         if os.path.exists(os.path.join(baseoutpath, relpath)):
             conf_initpath = relpath
 
-        relpath = os.path.join('layers', path, 'scripts', 'esdk-tools', 'devtool')
+        relpath = os.path.join('layers', path, 'scripts', 'devtool')
         if os.path.exists(os.path.join(baseoutpath, relpath)):
-            esdk_tools_path = os.path.dirname(relpath)
+            scriptrelpath = os.path.dirname(relpath)
 
         relpath = os.path.join('layers', path, 'meta')
         if os.path.exists(os.path.join(baseoutpath, relpath, 'lib', 'oe')):
             core_meta_subdir = relpath
 
     d.setVar('oe_init_build_env_path', conf_initpath)
-    d.setVar('esdk_tools_path', esdk_tools_path)
+    d.setVar('scriptrelpath', scriptrelpath)
 
-    return (conf_initpath, conf_bbpath, core_meta_subdir, sdkbblayers)
-
-def write_devtool_config(d, baseoutpath, conf_bbpath, conf_initpath, core_meta_subdir):
     # Write out config file for devtool
     import configparser
     config = configparser.ConfigParser()
@@ -239,17 +247,15 @@ def write_devtool_config(d, baseoutpath, conf_bbpath, conf_initpath, core_meta_s
     with open(os.path.join(baseoutpath, 'conf', 'devtool.conf'), 'w') as f:
         config.write(f)
 
-def write_unlocked_sigs(d, baseoutpath):
     unlockedsigs =  os.path.join(baseoutpath, 'conf', 'unlocked-sigs.inc')
     with open(unlockedsigs, 'w') as f:
         pass
 
-def write_bblayers_conf(d, baseoutpath, sdkbblayers):
     # Create a layer for new recipes / appends
     bbpath = d.getVar('BBPATH')
     env = os.environ.copy()
     env['PYTHONDONTWRITEBYTECODE'] = '1'
-    bb.process.run(['devtool', '--bbpath', bbpath, '--basepath', baseoutpath, 'create-workspace', '--layerseries', d.getVar("LAYERSERIES_CORENAMES"), '--create-only', os.path.join(baseoutpath, 'workspace')], env=env)
+    bb.process.run(['devtool', '--bbpath', bbpath, '--basepath', baseoutpath, 'create-workspace', '--create-only', os.path.join(baseoutpath, 'workspace')], env=env)
 
     # Create bblayers.conf
     bb.utils.mkdirhier(baseoutpath + '/conf')
@@ -273,9 +279,6 @@ def write_bblayers_conf(d, baseoutpath, sdkbblayers):
         f.write('    $' + '{SDKBASEMETAPATH}/workspace \\\n')
         f.write('    "\n')
 
-def copy_uninative(d, baseoutpath):
-    import shutil
-
     # Copy uninative tarball
     # For now this is where uninative.bbclass expects the tarball
     if bb.data.inherits_class('uninative', d):
@@ -284,12 +287,6 @@ def copy_uninative(d, baseoutpath):
         uninative_outdir = '%s/downloads/uninative/%s' % (baseoutpath, uninative_checksum)
         bb.utils.mkdirhier(uninative_outdir)
         shutil.copy(uninative_file, uninative_outdir)
-
-    return uninative_checksum
-
-def write_local_conf(d, baseoutpath, derivative, core_meta_subdir, uninative_checksum):
-    #check if custome templateconf path is set
-    use_custom_templateconf = d.getVar('SDK_CUSTOM_TEMPLATECONF')
 
     env_passthrough = (d.getVar('BB_ENV_PASSTHROUGH_ADDITIONS') or '').split()
     env_passthrough_values = {}
@@ -372,8 +369,7 @@ def write_local_conf(d, baseoutpath, derivative, core_meta_subdir, uninative_che
             f.write('BUILDCFG_HEADER = ""\n\n')
 
             # Write METADATA_REVISION
-            # Needs distro override so it can override the value set in the bbclass code (later than local.conf)
-            f.write('METADATA_REVISION:%s = "%s"\n\n' % (d.getVar('DISTRO'), d.getVar('METADATA_REVISION')))
+            f.write('METADATA_REVISION = "%s"\n\n' % d.getVar('METADATA_REVISION'))
 
             f.write('# Provide a flag to indicate we are in the EXT_SDK Context\n')
             f.write('WITHIN_EXT_SDK = "1"\n\n')
@@ -460,9 +456,6 @@ def write_local_conf(d, baseoutpath, derivative, core_meta_subdir, uninative_che
                 f.write(line)
             f.write('\n')
 
-def prepare_locked_cache(d, baseoutpath, derivative, conf_initpath):
-    import shutil
-
     # Filter the locked signatures file to just the sstate tasks we are interested in
     excluded_targets = get_sdk_install_targets(d, images_only=True)
     sigfile = d.getVar('WORKDIR') + '/locked-sigs.inc'
@@ -494,7 +487,7 @@ def prepare_locked_cache(d, baseoutpath, derivative, conf_initpath):
     bb.utils.remove(sstate_out, True)
 
     # uninative.bbclass sets NATIVELSBSTRING to 'universal%s' % oe.utils.host_gcc_version(d)
-    fixedlsbstring = "universal%s" % oe.utils.host_gcc_version(d) if bb.data.inherits_class('uninative', d) else ""
+    fixedlsbstring = "universal%s" % oe.utils.host_gcc_version(d)
 
     sdk_include_toolchain = (d.getVar('SDK_INCLUDE_TOOLCHAIN') == '1')
     sdk_ext_type = d.getVar('SDK_EXT_TYPE')
@@ -504,6 +497,7 @@ def prepare_locked_cache(d, baseoutpath, derivative, conf_initpath):
         create_filtered_tasklist(d, baseoutpath, tasklistfn, conf_initpath)
     else:
         tasklistfn = None
+
 
     cachedir = os.path.join(baseoutpath, 'cache')
     bb.utils.mkdirhier(cachedir)
@@ -566,9 +560,6 @@ def prepare_locked_cache(d, baseoutpath, derivative, conf_initpath):
                 f = os.path.join(root, name)
                 os.remove(f)
 
-def write_manifest(d, baseoutpath):
-    import glob
-
     # Write manifest file
     # Note: at the moment we cannot include the env setup script here to keep
     # it updated, since it gets modified during SDK installation (see
@@ -592,32 +583,6 @@ def write_manifest(d, baseoutpath):
                     continue
                 chksum = bb.utils.sha256_file(fn)
                 f.write('%s\t%s\n' % (chksum, os.path.relpath(fn, baseoutpath)))
-
-
-python copy_buildsystem () {
-    import oe.copy_buildsystem
-
-    baseoutpath = d.getVar('SDK_OUTPUT') + '/' + d.getVar('SDKPATH')
-
-    # Determine if we're building a derivative extensible SDK (from devtool build-sdk)
-    derivative = (d.getVar('SDK_DERIVATIVE') or '') == '1'
-
-    conf_initpath, conf_bbpath, core_meta_subdir, sdkbblayers = copy_bitbake_and_layers(d, baseoutpath, derivative)
-
-    write_devtool_config(d, baseoutpath, conf_bbpath, conf_initpath, core_meta_subdir)
-
-    write_unlocked_sigs(d, baseoutpath)
-
-    write_bblayers_conf(d, baseoutpath, sdkbblayers)
-
-    uninative_checksum = copy_uninative(d, baseoutpath)
-
-    write_local_conf(d, baseoutpath, derivative, core_meta_subdir, uninative_checksum)
-
-    prepare_locked_cache(d, baseoutpath, derivative, conf_initpath)
-
-    write_manifest(d, baseoutpath)
-
 }
 
 def get_current_buildtools(d):
@@ -662,6 +627,21 @@ def get_sdk_required_utilities(buildtools_fn, d):
     return ' '.join(sanity_required_utilities)
 
 install_tools() {
+	install -d ${SDK_OUTPUT}/${SDKPATHNATIVE}${bindir_nativesdk}
+	scripts="devtool recipetool oe-find-native-sysroot runqemu* wic"
+	for script in $scripts; do
+		for scriptfn in `find ${SDK_OUTPUT}/${SDKPATH}/${scriptrelpath} -maxdepth 1 -executable -name "$script"`; do
+			targetscriptfn="${SDK_OUTPUT}/${SDKPATHNATIVE}${bindir_nativesdk}/$(basename $scriptfn)"
+			test -e ${targetscriptfn} || ln -rs ${scriptfn} ${targetscriptfn}
+		done
+	done
+	# We can't use the same method as above because files in the sysroot won't exist at this point
+	# (they get populated from sstate on installation)
+	unfsd_path="${SDK_OUTPUT}/${SDKPATHNATIVE}${bindir_nativesdk}/unfsd"
+	if [ "${SDK_INCLUDE_TOOLCHAIN}" = "1" -a ! -e $unfsd_path ] ; then
+		binrelpath=${@os.path.relpath(d.getVar('STAGING_BINDIR_NATIVE'), d.getVar('TMPDIR'))}
+		ln -rs ${SDK_OUTPUT}/${SDKPATH}/tmp/$binrelpath/unfsd $unfsd_path
+	fi
 	touch ${SDK_OUTPUT}/${SDKPATH}/.devtoolbase
 
 	# find latest buildtools-tarball and install it
@@ -740,7 +720,7 @@ sdk_ext_postinst() {
 
 	# A bit of another hack, but we need this in the path only for devtool
 	# so put it at the end of $PATH.
-	echo "export PATH=\"$target_sdk_dir/${esdk_tools_path}:\$PATH\"" >> $env_setup_script
+	echo "export PATH=$target_sdk_dir/sysroots/${SDK_SYS}${bindir_nativesdk}:\$PATH" >> $env_setup_script
 
 	echo "printf 'SDK environment now set up; additionally you may now run devtool to perform development tasks.\nRun devtool --help for further details.\n'" >> $env_setup_script
 
@@ -753,7 +733,7 @@ sdk_ext_postinst() {
 		# current working directory when first ran, nor will it set $1 when
 		# sourcing a script. That is why this has to look so ugly.
 		LOGFILE="$target_sdk_dir/preparing_build_system.log"
-		sh -c ". buildtools/environment-setup* > $LOGFILE 2>&1 && cd $target_sdk_dir/`dirname ${oe_init_build_env_path}` && set $target_sdk_dir && . $target_sdk_dir/${oe_init_build_env_path} $target_sdk_dir >> $LOGFILE 2>&1 && python3 $target_sdk_dir/ext-sdk-prepare.py $LOGFILE '${SDK_INSTALL_TARGETS}'" || { echo "printf 'ERROR: this SDK was not fully installed and needs reinstalling\n'" >> $env_setup_script ; exit 1 ; }
+		sh -c ". buildtools/environment-setup* > $LOGFILE && cd $target_sdk_dir/`dirname ${oe_init_build_env_path}` && set $target_sdk_dir && . $target_sdk_dir/${oe_init_build_env_path} $target_sdk_dir >> $LOGFILE && python3 $target_sdk_dir/ext-sdk-prepare.py $LOGFILE '${SDK_INSTALL_TARGETS}'" || { echo "printf 'ERROR: this SDK was not fully installed and needs reinstalling\n'" >> $env_setup_script ; exit 1 ; }
 	fi
 	if [ -e $target_sdk_dir/ext-sdk-prepare.py ]; then
 		rm $target_sdk_dir/ext-sdk-prepare.py
@@ -763,7 +743,7 @@ sdk_ext_postinst() {
 
 SDK_POST_INSTALL_COMMAND:task-populate-sdk-ext = "${sdk_ext_postinst}"
 
-SDK_POSTPROCESS_COMMAND:prepend:task-populate-sdk-ext = "copy_buildsystem install_tools "
+SDK_POSTPROCESS_COMMAND:prepend:task-populate-sdk-ext = "copy_buildsystem; install_tools; "
 
 SDK_INSTALL_TARGETS = ""
 fakeroot python do_populate_sdk_ext() {

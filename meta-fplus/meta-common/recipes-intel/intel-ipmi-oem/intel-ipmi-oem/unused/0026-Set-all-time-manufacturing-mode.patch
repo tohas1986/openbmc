@@ -1,0 +1,22 @@
+From 14b5d9de2fa6c969be8f46c4d1899e9f67b2ac31 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 24 Dec 2020 08:52:55 +0000
+Subject: [PATCH] Set all time manufacturing mode
+
+---
+ include/manufacturingcommands.hpp | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/manufacturingcommands.hpp b/include/manufacturingcommands.hpp
+index 3594abb..41fe097 100644
+--- a/include/manufacturingcommands.hpp
++++ b/include/manufacturingcommands.hpp
+@@ -262,6 +262,8 @@ class Manufacturing
+ 
+     SpecialMode getMfgMode(void)
+     {
++        return SpecialMode::mfg;
++
+         ipmi::Value mode;
+         if (getProperty(specialModeService, specialModeObjPath, specialModeIntf,
+                         "SpecialMode", &mode) != 0)

@@ -1,4 +1,5 @@
 DESCRIPTION="Anthy is a system for Japanese input method. It converts Hiragana text to Kana Kanji mixed text."
+AUTHOR = "Anthy Developers <anthy-dev@lists.sourceforge.jp>"
 HOMEPAGE = "http://anthy.sourceforge.jp"
 
 LICENSE = "LGPL-2.1-only & GPL-2.0-only"

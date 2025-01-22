@@ -1,4 +1,4 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
 
-SRC_URI += " file://faillock.conf \
+SRC_URI += " file://pam.d/common-password \
             "

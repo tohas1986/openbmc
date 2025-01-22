@@ -1,7 +1,12 @@
 require conf/distro/include/phosphor-defaults.inc
 
-# Match the distro codename from upstream poky.
-DISTRO_CODENAME ?= "scarthgap"
+# Override these in poky based distros
+POKY_DEFAULT_DISTRO_FEATURES = "largefile opengl ptest multiarch wayland vulkan"
+POKY_DEFAULT_EXTRA_RDEPENDS = "packagegroup-core-boot"
+POKY_DEFAULT_EXTRA_RRECOMMENDS = "kernel-module-af-packet"
+
+DISTRO_EXTRA_RDEPENDS += " ${POKY_DEFAULT_EXTRA_RDEPENDS}"
+DISTRO_EXTRA_RRECOMMENDS += " ${POKY_DEFAULT_EXTRA_RRECOMMENDS}"
 
 DISTROOVERRIDES .= ":openbmc-phosphor"
 
@@ -31,20 +36,18 @@ https://.*/.*    http://downloads.yoctoproject.org/mirror/sources/ \n"
 CONNECTIVITY_CHECK_URIS ?= "https://yoctoproject.org/connectivity.html"
 
 SANITY_TESTED_DISTROS ?= " \
-            poky-4.2 \n \
-            poky-4.3 \n \
-            ubuntu-18.04 \n \
-            ubuntu-20.04 \n \
-            ubuntu-22.04 \n \
-            ubuntu-23.04 \n \
-            fedora-38 \n \
-            centosstream-8 \n \
-            debian-11 \n \
-            debian-12 \n \
-            opensuseleap-15.4 \n \
-            almalinux-8.8 \n \
-            almalinux-9.2 \n \
-            rocky-9 \n \
+            poky-2.4 \n \
+            poky-2.5 \n \
+            ubuntu-15.04 \n \
+            ubuntu-16.04 \n \
+            ubuntu-16.10 \n \
+            ubuntu-17.04 \n \
+            fedora-26 \n \
+            centos-7 \n \
+            debian-8 \n \
+            debian-9 \n \
+            opensuse-42.1 \n \
+            opensuse-42.2 \n \
             "
 #
 # OELAYOUT_ABI allows us to notify users when the format of TMPDIR changes in
@@ -52,7 +55,8 @@ SANITY_TESTED_DISTROS ?= " \
 # that breaks the format and have been previously discussed on the mailing list
 # with general agreement from the core team.
 #
-OELAYOUT_ABI = "15"
+
+OELAYOUT_ABI = "12"
 
 # QA check settings - a little stricter than the OE-Core defaults
 WARN_TO_ERROR_QA = "already-stripped compile-host-path install-host-path \
@@ -67,25 +71,18 @@ require conf/distro/include/yocto-uninative.inc
 DISTRO_NAME ?= "Phosphor OpenBMC (Phosphor OpenBMC Project Reference Distro)"
 TARGET_VENDOR="-openbmc"
 
-
 VIRTUAL-RUNTIME_keymaps = ""
 
 # Phosphor OpenBMC uses systemd and udev
-INIT_MANAGER = "systemd"
-# systemd doesn't like us using /home/root instead of /root but we've been
-# doing it a long time.  The `INIT_MANAGER = systemd` switches the default to
-# /root, but we should switch it back (and maybe adjust in another commit).
-ROOT_HOME = "/home/root"
-
-# We want to persist /var/log, which is likely to be used for
-# obmc-console and/or journald.
-VOLATILE_LOG_DIR = "no"
+VIRTUAL-RUNTIME_init_manager = "systemd"
+VIRTUAL-RUNTIME_initscripts = ""
 
 DISTRO_FEATURES_BACKFILL_CONSIDERED = " \
         bluez5 \
         ldconfig \
         gobject-introspection-data \
         pulseaudio \
+        sysvinit \
         "
 
 DISTRO_FEATURES_OBMC = " \
@@ -104,6 +101,7 @@ DISTRO_FEATURES_DEFAULT = " \
         pam \
         security \
         slp \
+        systemd \
         seccomp \
         "
 
@@ -136,12 +134,7 @@ LAYER_CONF_VERSION ?= "8"
 KERNEL_CLASSES:append = " obmc-phosphor-kernel-version"
 
 # Some packages have directory trees of YAML files arranged based on
-# canonical organization names.  'org/freedesktop' and 'xyz/openbmc_project'
-# should be used everywhere in phosphor, but some layers may append this with
-# their own organization(s).
-OBMC_ORG_YAML_SUBDIRS += " org/freedesktop xyz/openbmc_project"
-
-PREFERRED_VERSION_libgpiod = "1.6.4"
-
-# Enable SBOM: https://docs.yoctoproject.org/next/dev-manual/sbom.html
-INHERIT += "create-spdx"
+# canonical organization names.  'xyz/openbmc_project' should be used
+# everywhere in phosphor, but some layers may append this with their
+# own organization(s).
+OBMC_ORG_YAML_SUBDIRS += " xyz/openbmc_project"

@@ -1,0 +1,34 @@
+From 9f8d2befa3d4e6d21b0b13b6f1cafafa5ebc50dd Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 21 Dec 2022 14:11:24 +0000
+Subject: [PATCH] Fix missing include; Bump CPP standard to 20
+
+---
+ CMakeLists.txt          | 2 +-
+ include/fpgaUpdater.hpp | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index babca6f..265a827 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,6 +1,6 @@
+ cmake_minimum_required (VERSION 3.5 FATAL_ERROR)
+ project (nvidia-fpga-updater CXX)
+-set (CMAKE_CXX_STANDARD 17)
++set (CMAKE_CXX_STANDARD 20)
+ set (CMAKE_CXX_STANDARD_REQUIRED ON)
+ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
+ set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fno-rtti")
+diff --git a/include/fpgaUpdater.hpp b/include/fpgaUpdater.hpp
+index c2e1d38..a936bb8 100644
+--- a/include/fpgaUpdater.hpp
++++ b/include/fpgaUpdater.hpp
+@@ -8,6 +8,7 @@
+ #include <algorithm>
+ #include <unistd.h>
+ #include <iomanip>
++#include <vector>
+ 
+ #include "i2c.h"
+ #include "smbus.hpp"

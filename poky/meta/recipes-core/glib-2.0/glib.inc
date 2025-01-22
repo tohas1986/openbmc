@@ -28,7 +28,9 @@ PACKAGES += "${PN}-codegen ${PN}-utils"
 
 LEAD_SONAME = "libglib-2.0.*"
 
-inherit meson gettext gtk-doc pkgconfig ptest-gnome upstream-version-is-even bash-completion gio-module-cache manpages gobject-introspection-data
+inherit meson gettext gtk-doc pkgconfig ptest-gnome upstream-version-is-even bash-completion gio-module-cache manpages
+
+DEPENDS:append:class-target = "${@' gtk-doc' if d.getVar('GTKDOC_ENABLED') == 'True' else ''}"
 
 GTKDOC_MESON_OPTION = "gtk_doc"
 
@@ -38,7 +40,8 @@ PACKAGECONFIG ??= "libmount \
                    ${@bb.utils.contains('PTEST_ENABLED', '1', 'tests', '', d)}"
 PACKAGECONFIG[libmount] = "-Dlibmount=enabled,-Dlibmount=disabled,util-linux"
 PACKAGECONFIG[manpages] = "-Dman=true, -Dman=false, libxslt-native xmlto-native"
-PACKAGECONFIG[libelf] = "-Dlibelf=enabled,-Dlibelf=disabled,elfutils"
+# libelf is auto-detected without a configuration option
+PACKAGECONFIG[libelf] = ",,elfutils"
 PACKAGECONFIG[tests] = "-Dinstalled_tests=true,-Dinstalled_tests=false,"
 PACKAGECONFIG[selinux] = "-Dselinux=enabled,-Dselinux=disabled,libselinux"
 
@@ -52,8 +55,12 @@ FILES:${PN} = "${libdir}/lib*${SOLIBS} \
                ${libdir}/gio \
                ${libexecdir}/*gio-querymodules \
                ${libexecdir}/*gio-launch-desktop \
-               ${datadir}/glib-2.0/dtds \
                ${datadir}/glib-2.0/schemas"
+
+FILES:${PN}-utils += "${bindir}/glib-genmarshal \
+                      ${bindir}/glib-gettextize \
+                      ${bindir}/glib-mkenums \
+                      ${bindir}/glib-compile-resources"
 
 FILES:${PN}-dev += "${libdir}/glib-2.0/include \
                     ${libdir}/gio/modules/lib*${SOLIBSDEV} \
@@ -111,11 +118,6 @@ do_install:append () {
         mkdir -p ${D}${libdir}/gio/modules
 }
 
-do_install:append:class-native () {
-	# Link gio-querymodules into ${bindir} as otherwise tools like meson won't find it
-        ln -rs ${D}${libexecdir}/gio-querymodules ${D}${bindir}
-}
-
 do_install:append:class-target () {
 	# Tests are only installed on targets, not native builds.  Separating this out
 	# keeps glib-2.0-native from depending on DISTRO_FEATURES
@@ -132,19 +134,13 @@ do_install:append:class-target () {
         # https://gitlab.gnome.org/GNOME/glib/-/issues/2810
         rm -f ${D}${datadir}/installed-tests/glib/thread-pool-slow.test
 }
-do_install:append:class-target:libc-musl () {
-        # Remove failing tests on musl libc systems, this helps set baseline for musl testing
-        # they remain to be rootcaused and fixed but marked known failures here.
-        for t in convert.test collate.test gdatetime.test date.test converter-stream.test option-context.test; do
-                rm -rf ${D}${datadir}/installed-tests/glib/$t
-        done
-}
+
 # As we do not build python3 for windows, makes no sense to ship the script that's using it
 do_install:append:mingw32() {
         rm -f ${D}${bindir}/gtester-report
 }
 
-CODEGEN_PYTHON_RDEPENDS = "python3 python3-packaging python3-xml"
+CODEGEN_PYTHON_RDEPENDS = "python3 python3-distutils python3-xml"
 CODEGEN_PYTHON_RDEPENDS:mingw32 = ""
 
 RDEPENDS:${PN}-codegen += "${CODEGEN_PYTHON_RDEPENDS}"
@@ -175,12 +171,6 @@ RDEPENDS:${PN}-ptest += "\
             python3-modules \
             ${@bb.utils.contains('GI_DATA_ENABLED', 'True', 'python3-dbusmock', '', d)} \
             ${PN}-codegen \
-            locale-base-de-de \
-            locale-base-es-es \
-            locale-base-en-gb \
-            locale-base-en-us \
-            locale-base-fr-fr \
-            locale-base-ru-ru \
            "
 
 RDEPENDS:${PN}-ptest:append:libc-glibc = "\
@@ -195,12 +185,18 @@ RDEPENDS:${PN}-ptest:append:libc-glibc = "\
             glibc-gconv-iso8859-15 \
             glibc-charmap-invariant \
             glibc-localedata-translit-cjk-variants \
+            locale-base-tr-tr \
             locale-base-lt-lt \
             locale-base-ja-jp.euc-jp \
             locale-base-fa-ir \
+            locale-base-ru-ru \
+            locale-base-de-de \
             locale-base-hr-hr \
             locale-base-el-gr \
+            locale-base-fr-fr \
+            locale-base-es-es \
+            locale-base-en-gb \
+            locale-base-en-us \
             locale-base-pl-pl \
             locale-base-pl-pl.iso-8859-2 \
-            locale-base-tr-tr \
            "

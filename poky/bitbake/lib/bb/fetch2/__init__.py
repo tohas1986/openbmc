@@ -290,12 +290,12 @@ class URI(object):
 
     def _param_str_split(self, string, elmdelim, kvdelim="="):
         ret = collections.OrderedDict()
-        for k, v in [x.split(kvdelim, 1) if kvdelim in x else (x, None) for x in string.split(elmdelim) if x]:
+        for k, v in [x.split(kvdelim, 1) for x in string.split(elmdelim) if x]:
             ret[k] = v
         return ret
 
     def _param_str_join(self, dict_, elmdelim, kvdelim="="):
-        return elmdelim.join([kvdelim.join([k, v]) if v else k for k, v in dict_.items()])
+        return elmdelim.join([kvdelim.join([k, v]) for k, v in dict_.items()])
 
     @property
     def hostport(self):
@@ -388,7 +388,7 @@ def decodeurl(url):
             if s:
                 if not '=' in s:
                     raise MalformedUrl(url, "The URL: '%s' is invalid: parameter %s does not specify a value (missing '=')" % (url, s))
-                s1, s2 = s.split('=', 1)
+                s1, s2 = s.split('=')
                 p[s1] = s2
 
     return type, host, urllib.parse.unquote(path), user, pswd, p
@@ -469,7 +469,6 @@ def uri_replace(ud, uri_find, uri_replace, replacements, d, mirrortarball=None):
                     basename = os.path.basename(mirrortarball)
                     # Kill parameters, they make no sense for mirror tarballs
                     uri_decoded[5] = {}
-                    uri_find_decoded[5] = {}
                 elif ud.localpath and ud.method.supports_checksum(ud):
                     basename = os.path.basename(ud.localpath)
                 if basename:
@@ -518,7 +517,7 @@ def fetcher_init(d):
     else:
         raise FetchError("Invalid SRCREV cache policy of: %s" % srcrev_policy)
 
-    _checksum_cache.init_cache(d.getVar("BB_CACHEDIR"))
+    _checksum_cache.init_cache(d)
 
     for m in methods:
         if hasattr(m, "init"):
@@ -560,6 +559,7 @@ def verify_checksum(ud, d, precomputed={}, localpath=None, fatal_nochecksum=True
     file against those in the recipe each time, rather than only after
     downloading. See https://bugzilla.yoctoproject.org/show_bug.cgi?id=5571.
     """
+
     if ud.ignore_checksums or not ud.method.supports_checksum(ud):
         return {}
 
@@ -604,7 +604,11 @@ def verify_checksum(ud, d, precomputed={}, localpath=None, fatal_nochecksum=True
 
         # If strict checking enabled and neither sum defined, raise error
         if strict == "1":
-            raise NoChecksumError("\n".join(checksum_lines))
+            messages.append("No checksum specified for '%s', please add at " \
+                            "least one to the recipe:" % ud.localpath)
+            messages.extend(checksum_lines)
+            logger.error("\n".join(messages))
+            raise NoChecksumError("Missing SRC_URI checksum", ud.url)
 
         bb.event.fire(MissingChecksumEvent(ud.url, **checksum_event), d)
 
@@ -744,16 +748,13 @@ def subprocess_setup():
     # SIGPIPE errors are known issues with gzip/bash
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
-def mark_recipe_nocache(d):
+def get_autorev(d):
+    #  only not cache src rev in autorev case
     if d.getVar('BB_SRCREV_POLICY') != "cache":
         d.setVar('BB_DONT_CACHE', '1')
-
-def get_autorev(d):
-    mark_recipe_nocache(d)
-    d.setVar("__BBAUTOREV_SEEN", True)
     return "AUTOINC"
 
-def _get_srcrev(d, method_name='sortable_revision'):
+def get_srcrev(d, method_name='sortable_revision'):
     """
     Return the revision string, usually for use in the version string (PV) of the current package
     Most packages usually only have one SCM so we just pass on the call.
@@ -767,14 +768,13 @@ def _get_srcrev(d, method_name='sortable_revision'):
     that fetcher provides a method with the given name and the same signature as sortable_revision.
     """
 
-    d.setVar("__BBSRCREV_SEEN", "1")
+    d.setVar("__BBSEENSRCREV", "1")
     recursion = d.getVar("__BBINSRCREV")
     if recursion:
         raise FetchError("There are recursive references in fetcher variables, likely through SRC_URI")
     d.setVar("__BBINSRCREV", True)
 
     scms = []
-    revs = []
     fetcher = Fetch(d.getVar('SRC_URI').split(), d)
     urldata = fetcher.ud
     for u in urldata:
@@ -782,19 +782,16 @@ def _get_srcrev(d, method_name='sortable_revision'):
             scms.append(u)
 
     if not scms:
-        d.delVar("__BBINSRCREV")
-        return "", revs
-
+        raise FetchError("SRCREV was used yet no valid SCM was found in SRC_URI")
 
     if len(scms) == 1 and len(urldata[scms[0]].names) == 1:
         autoinc, rev = getattr(urldata[scms[0]].method, method_name)(urldata[scms[0]], d, urldata[scms[0]].names[0])
-        revs.append(rev)
         if len(rev) > 10:
             rev = rev[:10]
         d.delVar("__BBINSRCREV")
         if autoinc:
-            return "AUTOINC+" + rev, revs
-        return rev, revs
+            return "AUTOINC+" + rev
+        return rev
 
     #
     # Mutiple SCMs are in SRC_URI so we resort to SRCREV_FORMAT
@@ -810,7 +807,6 @@ def _get_srcrev(d, method_name='sortable_revision'):
         ud = urldata[scm]
         for name in ud.names:
             autoinc, rev = getattr(ud.method, method_name)(ud, d, name)
-            revs.append(rev)
             seenautoinc = seenautoinc or autoinc
             if len(rev) > 10:
                 rev = rev[:10]
@@ -828,21 +824,7 @@ def _get_srcrev(d, method_name='sortable_revision'):
         format = "AUTOINC+" + format
 
     d.delVar("__BBINSRCREV")
-    return format, revs
-
-def get_hashvalue(d, method_name='sortable_revision'):
-    pkgv, revs = _get_srcrev(d, method_name=method_name)
-    return " ".join(revs)
-
-def get_pkgv_string(d, method_name='sortable_revision'):
-    pkgv, revs = _get_srcrev(d, method_name=method_name)
-    return pkgv
-
-def get_srcrev(d, method_name='sortable_revision'):
-    pkgv, revs = _get_srcrev(d, method_name=method_name)
-    if not pkgv:
-        raise FetchError("SRCREV was used yet no valid SCM was found in SRC_URI")
-    return pkgv
+    return format
 
 def localpath(url, d):
     fetcher = bb.fetch2.Fetch([url], d)
@@ -868,17 +850,10 @@ FETCH_EXPORT_VARS = ['HOME', 'PATH',
                      'DBUS_SESSION_BUS_ADDRESS',
                      'P4CONFIG',
                      'SSL_CERT_FILE',
-                     'NODE_EXTRA_CA_CERTS',
                      'AWS_PROFILE',
                      'AWS_ACCESS_KEY_ID',
                      'AWS_SECRET_ACCESS_KEY',
-                     'AWS_ROLE_ARN',
-                     'AWS_WEB_IDENTITY_TOKEN_FILE',
-                     'AWS_DEFAULT_REGION',
-                     'AWS_SESSION_TOKEN',
-                     'GIT_CACHE_PATH',
-                     'REMOTE_CONTAINERS_IPC',
-                     'SSL_CERT_DIR']
+                     'AWS_DEFAULT_REGION']
 
 def get_fetcher_environment(d):
     newenv = {}
@@ -943,10 +918,7 @@ def runfetchcmd(cmd, d, quiet=False, cleanup=None, log=None, workdir=None):
         elif e.stderr:
             output = "output:\n%s" % e.stderr
         else:
-            if log:
-                output = "see logfile for output"
-            else:
-                output = "no output"
+            output = "no output"
         error_message = "Fetch command %s failed with exit code %s, %s" % (e.command, e.exitcode, output)
     except bb.process.CmdError as e:
         error_message = "Fetch command %s could not be run:\n%s" % (e.command, e.msg)
@@ -1118,8 +1090,7 @@ def try_mirror_url(fetch, origud, ud, ld, check = False):
             logger.debug("Mirror fetch failure for url %s (original url: %s)" % (ud.url, origud.url))
             logger.debug(str(e))
         try:
-            if ud.method.cleanup_upon_failure():
-                ud.method.clean(ud, ld)
+            ud.method.clean(ud, ld)
         except UnboundLocalError:
             pass
         return False
@@ -1244,7 +1215,6 @@ def srcrev_internal_helper(ud, d, name):
     if srcrev == "INVALID" or not srcrev:
         raise FetchError("Please set a valid SRCREV for url %s (possible key names are %s, or use a ;rev=X URL parameter)" % (str(attempts), ud.url), ud.url)
     if srcrev == "AUTOINC":
-        d.setVar("__BBAUTOREV_ACTED_UPON", True)
         srcrev = ud.method.latest_revision(ud, d, name)
 
     return srcrev
@@ -1261,7 +1231,7 @@ def get_checksum_file_list(d):
         ud = fetch.ud[u]
         if ud and isinstance(ud.method, local.Local):
             found = False
-            paths = ud.method.localfile_searchpaths(ud, d)
+            paths = ud.method.localpaths(ud, d)
             for f in paths:
                 pth = ud.decodedurl
                 if os.path.exists(f):
@@ -1317,12 +1287,17 @@ class FetchData(object):
 
             if checksum_name in self.parm:
                 checksum_expected = self.parm[checksum_name]
-            elif self.type not in ["http", "https", "ftp", "ftps", "sftp", "s3", "az", "crate", "gs"]:
+            elif self.type not in ["http", "https", "ftp", "ftps", "sftp", "s3", "az"]:
                 checksum_expected = None
             else:
                 checksum_expected = d.getVarFlag("SRC_URI", checksum_name)
 
             setattr(self, "%s_expected" % checksum_id, checksum_expected)
+
+        for checksum_id in CHECKSUM_LIST:
+            configure_checksum(checksum_id)
+
+        self.ignore_checksums = False
 
         self.names = self.parm.get("name",'default').split(',')
 
@@ -1344,11 +1319,6 @@ class FetchData(object):
 
         if hasattr(self.method, "urldata_init"):
             self.method.urldata_init(self, d)
-
-        for checksum_id in CHECKSUM_LIST:
-            configure_checksum(checksum_id)
-
-        self.ignore_checksums = False
 
         if "localpath" in self.parm:
             # if user sets localpath for file, use it instead.
@@ -1429,9 +1399,6 @@ class FetchMethod(object):
         Is localpath something that can be represented by a checksum?
         """
 
-        # We cannot compute checksums for None
-        if urldata.localpath is None:
-            return False
         # We cannot compute checksums for directories
         if os.path.isdir(urldata.localpath):
             return False
@@ -1443,12 +1410,6 @@ class FetchMethod(object):
         be displayed if there is no checksum)?
         """
         return False
-
-    def cleanup_upon_failure(self):
-        """
-        When a fetch fails, should clean() be called?
-        """
-        return True
 
     def verify_donestamp(self, ud, d):
         """
@@ -1592,7 +1553,6 @@ class FetchMethod(object):
             unpackdir = rootdir
 
         if not unpack or not cmd:
-            urldata.unpack_tracer.unpack("file-copy", unpackdir)
             # If file == dest, then avoid any copies, as we already put the file into dest!
             dest = os.path.join(unpackdir, os.path.basename(file))
             if file != dest and not (os.path.exists(dest) and os.path.samefile(file, dest)):
@@ -1607,8 +1567,6 @@ class FetchMethod(object):
                         destdir = urlpath.rsplit("/", 1)[0] + '/'
                         bb.utils.mkdirhier("%s/%s" % (unpackdir, destdir))
                 cmd = 'cp -fpPRH "%s" "%s"' % (file, destdir)
-        else:
-            urldata.unpack_tracer.unpack("archive-extract", unpackdir)
 
         if not cmd:
             return
@@ -1700,55 +1658,6 @@ class FetchMethod(object):
         """
         return []
 
-
-class DummyUnpackTracer(object):
-    """
-    Abstract API definition for a class that traces unpacked source files back
-    to their respective upstream SRC_URI entries, for software composition
-    analysis, license compliance and detailed SBOM generation purposes.
-    User may load their own unpack tracer class (instead of the dummy
-    one) by setting the BB_UNPACK_TRACER_CLASS config parameter.
-    """
-    def start(self, unpackdir, urldata_dict, d):
-        """
-        Start tracing the core Fetch.unpack process, using an index to map
-        unpacked files to each SRC_URI entry.
-        This method is called by Fetch.unpack and it may receive nested calls by
-        gitsm and npmsw fetchers, that expand SRC_URI entries by adding implicit
-        URLs and by recursively calling Fetch.unpack from new (nested) Fetch
-        instances.
-        """
-        return
-    def start_url(self, url):
-        """Start tracing url unpack process.
-        This method is called by Fetch.unpack before the fetcher-specific unpack
-        method starts, and it may receive nested calls by gitsm and npmsw
-        fetchers.
-        """
-        return
-    def unpack(self, unpack_type, destdir):
-        """
-        Set unpack_type and destdir for current url.
-        This method is called by the fetcher-specific unpack method after url
-        tracing started.
-        """
-        return
-    def finish_url(self, url):
-        """Finish tracing url unpack process and update the file index.
-        This method is called by Fetch.unpack after the fetcher-specific unpack
-        method finished its job, and it may receive nested calls by gitsm
-        and npmsw fetchers.
-        """
-        return
-    def complete(self):
-        """
-        Finish tracing the Fetch.unpack process, and check if all nested
-        Fecth.unpack calls (if any) have been completed; if so, save collected
-        metadata.
-        """
-        return
-
-
 class Fetch(object):
     def __init__(self, urls, d, cache = True, localonly = False, connection_cache = None):
         if localonly and cache:
@@ -1769,30 +1678,10 @@ class Fetch(object):
         if key in urldata_cache:
             self.ud = urldata_cache[key]
 
-        # the unpack_tracer object needs to be made available to possible nested
-        # Fetch instances (when those are created by gitsm and npmsw fetchers)
-        # so we set it as a global variable
-        global unpack_tracer
-        try:
-            unpack_tracer
-        except NameError:
-            class_path = d.getVar("BB_UNPACK_TRACER_CLASS")
-            if class_path:
-                # use user-defined unpack tracer class
-                import importlib
-                module_name, _, class_name = class_path.rpartition(".")
-                module = importlib.import_module(module_name)
-                class_ = getattr(module, class_name)
-                unpack_tracer = class_()
-            else:
-                # fall back to the dummy/abstract class
-                unpack_tracer = DummyUnpackTracer()
-
         for url in urls:
             if url not in self.ud:
                 try:
                     self.ud[url] = FetchData(url, d, localonly)
-                    self.ud[url].unpack_tracer = unpack_tracer
                 except NonLocalMethod:
                     if localonly:
                         self.ud[url] = None
@@ -1831,7 +1720,6 @@ class Fetch(object):
         network = self.d.getVar("BB_NO_NETWORK")
         premirroronly = bb.utils.to_boolean(self.d.getVar("BB_FETCH_PREMIRRORONLY"))
 
-        checksum_missing_messages = []
         for u in urls:
             ud = self.ud[u]
             ud.setup_localpath(self.d)
@@ -1843,6 +1731,7 @@ class Fetch(object):
 
             try:
                 self.d.setVar("BB_NO_NETWORK", network)
+
                 if m.verify_donestamp(ud, self.d) and not m.need_update(ud, self.d):
                     done = True
                 elif m.try_premirror(ud, self.d):
@@ -1895,7 +1784,7 @@ class Fetch(object):
                             logger.debug(str(e))
                         firsterr = e
                         # Remove any incomplete fetch
-                        if not verified_stamp and m.cleanup_upon_failure():
+                        if not verified_stamp:
                             m.clean(ud, self.d)
                         logger.debug("Trying MIRRORS")
                         mirrors = mirror_from_string(self.d.getVar('MIRRORS'))
@@ -1914,20 +1803,13 @@ class Fetch(object):
                     raise ChecksumError("Stale Error Detected")
 
             except BBFetchException as e:
-                if isinstance(e, NoChecksumError):
-                    (message, _) = e.args
-                    checksum_missing_messages.append(message)
-                    continue
-                elif isinstance(e, ChecksumError):
+                if isinstance(e, ChecksumError):
                     logger.error("Checksum failure fetching %s" % u)
                 raise
 
             finally:
                 if ud.lockfile:
                     bb.utils.unlockfile(lf)
-        if checksum_missing_messages:
-            logger.error("Missing SRC_URI checksum, please add those to the recipe: \n%s", "\n".join(checksum_missing_messages))
-            raise BBFetchException("There was some missing checksums in the recipe")
 
     def checkstatus(self, urls=None):
         """
@@ -1958,7 +1840,7 @@ class Fetch(object):
                     ret = m.try_mirrors(self, ud, self.d, mirrors, True)
 
             if not ret:
-                raise FetchError("URL doesn't work", u)
+                raise FetchError("URL %s doesn't work" % u, u)
 
     def unpack(self, root, urls=None):
         """
@@ -1968,8 +1850,6 @@ class Fetch(object):
         if not urls:
             urls = self.urls
 
-        unpack_tracer.start(root, self.ud, self.d)
-
         for u in urls:
             ud = self.ud[u]
             ud.setup_localpath(self.d)
@@ -1977,14 +1857,10 @@ class Fetch(object):
             if ud.lockfile:
                 lf = bb.utils.lockfile(ud.lockfile)
 
-            unpack_tracer.start_url(u)
             ud.method.unpack(ud, root, self.d)
-            unpack_tracer.finish_url(u)
 
             if ud.lockfile:
                 bb.utils.unlockfile(lf)
-
-        unpack_tracer.complete()
 
     def clean(self, urls=None):
         """
@@ -2087,7 +1963,6 @@ from . import npm
 from . import npmsw
 from . import az
 from . import crate
-from . import gcp
 
 methods.append(local.Local())
 methods.append(wget.Wget())
@@ -2109,4 +1984,3 @@ methods.append(npm.Npm())
 methods.append(npmsw.NpmShrinkWrap())
 methods.append(az.Az())
 methods.append(crate.Crate())
-methods.append(gcp.GCP())

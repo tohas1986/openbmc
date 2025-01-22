@@ -20,10 +20,6 @@ python __anonymous () {
     d.setVar('KBUILD_EXTRA_SYMBOLS', " ".join(extra_symbols))
 }
 
-python do_package:prepend () {
-    os.environ['STRIP'] = d.getVar('KERNEL_STRIP')
-}
-
 python do_devshell:prepend () {
     os.environ['CFLAGS'] = ''
     os.environ['CPPFLAGS'] = ''
@@ -36,8 +32,6 @@ python do_devshell:prepend () {
     os.environ['CC'] = d.getVar('KERNEL_CC')
     os.environ['LD'] = d.getVar('KERNEL_LD')
     os.environ['AR'] = d.getVar('KERNEL_AR')
-    os.environ['OBJCOPY'] = d.getVar('KERNEL_OBJCOPY')
-    os.environ['STRIP'] = d.getVar('KERNEL_STRIP')
     os.environ['O'] = d.getVar('STAGING_KERNEL_BUILDDIR')
     kbuild_extra_symbols = d.getVar('KBUILD_EXTRA_SYMBOLS')
     if kbuild_extra_symbols:
@@ -51,8 +45,7 @@ module_do_compile() {
 	oe_runmake KERNEL_PATH=${STAGING_KERNEL_DIR}   \
 		   KERNEL_VERSION=${KERNEL_VERSION}    \
 		   CC="${KERNEL_CC}" LD="${KERNEL_LD}" \
-		   AR="${KERNEL_AR}" OBJCOPY="${KERNEL_OBJCOPY}" \
-		   STRIP="${KERNEL_STRIP}" \
+		   AR="${KERNEL_AR}" \
 	           O=${STAGING_KERNEL_BUILDDIR} \
 		   KBUILD_EXTRA_SYMBOLS="${KBUILD_EXTRA_SYMBOLS}" \
 		   ${MAKE_TARGETS}
@@ -62,8 +55,7 @@ module_do_install() {
 	unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS
 	oe_runmake DEPMOD=echo MODLIB="${D}${nonarch_base_libdir}/modules/${KERNEL_VERSION}" \
 	           INSTALL_FW_PATH="${D}${nonarch_base_libdir}/firmware" \
-	           CC="${KERNEL_CC}" LD="${KERNEL_LD}" OBJCOPY="${KERNEL_OBJCOPY}" \
-	           STRIP="${KERNEL_STRIP}" \
+	           CC="${KERNEL_CC}" LD="${KERNEL_LD}" \
 	           O=${STAGING_KERNEL_BUILDDIR} \
 	           ${MODULES_INSTALL_TARGET}
 

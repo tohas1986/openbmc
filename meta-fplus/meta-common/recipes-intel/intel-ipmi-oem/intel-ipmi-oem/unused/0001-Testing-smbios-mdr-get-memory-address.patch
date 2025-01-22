@@ -1,0 +1,321 @@
+From e57627ba33ea32eee4f317e4f4558b0e3f4a7dc8 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Wed, 10 Jun 2020 10:27:24 +0000
+Subject: [PATCH] Testing-smbios-mdr-get-memory-address
+
+---
+ include/sdrutils.hpp           |   4 +-
+ include/smbiosmdrv2handler.hpp |   2 +-
+ src/sensorcommands.cpp         |  12 +++-
+ src/smbiosmdrv2handler.cpp     | 151 +++++++++++++++++++++++++++++++++++++++--
+ src/whitelist-filter.cpp       |   4 +-
+ 5 files changed, 161 insertions(+), 12 deletions(-)
+
+diff --git a/include/sdrutils.hpp b/include/sdrutils.hpp
+index 206f6af..11ba94d 100644
+--- a/include/sdrutils.hpp
++++ b/include/sdrutils.hpp
+@@ -281,7 +281,7 @@ static inline std::map<std::string, std::vector<std::string>>
+     }
+     catch (const std::exception& e)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
++        phosphor::logging::log<phosphor::logging::level::DEBUG>(
+             "Failed to GetObject", phosphor::logging::entry("PATH=%s", path),
+             phosphor::logging::entry("WHAT=%s", e.what()));
+     }
+@@ -307,7 +307,7 @@ static inline std::map<std::string, DbusVariant>
+     }
+     catch (const std::exception& e)
+     {
+-        phosphor::logging::log<phosphor::logging::level::ERR>(
++        phosphor::logging::log<phosphor::logging::level::DEBUG>(
+             "Failed to GetAll", phosphor::logging::entry("PATH=%s", path),
+             phosphor::logging::entry("INTF=%s", interface),
+             phosphor::logging::entry("WHAT=%s", e.what()));
+diff --git a/include/smbiosmdrv2handler.hpp b/include/smbiosmdrv2handler.hpp
+index 3d9b627..0d20961 100644
+--- a/include/smbiosmdrv2handler.hpp
++++ b/include/smbiosmdrv2handler.hpp
+@@ -273,7 +273,7 @@ class MDRV2
+     bool smbiosTryLock(uint8_t flag, uint8_t index, uint16_t *session,
+                        uint16_t timeout);
+     int sdplusMdrv2GetProperty(const std::string &name,
+-                               std::variant<uint8_t> &value,
++                               uint8_t value,
+                                const std::string &service);
+ 
+     Mdr2DirStruct smbiosDir{smbiosAgentVersion,
+diff --git a/src/sensorcommands.cpp b/src/sensorcommands.cpp
+index 0c1840c..d4504dd 100644
+--- a/src/sensorcommands.cpp
++++ b/src/sensorcommands.cpp
+@@ -410,6 +410,8 @@ ipmi::RspType<uint8_t, uint8_t, uint8_t, std::optional<uint8_t>>
+     }
+     auto &valueVariant = sensorObject->second["Value"];
+     double reading = std::visit(VariantToDoubleVisitor(), valueVariant);
++ 
++    std::cerr << "DEBUG: reading:" << reading << "\n";
+ 
+     double max = 0;
+     double min = 0;
+@@ -433,6 +435,14 @@ ipmi::RspType<uint8_t, uint8_t, uint8_t, std::optional<uint8_t>>
+     operation |=
+         static_cast<uint8_t>(IPMISensorReadingByte2::eventMessagesEnable);
+ 
++    if (std::isnan(reading))
++    {
++        operation |= static_cast<uint8_t>(IPMISensorReadingByte2::readingStateUnavailable);
++        /* To change from "no reading" to "disable", unset sensorScanningEnable */
++        /* operation &= ~(static_cast<uint8_t>(IPMISensorReadingByte2::sensorScanningEnable)); */
++    }
++
++
+     uint8_t thresholds = 0;
+ 
+     auto warningObject =
+@@ -1395,7 +1405,7 @@ ipmi::RspType<uint16_t,            // next record ID
+         name = path.substr(nameStart + 1, std::string::npos - nameStart);
+     }
+ 
+-    std::replace(name.begin(), name.end(), '_', ' ');
++    std::replace(name.begin(), name.end(), ' ', '_');
+     if (name.size() > FULL_RECORD_ID_STR_MAX_LENGTH)
+     {
+         // try to not truncate by replacing common words
+diff --git a/src/smbiosmdrv2handler.cpp b/src/smbiosmdrv2handler.cpp
+index 425a890..27d94fb 100644
+--- a/src/smbiosmdrv2handler.cpp
++++ b/src/smbiosmdrv2handler.cpp
+@@ -39,6 +39,11 @@ static constexpr const uint8_t ccOemInvalidChecksum = 0x85;
+ static constexpr size_t dataInfoSize = 16;
+ static constexpr const uint8_t ccStorageLeak = 0xC4;
+ 
++//Gigabyte hardcode sub command
++static constexpr const uint8_t SUB_CMD_GET_SHARE_MEMORY_ADDRESS = 0x0a;
++static constexpr const uint8_t SUB_CMD_SMBIOS_DATA_READY_ON_SHARE_MEMORY = 0x0b;
++static constexpr const uint8_t SUB_CMD_INT_FLAG = 0x16;
++
+ static void register_netfn_smbiosmdrv2_functions() __attribute__((constructor));
+ 
+ int MDRV2::agentLookup(const uint16_t &agentId)
+@@ -59,7 +64,7 @@ int MDRV2::agentLookup(const uint16_t &agentId)
+ }
+ 
+ int MDRV2::sdplusMdrv2GetProperty(const std::string &name,
+-                                  std::variant<uint8_t> &value,
++                                  uint8_t value,
+                                   const std::string &service)
+ {
+     std::shared_ptr<sdbusplus::asio::connection> bus = getSdBus();
+@@ -296,14 +301,14 @@ ipmi::RspType<std::vector<uint8_t>> mdr2GetDir(uint16_t agentId,
+         return ipmi::responseParmOutOfRange();
+     }
+ 
+-    std::variant<uint8_t> value = 0;
++    uint8_t value = 0;
+     if (0 != mdrv2->sdplusMdrv2GetProperty("DirectoryEntries", value, service))
+     {
+         phosphor::logging::log<phosphor::logging::level::ERR>(
+             "Error getting DirEnries");
+         return ipmi::responseUnspecifiedError();
+     }
+-    if (dirIndex > std::get<uint8_t>(value))
++    if (dirIndex > value)
+     {
+         return ipmi::responseParmOutOfRange();
+     }
+@@ -1159,15 +1164,28 @@ ipmi::RspType<uint8_t, uint16_t>
+ 
+ @return completion code on success.
+ **/
+-ipmi::RspType<> cmd_mdr2_data_done(uint16_t agentId, uint16_t lockHandle)
++ipmi::RspType<> cmd_mdr2_data_done(/*uint16_t agentId, uint16_t lockHandle, */std::vector<uint8_t> param)
+ {
++    std::stringstream ss;
++    phosphor::logging::log<phosphor::logging::level::INFO>("Data is ready on share memory");
++
++    ss << "2 bytes, Request Length, 2 bytes, Reserved = 0x";
++
++    //std::copy(param.begin(), param.end(),std::ostream_iterator<uint8_t>(ss));
++    for(auto b : param) {
++        ss << " " << std::hex << std::setfill('0') << std::setw(2) << +b;
++    }
++
++    std::string ss_str = ss.str();
++
++    phosphor::logging::log<phosphor::logging::level::INFO>(ss_str.c_str());
+ 
+     if (mdrv2 == nullptr)
+     {
+         mdrv2 = std::make_unique<MDRV2>();
+     }
+ 
+-    int agentIndex = mdrv2->agentLookup(agentId);
++    /*int agentIndex = mdrv2->agentLookup(agentId);
+     if (agentIndex == -1)
+     {
+         phosphor::logging::log<phosphor::logging::level::ERR>(
+@@ -1189,7 +1207,7 @@ ipmi::RspType<> cmd_mdr2_data_done(uint16_t agentId, uint16_t lockHandle)
+         phosphor::logging::log<phosphor::logging::level::ERR>(
+             "Send data done failed - cannot unlock idIndex");
+         return ipmi::responseDestinationUnavailable();
+-    }
++    }*/
+ 
+     mdrv2->area.reset(nullptr);
+     MDRSMBIOSHeader mdr2Smbios;
+@@ -1245,6 +1263,115 @@ ipmi::RspType<> cmd_mdr2_data_done(uint16_t agentId, uint16_t lockHandle)
+     return ipmi::responseSuccess();
+ }
+ 
++ipmi::RspType<uint8_t> printTest(uint8_t param)
++{
++   std::stringstream ss;
++   ss << "Test commad is working. Param=0x" << std::hex << std::setfill('0') << std::setw(2) << +param;
++   std::string ss_str = ss.str();
++   phosphor::logging::log<phosphor::logging::level::INFO>(ss_str.c_str());
++   return ipmi::responseSuccess(param);
++}
++
++/*uint32_t reverse(uint32_t value)
++{
++    uint32_t mdr2SMBaseAddressReversed = value;
++
++    mdr2SMBaseAddressReversed = ((mdr2SMBaseAddressReversed >> 1) & 0x55555555u) | ((mdr2SMBaseAddressReversed & 0x55555555u) << 1);
++    mdr2SMBaseAddressReversed = ((mdr2SMBaseAddressReversed >> 2) & 0x33333333u) | ((mdr2SMBaseAddressReversed & 0x33333333u) << 2);
++    mdr2SMBaseAddressReversed = ((mdr2SMBaseAddressReversed >> 4) & 0x0f0f0f0fu) | ((mdr2SMBaseAddressReversed & 0x0f0f0f0fu) << 4);
++    mdr2SMBaseAddressReversed = ((mdr2SMBaseAddressReversed >> 8) & 0x00ff00ffu) | ((mdr2SMBaseAddressReversed & 0x00ff00ffu) << 8);
++    mdr2SMBaseAddressReversed = ((mdr2SMBaseAddressReversed >> 16) & 0xffffu) | ((mdr2SMBaseAddressReversed & 0xffffu) << 16);
++    return mdr2SMBaseAddressReversed;
++}*/
++
++//If BIOS will ask we will answer where to put SMBIOS Data
++
++ipmi::RspType<uint32_t>ipmiOEMgetMemoryAddress(uint8_t param){
++    // Define specific AMI sub commands
++    switch(param)
++    {
++        case SUB_CMD_GET_SHARE_MEMORY_ADDRESS:
++            try
++            {
++                //uint32_t temp_reversed_value = reverse(mdr2SMBaseAddress);
++                std::stringstream ss;
++                ss << "VGA shared memory address is " << std::hex << std::setfill('0') << std::setw(2) << +mdr2SMBaseAddress;
++                std::string ss_str = ss.str();
++                phosphor::logging::log<phosphor::logging::level::INFO>(ss_str.c_str());
++
++                return ipmi::responseSuccess(mdr2SMBaseAddress);
++            }
++            catch (std::system_error&)
++            {
++                phosphor::logging::log<phosphor::logging::level::ERR>("Error to get Memory Address");
++                return ipmi::responseUnspecifiedError();
++            }
++        default:
++
++            std::stringstream ss;
++            ss << "Unknown subcommand: " << std::hex << std::setfill('0') << std::setw(2) << +param;
++            std::string ss_str = ss.str();
++            phosphor::logging::log<phosphor::logging::level::ERR>(ss_str.c_str());
++
++            return ipmi::responseParmOutOfRange();
++            break;
++    }
++    return ipmi::responseParmOutOfRange();
++}
++
++//If BIOS will tell that data is ready
++
++ipmi::RspType<std::vector<uint8_t>>ipmiOEMreadyOnShareMemory(std::vector<uint8_t> param){
++    
++    std::stringstream ss;
++    phosphor::logging::log<phosphor::logging::level::INFO>("Data is ready on share memory");
++
++    ss << "2 bytes, Request Length, 2 bytes, Reserved = 0x";
++
++    //std::copy(param.begin(), param.end(),std::ostream_iterator<uint8_t>(ss));
++    for(auto b : param) {
++        ss << " " << std::hex << std::setfill('0') << std::setw(2) << +b;
++    }
++
++    std::string ss_str = ss.str();
++    
++    phosphor::logging::log<phosphor::logging::level::INFO>(ss_str.c_str());
++    
++    return ipmi::responseSuccess();
++}
++
++//If BIOS will talk to BMC, just in case, we need to answer, huy znaet zachem
++
++ipmi::RspType<uint8_t>ipmiOEMaskInternalFlag(uint8_t param){
++    // Define specific AMI sub commands
++    uint8_t intflag = 0x01;
++ 
++    switch(param)
++    {
++        case SUB_CMD_INT_FLAG:
++            try
++            {
++                phosphor::logging::log<phosphor::logging::level::INFO>("Internal Flag received");
++                return ipmi::responseSuccess(intflag);
++            }
++            catch (std::system_error&)
++            {
++                phosphor::logging::log<phosphor::logging::level::ERR>("Error to get Memory Address");
++                return ipmi::responseUnspecifiedError();
++            }
++        default:
++
++            std::stringstream ss;
++            ss << "Unknown subcommand: " << std::hex << std::setfill('0') << std::setw(2) << +param;
++            std::string ss_str = ss.str();
++            phosphor::logging::log<phosphor::logging::level::ERR>(ss_str.c_str());
++
++            return ipmi::responseParmOutOfRange();
++            break;
++    }
++    return ipmi::responseParmOutOfRange();
++}
++
+ static void register_netfn_smbiosmdrv2_functions(void)
+ {
+     // MDR V2 Command
+@@ -1307,4 +1434,16 @@ static void register_netfn_smbiosmdrv2_functions(void)
+     ipmi::registerHandler(ipmi::prioOemBase, ipmi::intel::netFnApp,
+                           ipmi::intel::app::cmdMdrIIDataDone,
+                           ipmi::Privilege::Operator, cmd_mdr2_data_done);
++   
++   // Yandex smbios get memory address
++
++   //ipmi::registerOemHandler(ipmi::prioMax, 0x003c0a, 0x21,
++   //                       ipmi::Privilege::Admin, printTest);
++   ipmi::registerOemHandler(ipmi::prioMax, 0x003c0a, 0x21,
++                          ipmi::Privilege::Admin, ipmiOEMgetMemoryAddress);
++   ipmi::registerOemHandler(ipmi::prioMax, 0x003c0a, 0x20,
++                          ipmi::Privilege::Admin, cmd_mdr2_data_done); //ipmiOEMreadyOnShareMemory);
++   ipmi::registerOemHandler(ipmi::prioMax, 0x003c0a, 0x11,
++                          ipmi::Privilege::Admin, ipmiOEMaskInternalFlag);
+ }
++
+diff --git a/src/whitelist-filter.cpp b/src/whitelist-filter.cpp
+index 3f30a41..ded2f19 100644
+--- a/src/whitelist-filter.cpp
++++ b/src/whitelist-filter.cpp
+@@ -446,11 +446,11 @@ ipmi::Cc WhitelistFilter::filterMessage(ipmi::message::Request::ptr request)
+     {
+         if (!whitelisted)
+         {
+-            log<level::INFO>("Channel/NetFn/Cmd not whitelisted",
++            log<level::DEBUG>("Channel/NetFn/Cmd not whitelisted",
+                              entry("CHANNEL=0x%X", request->ctx->channel),
+                              entry("NETFN=0x%X", int(request->ctx->netFn)),
+                              entry("CMD=0x%X", int(request->ctx->cmd)));
+-            return ipmi::ccCommandNotAvailable;
++            return ipmi::ccSuccess;
+         }
+         return ipmi::ccSuccess;
+     }
+-- 
+2.7.4
+

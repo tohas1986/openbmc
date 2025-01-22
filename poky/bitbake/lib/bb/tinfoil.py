@@ -10,7 +10,6 @@
 import logging
 import os
 import sys
-import time
 import atexit
 import re
 from collections import OrderedDict, defaultdict
@@ -325,11 +324,11 @@ class Tinfoil:
         self.recipes_parsed = False
         self.quiet = 0
         self.oldhandlers = self.logger.handlers[:]
-        self.localhandlers = []
         if setup_logging:
             # This is the *client-side* logger, nothing to do with
             # logging messages from the server
             bb.msg.logger_create('BitBake', output)
+            self.localhandlers = []
             for handler in self.logger.handlers:
                 if handler not in self.oldhandlers:
                     self.localhandlers.append(handler)
@@ -448,12 +447,6 @@ class Tinfoil:
         config_params = TinfoilConfigParameters(config_only=False, quiet=self.quiet)
         self.run_actions(config_params)
         self.recipes_parsed = True
-
-    def modified_files(self):
-        """
-        Notify the server it needs to revalidate it's caches since the client has modified files
-        """
-        self.run_command("revalidateCaches")
 
     def run_command(self, command, *params, handle_events=True):
         """
@@ -736,7 +729,6 @@ class Tinfoil:
 
         ret = self.run_command('buildTargets', targets, task)
         if handle_events:
-            lastevent = time.time()
             result = False
             # Borrowed from knotty, instead somewhat hackily we use the helper
             # as the object to store "shutdown" on
@@ -749,7 +741,6 @@ class Tinfoil:
                     try:
                         event = self.wait_event(0.25)
                         if event:
-                            lastevent = time.time()
                             if event_callback and event_callback(event):
                                 continue
                             if helper.eventHandler(event):
@@ -782,7 +773,7 @@ class Tinfoil:
                             if isinstance(event, bb.command.CommandCompleted):
                                 result = True
                                 break
-                            if isinstance(event, (bb.command.CommandFailed, bb.command.CommandExit)):
+                            if isinstance(event, bb.command.CommandFailed):
                                 self.logger.error(str(event))
                                 result = False
                                 break
@@ -794,13 +785,10 @@ class Tinfoil:
                                 self.logger.error(str(event))
                                 result = False
                                 break
+
                         elif helper.shutdown > 1:
                             break
                         termfilter.updateFooter()
-                        if time.time() > (lastevent + (3*60)):
-                            if not self.run_command('ping', handle_events=False):
-                                print("\nUnable to ping server and no events, closing down...\n")
-                                return False
                     except KeyboardInterrupt:
                         termfilter.clearFooter()
                         if helper.shutdown == 1:

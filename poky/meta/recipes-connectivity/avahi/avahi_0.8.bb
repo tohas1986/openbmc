@@ -5,8 +5,9 @@ with no specific configuration. This tool implements IPv4LL, "Dynamic Configurat
 IPv4 Link-Local Addresses" (IETF RFC3927), a protocol for automatic IP address \
 configuration from the link-local 169.254.0.0/16 range without the need for a central \
 server.'
+AUTHOR = "Lennart Poettering <lennart@poettering.net>"
 HOMEPAGE = "http://avahi.org"
-BUGTRACKER = "https://github.com/avahi/avahi/issues"
+BUGTRACKER = "https://github.com/lathiat/avahi/issues"
 SECTION = "network"
 
 # major part is under LGPL-2.1-or-later, but several .dtd, .xsl, initscripts and
@@ -25,24 +26,16 @@ SRC_URI = "${GITHUB_BASE_URI}/download/v${PV}/avahi-${PV}.tar.gz \
            file://0001-Fix-opening-etc-resolv.conf-error.patch \
            file://handle-hup.patch \
            file://local-ping.patch \
-           file://invalid-service.patch \
-           file://CVE-2023-1981.patch \
-           file://CVE-2023-38469-1.patch \
-           file://CVE-2023-38469-2.patch \
-           file://CVE-2023-38470-1.patch \
-           file://CVE-2023-38470-2.patch \
-           file://CVE-2023-38471-1.patch \
-           file://CVE-2023-38471-2.patch \
-           file://CVE-2023-38472.patch \
-           file://CVE-2023-38473.patch \
            "
 
-GITHUB_BASE_URI = "https://github.com/avahi/avahi/releases/"
+GITHUB_BASE_URI = "https://github.com/lathiat/avahi/releases/"
+SRC_URI[md5sum] = "229c6aa30674fc43c202b22c5f8c2be7"
 SRC_URI[sha256sum] = "060309d7a333d38d951bc27598c677af1796934dbd98e1024e7ad8de798fedda"
 
-CVE_STATUS[CVE-2021-26720] = "not-applicable-platform: Issue only affects Debian/SUSE"
+# Issue only affects Debian/SUSE, not us
+CVE_CHECK_IGNORE += "CVE-2021-26720"
 
-DEPENDS = "expat libcap libdaemon glib-2.0 glib-2.0-native"
+DEPENDS = "expat libcap libdaemon glib-2.0"
 
 # For gtk related PACKAGECONFIGs: gtk, gtk3
 AVAHI_GTK ?= ""
@@ -90,6 +83,7 @@ RRECOMMENDS:${PN}:append:libc-glibc = " libnss-mdns"
 do_install() {
 	autotools_do_install
 	rm -rf ${D}/run
+	rm -rf ${D}${datadir}/dbus-1/interfaces
 	test -d ${D}${datadir}/dbus-1 && rmdir --ignore-fail-on-non-empty ${D}${datadir}/dbus-1
 	rm -rf ${D}${libdir}/avahi
 
@@ -141,7 +135,7 @@ FILES:avahi-daemon = "${sbindir}/avahi-daemon \
                       ${sysconfdir}/avahi/services \
                       ${sysconfdir}/dbus-1 \
                       ${sysconfdir}/init.d/avahi-daemon \
-                      ${datadir}/dbus-1/interfaces \
+                      ${datadir}/avahi/introspection/*.introspect \
                       ${datadir}/avahi/avahi-service.dtd \
                       ${datadir}/avahi/service-types \
                       ${datadir}/dbus-1/system-services"

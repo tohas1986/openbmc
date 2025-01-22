@@ -1,2 +1,0 @@
-DISTRO_FEATURES += "mctp"
-DISTROOVERRIDES .= ":df-mctp"

@@ -1,0 +1,831 @@
+From b44809720eeaac64f6a10b90a59cce87d21bff1a Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 6 Sep 2021 13:59:23 +0000
+Subject: [PATCH] Bump to 1c5b3ab05817d62a11f75c2a90b6891b18bf62cc
+
+---
+ comm_module.cpp          |   6 ++
+ command/channel_auth.cpp | 209 ++++++++++++++++++++++++++++++++++++++++++++++-
+ command/channel_auth.hpp |  20 ++++-
+ command/open_session.cpp |   2 +-
+ command/open_session.hpp |   2 +-
+ command/payload_cmds.cpp |  20 +++--
+ command/payload_cmds.hpp |  17 ++--
+ command/rakp12.cpp       |  28 ++++++-
+ command/rakp12.hpp       |  13 ++-
+ command/rakp34.cpp       |   2 +-
+ command/rakp34.hpp       |   2 +-
+ command/session_cmds.cpp |  12 +--
+ command/session_cmds.hpp |   4 +-
+ command/sol_cmds.cpp     |   6 +-
+ command/sol_cmds.hpp     |   6 +-
+ command_table.cpp        |  10 +--
+ command_table.hpp        |   2 +-
+ sessions_manager.cpp     |   4 +-
+ 18 files changed, 316 insertions(+), 49 deletions(-)
+
+diff --git a/comm_module.cpp b/comm_module.cpp
+index acc9089..ebb7ec6 100644
+--- a/comm_module.cpp
++++ b/comm_module.cpp
+@@ -41,6 +41,12 @@ void sessionSetupCommands()
+          &GetChannelCapabilities,
+          session::Privilege::HIGHEST_MATCHING,
+          true},
++        // Get Channel Cipher Suites Command
++        {{(static_cast<uint32_t>(message::PayloadType::IPMI) << 16) |
++          static_cast<uint16_t>(::command::NetFns::APP) | 0x54},
++         &getChannelCipherSuites,
++         session::Privilege::HIGHEST_MATCHING,
++         true},
+         // Set Session Privilege Command
+         {{(static_cast<uint32_t>(message::PayloadType::IPMI) << 16) |
+           static_cast<uint16_t>(command::NetFns::APP) | 0x3B},
+diff --git a/command/channel_auth.cpp b/command/channel_auth.cpp
+index f719452..fd1fa5b 100644
+--- a/command/channel_auth.cpp
++++ b/command/channel_auth.cpp
+@@ -2,15 +2,28 @@
+ 
+ #include <ipmid/api.h>
+ 
++#include <fstream>
++#include <ipmid/types.hpp>
++#include <ipmid/utils.hpp>
++#include <nlohmann/json.hpp>
++#include <phosphor-logging/elog-errors.hpp>
++#include <phosphor-logging/log.hpp>
++#include <set>
++#include <string>
+ #include <user_channel/channel_layer.hpp>
+ #include <user_channel/user_layer.hpp>
++#include <xyz/openbmc_project/Common/error.hpp>
+ 
+ namespace command
+ {
+ 
++using namespace phosphor::logging;
++using namespace sdbusplus::xyz::openbmc_project::Common::Error;
++using Json = nlohmann::json;
++
+ std::vector<uint8_t>
+     GetChannelCapabilities(const std::vector<uint8_t>& inPayload,
+-                           const message::Handler& handler)
++                           std::shared_ptr<message::Handler>& handler)
+ {
+     auto request =
+         reinterpret_cast<const GetChannelCapabilitiesReq*>(inPayload.data());
+@@ -72,4 +85,198 @@ std::vector<uint8_t>
+     return outPayload;
+ }
+ 
++static constexpr const char* configFile =
++    "/usr/share/ipmi-providers/cipher_list.json";
++static constexpr const char* cipher = "cipher";
++static constexpr uint8_t stdCipherSuite = 0xC0;
++static constexpr uint8_t oemCipherSuite = 0xC1;
++static constexpr const char* oem = "oemiana";
++static constexpr const char* auth = "authentication";
++static constexpr const char* integrity = "integrity";
++static constexpr uint8_t integrityTag = 0x40;
++static constexpr const char* conf = "confidentiality";
++static constexpr uint8_t confTag = 0x80;
++
++/** @brief Get the supported Cipher records
++ *
++ * The cipher records are read from the JSON file and converted into
++ * 1. cipher suite record format mentioned in the IPMI specification. The
++ * records can be either OEM or standard cipher. Each json entry is parsed and
++ * converted into the cipher record format and pushed into the vector.
++ * 2. Algorithms listed in vector format
++ *
++ * @return pair of vector containing 1. all the cipher suite records. 2.
++ * Algorithms supported
++ *
++ */
++static std::pair<std::vector<uint8_t>, std::vector<uint8_t>> getCipherRecords()
++{
++    std::vector<uint8_t> cipherRecords;
++    std::vector<uint8_t> supportedAlgorithmRecords;
++    // create set to get the unique supported algorithms
++    std::set<uint8_t> supportedAlgorithmSet;
++
++    std::ifstream jsonFile(configFile);
++    if (!jsonFile.is_open())
++    {
++        log<level::ERR>("Channel Cipher suites file not found");
++        elog<InternalFailure>();
++    }
++
++    auto data = Json::parse(jsonFile, nullptr, false);
++    if (data.is_discarded())
++    {
++        log<level::ERR>("Parsing channel cipher suites JSON failed");
++        elog<InternalFailure>();
++    }
++
++    for (const auto& record : data)
++    {
++        if (record.find(oem) != record.end())
++        {
++            // OEM cipher suite - 0xC1
++            cipherRecords.push_back(oemCipherSuite);
++            // Cipher Suite ID
++            cipherRecords.push_back(record.value(cipher, 0));
++            // OEM IANA - 3 bytes
++            cipherRecords.push_back(record.value(oem, 0));
++            cipherRecords.push_back(record.value(oem, 0) >> 8);
++            cipherRecords.push_back(record.value(oem, 0) >> 16);
++        }
++        else
++        {
++            // Standard cipher suite - 0xC0
++            cipherRecords.push_back(stdCipherSuite);
++            // Cipher Suite ID
++            cipherRecords.push_back(record.value(cipher, 0));
++        }
++
++        // Authentication algorithm number
++        cipherRecords.push_back(record.value(auth, 0));
++        supportedAlgorithmSet.insert(record.value(auth, 0));
++
++        // Integrity algorithm number
++        cipherRecords.push_back(record.value(integrity, 0) | integrityTag);
++        supportedAlgorithmSet.insert(record.value(integrity, 0) | integrityTag);
++
++        // Confidentiality algorithm number
++        cipherRecords.push_back(record.value(conf, 0) | confTag);
++        supportedAlgorithmSet.insert(record.value(conf, 0) | confTag);
++    }
++
++    // copy the set to supportedAlgorithmRecord which is vector based.
++    std::copy(supportedAlgorithmSet.begin(), supportedAlgorithmSet.end(),
++              std::back_inserter(supportedAlgorithmRecords));
++
++    return std::make_pair(cipherRecords, supportedAlgorithmRecords);
++}
++
++/** @brief this command is used to look up what authentication, integrity,
++ *  confidentiality algorithms are supported.
++ *
++ *  @ param inPayload - vector of input data
++ *  @ param handler - pointer to handler
++ *
++ *  @returns ipmi completion code plus response data
++ *   - vector of response data: cc, channel, record data
++ **/
++std::vector<uint8_t>
++    getChannelCipherSuites(const std::vector<uint8_t>& inPayload,
++                           std::shared_ptr<message::Handler>& handler)
++{
++    const auto errorResponse = [](uint8_t cc) {
++        std::vector<uint8_t> rsp(1);
++        rsp[0] = cc;
++        return rsp;
++    };
++
++    static constexpr size_t getChannelCipherSuitesReqLen = 3;
++    if (inPayload.size() != getChannelCipherSuitesReqLen)
++    {
++        return errorResponse(IPMI_CC_REQ_DATA_LEN_INVALID);
++    }
++
++    static constexpr uint8_t channelMask = 0x0f;
++    uint8_t channelNumber = inPayload[0] & channelMask;
++    if (channelNumber != inPayload[0])
++    {
++        return errorResponse(IPMI_CC_INVALID_FIELD_REQUEST);
++    }
++    static constexpr uint8_t payloadMask = 0x3f;
++    uint8_t payloadType = inPayload[1] & payloadMask;
++    if (payloadType != inPayload[1])
++    {
++        return errorResponse(IPMI_CC_INVALID_FIELD_REQUEST);
++    }
++    static constexpr uint8_t indexMask = 0x3f;
++    uint8_t listIndex = inPayload[2] & indexMask;
++    static constexpr uint8_t algoSelectShift = 7;
++    uint8_t algoSelectBit = inPayload[2] >> algoSelectShift;
++    if ((listIndex | (algoSelectBit << algoSelectShift)) != inPayload[2])
++    {
++        return errorResponse(IPMI_CC_INVALID_FIELD_REQUEST);
++    }
++
++    static std::vector<uint8_t> cipherRecords;
++    static std::vector<uint8_t> supportedAlgorithms;
++    static bool recordInit = false;
++
++    uint8_t rspChannel =
++        ipmi::convertCurrentChannelNum(channelNumber, getInterfaceIndex());
++
++    if (!ipmi::isValidChannel(rspChannel))
++    {
++        return errorResponse(IPMI_CC_INVALID_FIELD_REQUEST);
++    }
++    if (!ipmi::isValidPayloadType(static_cast<ipmi::PayloadType>(payloadType)))
++    {
++        log<level::DEBUG>("Get channel cipher suites - Invalid payload type");
++        constexpr uint8_t ccPayloadTypeNotSupported = 0x80;
++        return errorResponse(ccPayloadTypeNotSupported);
++    }
++
++    if (!recordInit)
++    {
++        try
++        {
++            std::tie(cipherRecords, supportedAlgorithms) = getCipherRecords();
++            recordInit = true;
++        }
++        catch (const std::exception& e)
++        {
++            return errorResponse(IPMI_CC_UNSPECIFIED_ERROR);
++        }
++    }
++
++    const std::vector<uint8_t>& records =
++        algoSelectBit ? cipherRecords : supportedAlgorithms;
++    static constexpr auto respSize = 16;
++
++    // Session support is available in active LAN channels.
++    if ((ipmi::getChannelSessionSupport(rspChannel) ==
++         ipmi::EChannelSessSupported::none) ||
++        !(ipmi::doesDeviceExist(rspChannel)))
++    {
++        log<level::DEBUG>("Get channel cipher suites - Device does not exist");
++        return errorResponse(IPMI_CC_INVALID_FIELD_REQUEST);
++    }
++
++    // List index(00h-3Fh), 0h selects the first set of 16, 1h selects the next
++    // set of 16 and so on.
++
++    // Calculate the number of record data bytes to be returned.
++    auto start =
++        std::min(static_cast<size_t>(listIndex) * respSize, records.size());
++    auto end = std::min((static_cast<size_t>(listIndex) * respSize) + respSize,
++                        records.size());
++    auto size = end - start;
++
++    std::vector<uint8_t> rsp;
++    rsp.push_back(IPMI_CC_OK);
++    rsp.push_back(rspChannel);
++    std::copy_n(records.data() + start, size, std::back_inserter(rsp));
++
++    return rsp;
++}
++
+ } // namespace command
+diff --git a/command/channel_auth.hpp b/command/channel_auth.hpp
+index 9f2abe1..c518ba7 100644
+--- a/command/channel_auth.hpp
++++ b/command/channel_auth.hpp
+@@ -120,6 +120,24 @@ struct GetChannelCapabilitiesResp
+  */
+ std::vector<uint8_t>
+     GetChannelCapabilities(const std::vector<uint8_t>& inPayload,
+-                           const message::Handler& handler);
++                           std::shared_ptr<message::Handler>& handler);
++
++/**
++ * @brief Get Channel Cipher Suites
++ *
++ * This command is used to look up what authentication, integrity, and
++ * confidentiality algorithms are supported. The algorithms are used in
++ * combination as ‘Cipher Suites’. This command only applies to implementations
++ * that support IPMI v2.0/RMCP+ sessions. This command can be executed prior to
++ * establishing a session with the BMC.
++ *
++ * @param[in] inPayload - Request Data for the command
++ * @param[in] handler - Reference to the Message Handler
++ *
++ * @return Response data for the command
++ */
++std::vector<uint8_t>
++    getChannelCipherSuites(const std::vector<uint8_t>& inPayload,
++                           std::shared_ptr<message::Handler>& handler);
+ 
+ } // namespace command
+diff --git a/command/open_session.cpp b/command/open_session.cpp
+index 9ba00ec..44cdb2c 100644
+--- a/command/open_session.cpp
++++ b/command/open_session.cpp
+@@ -12,7 +12,7 @@ namespace command
+ {
+ 
+ std::vector<uint8_t> openSession(const std::vector<uint8_t>& inPayload,
+-                                 const message::Handler& handler)
++                                 std::shared_ptr<message::Handler>& handler)
+ {
+     auto request =
+         reinterpret_cast<const OpenSessionRequest*>(inPayload.data());
+diff --git a/command/open_session.hpp b/command/open_session.hpp
+index 700c784..e119dbc 100644
+--- a/command/open_session.hpp
++++ b/command/open_session.hpp
+@@ -175,6 +175,6 @@ struct OpenSessionResponse
+  * @return Response data for the command
+  */
+ std::vector<uint8_t> openSession(const std::vector<uint8_t>& inPayload,
+-                                 const message::Handler& handler);
++                                 std::shared_ptr<message::Handler>& handler);
+ 
+ } // namespace command
+diff --git a/command/payload_cmds.cpp b/command/payload_cmds.cpp
+index bc987c5..c6d68de 100644
+--- a/command/payload_cmds.cpp
++++ b/command/payload_cmds.cpp
+@@ -18,7 +18,7 @@ namespace command
+ using namespace phosphor::logging;
+ 
+ std::vector<uint8_t> activatePayload(const std::vector<uint8_t>& inPayload,
+-                                     const message::Handler& handler)
++                                     std::shared_ptr<message::Handler>& handler)
+ {
+     auto request =
+         reinterpret_cast<const ActivatePayloadRequest*>(inPayload.data());
+@@ -58,7 +58,7 @@ std::vector<uint8_t> activatePayload(const std::vector<uint8_t>& inPayload,
+     }
+ 
+     auto session = std::get<session::Manager&>(singletonPool)
+-                       .getSession(handler.sessionID);
++                       .getSession(handler->sessionID);
+ 
+     if (!request->encryption && session->isCryptAlgoEnabled())
+     {
+@@ -87,13 +87,13 @@ std::vector<uint8_t> activatePayload(const std::vector<uint8_t>& inPayload,
+     }
+ 
+     // Set the current command's socket channel to the session
+-    handler.setChannelInSession();
++    handler->setChannelInSession();
+ 
+     // Start the SOL payload
+     try
+     {
+         std::get<sol::Manager&>(singletonPool)
+-            .startPayloadInstance(request->payloadInstance, handler.sessionID);
++            .startPayloadInstance(request->payloadInstance, handler->sessionID);
+     }
+     catch (std::exception& e)
+     {
+@@ -112,8 +112,9 @@ std::vector<uint8_t> activatePayload(const std::vector<uint8_t>& inPayload,
+     return outPayload;
+ }
+ 
+-std::vector<uint8_t> deactivatePayload(const std::vector<uint8_t>& inPayload,
+-                                       const message::Handler& handler)
++std::vector<uint8_t>
++    deactivatePayload(const std::vector<uint8_t>& inPayload,
++                      std::shared_ptr<message::Handler>& handler)
+ {
+     auto request =
+         reinterpret_cast<const DeactivatePayloadRequest*>(inPayload.data());
+@@ -185,8 +186,9 @@ std::vector<uint8_t> deactivatePayload(const std::vector<uint8_t>& inPayload,
+     return outPayload;
+ }
+ 
+-std::vector<uint8_t> getPayloadStatus(const std::vector<uint8_t>& inPayload,
+-                                      const message::Handler& handler)
++std::vector<uint8_t>
++    getPayloadStatus(const std::vector<uint8_t>& inPayload,
++                     std::shared_ptr<message::Handler>& handler)
+ {
+     auto request =
+         reinterpret_cast<const GetPayloadStatusRequest*>(inPayload.data());
+@@ -220,7 +222,7 @@ std::vector<uint8_t> getPayloadStatus(const std::vector<uint8_t>& inPayload,
+ }
+ 
+ std::vector<uint8_t> getPayloadInfo(const std::vector<uint8_t>& inPayload,
+-                                    const message::Handler& handler)
++                                    std::shared_ptr<message::Handler>& handler)
+ {
+     auto request =
+         reinterpret_cast<const GetPayloadInfoRequest*>(inPayload.data());
+diff --git a/command/payload_cmds.hpp b/command/payload_cmds.hpp
+index b28392b..8778786 100644
+--- a/command/payload_cmds.hpp
++++ b/command/payload_cmds.hpp
+@@ -109,8 +109,9 @@ struct ActivatePayloadResponse
+  *
+  *  @return Response data for the command
+  */
+-std::vector<uint8_t> activatePayload(const std::vector<uint8_t>& inPayload,
+-                                     const message::Handler& handler);
++std::vector<uint8_t>
++    activatePayload(const std::vector<uint8_t>& inPayload,
++                    std::shared_ptr<message::Handler>& handler);
+ 
+ constexpr uint8_t IPMI_CC_PAYLOAD_DEACTIVATED = 0x80;
+ 
+@@ -172,8 +173,9 @@ struct DeactivatePayloadResponse
+  *
+  * @return Response data for the command.
+  */
+-std::vector<uint8_t> deactivatePayload(const std::vector<uint8_t>& inPayload,
+-                                       const message::Handler& handler);
++std::vector<uint8_t>
++    deactivatePayload(const std::vector<uint8_t>& inPayload,
++                      std::shared_ptr<message::Handler>& handler);
+ 
+ /** @struct GetPayloadStatusRequest
+  *
+@@ -250,8 +252,9 @@ struct GetPayloadStatusResponse
+  *
+  *  @return Response data for the command
+  */
+-std::vector<uint8_t> getPayloadStatus(const std::vector<uint8_t>& inPayload,
+-                                      const message::Handler& handler);
++std::vector<uint8_t>
++    getPayloadStatus(const std::vector<uint8_t>& inPayload,
++                     std::shared_ptr<message::Handler>& handler);
+ 
+ /** @struct GetPayloadInfoRequest
+  *
+@@ -286,7 +289,7 @@ struct GetPayloadInfoResponse
+  *  @return Response data for the command
+  */
+ std::vector<uint8_t> getPayloadInfo(const std::vector<uint8_t>& inPayload,
+-                                    const message::Handler& handler);
++                                    std::shared_ptr<message::Handler>& handler);
+ 
+ } // namespace command
+ 
+diff --git a/command/rakp12.cpp b/command/rakp12.cpp
+index 90b5df5..b09b8e3 100644
+--- a/command/rakp12.cpp
++++ b/command/rakp12.cpp
+@@ -10,6 +10,7 @@
+ #include <algorithm>
+ #include <cstring>
+ #include <iomanip>
++#include <ipmid/types.hpp>
+ #include <phosphor-logging/log.hpp>
+ 
+ using namespace phosphor::logging;
+@@ -23,8 +24,21 @@ bool isChannelAccessModeEnabled(const uint8_t accessMode)
+            static_cast<uint8_t>(ipmi::EChannelAccessMode::disabled);
+ }
+ 
++void logInvalidLoginRedfishEvent(const std::string& journalMsg,
++                                 const std::optional<std::string>& messageArgs)
++{
++    static constexpr std::string_view openBMCMessageRegistryVersion = "0.1.";
++    std::string messageID = "OpenBMC." +
++                            std::string(openBMCMessageRegistryVersion) +
++                            "InvalidLoginAttempted";
++    phosphor::logging::log<phosphor::logging::level::ERR>(
++        journalMsg.c_str(),
++        phosphor::logging::entry("REDFISH_MESSAGE_ID=%s", messageID.c_str()),
++        phosphor::logging::entry("REDFISH_MESSAGE_ARGS=%s",
++                                 messageArgs.value().c_str()));
++}
+ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+-                            const message::Handler& handler)
++                            std::shared_ptr<message::Handler>& handler)
+ {
+     auto request = reinterpret_cast<const RAKP1request*>(inPayload.data());
+     // verify inPayload minimum size
+@@ -66,12 +80,14 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+     auto rakp1Size =
+         sizeof(RAKP1request) - (userNameMaxLen - request->user_name_len);
+ 
++    std::string message = "Invalid login attempted via RCMPP interface ";
+     // Validate user name length in the message
+     if (request->user_name_len > userNameMaxLen ||
+         inPayload.size() != rakp1Size)
+     {
+         response->rmcpStatusCode =
+             static_cast<uint8_t>(RAKP_ReturnCode::INVALID_NAME_LENGTH);
++        logInvalidLoginRedfishEvent(message);
+         return outPayload;
+     }
+ 
+@@ -158,6 +174,7 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+         // Yes, NULL user name is not supported for security reasons.
+         response->rmcpStatusCode =
+             static_cast<uint8_t>(RAKP_ReturnCode::UNAUTH_NAME);
++        logInvalidLoginRedfishEvent(message);
+         return outPayload;
+     }
+ 
+@@ -169,6 +186,7 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+     {
+         response->rmcpStatusCode =
+             static_cast<uint8_t>(RAKP_ReturnCode::UNAUTH_NAME);
++        logInvalidLoginRedfishEvent(message);
+         return outPayload;
+     }
+     // check user is enabled before proceeding.
+@@ -178,6 +196,7 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+     {
+         response->rmcpStatusCode =
+             static_cast<uint8_t>(RAKP_ReturnCode::INACTIVE_ROLE);
++        logInvalidLoginRedfishEvent(message);
+         return outPayload;
+     }
+     // Get the user password for RAKP message authenticate
+@@ -186,6 +205,7 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+     {
+         response->rmcpStatusCode =
+             static_cast<uint8_t>(RAKP_ReturnCode::UNAUTH_NAME);
++        logInvalidLoginRedfishEvent(message);
+         return outPayload;
+     }
+     // Check whether user is already locked for failed attempts
+@@ -196,6 +216,7 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+ 
+         response->rmcpStatusCode =
+             static_cast<uint8_t>(RAKP_ReturnCode::UNAUTH_NAME);
++        logInvalidLoginRedfishEvent(message);
+         return outPayload;
+     }
+ */
+@@ -209,6 +230,7 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+     {
+         response->rmcpStatusCode =
+             static_cast<uint8_t>(RAKP_ReturnCode::INACTIVE_ROLE);
++        logInvalidLoginRedfishEvent(message);
+         return outPayload;
+     }
+     if (!isChannelAccessModeEnabled(session->sessionChannelAccess.accessMode))
+@@ -217,6 +239,7 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+             "Channel access mode disabled.");
+         response->rmcpStatusCode =
+             static_cast<uint8_t>(RAKP_ReturnCode::INACTIVE_ROLE);
++        logInvalidLoginRedfishEvent(message);
+         return outPayload;
+     }
+     if (session->sessionUserPrivAccess.privilege >
+@@ -224,6 +247,7 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+     {
+         response->rmcpStatusCode =
+             static_cast<uint8_t>(RAKP_ReturnCode::INACTIVE_ROLE);
++        logInvalidLoginRedfishEvent(message);
+         return outPayload;
+     }
+     session->channelNum(chNum);
+@@ -255,6 +279,8 @@ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+             "Username/Privilege lookup failed for requested privilege");
+         response->rmcpStatusCode =
+             static_cast<uint8_t>(RAKP_ReturnCode::UNAUTH_NAME);
++
++        logInvalidLoginRedfishEvent(message);
+         return outPayload;
+     }
+ 
+diff --git a/command/rakp12.hpp b/command/rakp12.hpp
+index c19853f..2a2151c 100644
+--- a/command/rakp12.hpp
++++ b/command/rakp12.hpp
+@@ -73,6 +73,17 @@ struct RAKP2response
+  * @return Response data for the command
+  */
+ std::vector<uint8_t> RAKP12(const std::vector<uint8_t>& inPayload,
+-                            const message::Handler& handler);
++                            std::shared_ptr<message::Handler>& handler);
++
++/**
++ *@brief Log Redfish event for invalid login attempted on RMCPP interface
++ *
++ * @param[in] journalMsg - Show journal Debug Message in journal logs
++ * @param[in] redfishMsg - Log Redfish Event Message
++ *
++ */
++void logInvalidLoginRedfishEvent(
++    const std::string& journalMsg,
++    const std::optional<std::string>& messageArgs = "RMCPP");
+ 
+ } // namespace command
+diff --git a/command/rakp34.cpp b/command/rakp34.cpp
+index b106b6f..566850a 100644
+--- a/command/rakp34.cpp
++++ b/command/rakp34.cpp
+@@ -67,7 +67,7 @@ void applyCryptAlgo(const uint32_t bmcSessionID)
+ }
+ 
+ std::vector<uint8_t> RAKP34(const std::vector<uint8_t>& inPayload,
+-                            const message::Handler& handler)
++                            std::shared_ptr<message::Handler>& handler)
+ {
+ 
+     std::vector<uint8_t> outPayload(sizeof(RAKP4response));
+diff --git a/command/rakp34.hpp b/command/rakp34.hpp
+index e582256..7b29d70 100644
+--- a/command/rakp34.hpp
++++ b/command/rakp34.hpp
+@@ -50,6 +50,6 @@ struct RAKP4response
+  * @return Response data for the command
+  */
+ std::vector<uint8_t> RAKP34(const std::vector<uint8_t>& inPayload,
+-                            const message::Handler& handler);
++                            std::shared_ptr<message::Handler>& handler);
+ 
+ } // namespace command
+diff --git a/command/session_cmds.cpp b/command/session_cmds.cpp
+index 98016c9..d84c2a0 100644
+--- a/command/session_cmds.cpp
++++ b/command/session_cmds.cpp
+@@ -18,7 +18,7 @@ using namespace phosphor::logging;
+ 
+ std::vector<uint8_t>
+     setSessionPrivilegeLevel(const std::vector<uint8_t>& inPayload,
+-                             const message::Handler& handler)
++                             std::shared_ptr<message::Handler>& handler)
+ {
+     auto request =
+         reinterpret_cast<const SetSessionPrivLevelReq*>(inPayload.data());
+@@ -35,7 +35,7 @@ std::vector<uint8_t>
+     uint8_t reqPrivilegeLevel = request->reqPrivLevel;
+ 
+     auto session = std::get<session::Manager&>(singletonPool)
+-                       .getSession(handler.sessionID);
++                       .getSession(handler->sessionID);
+ 
+     if (reqPrivilegeLevel == 0) // Just return present privilege level
+     {
+@@ -155,7 +155,7 @@ uint8_t closeOtherNetInstanceSession(const uint32_t reqSessionId,
+             }
+         }
+     }
+-    catch (sdbusplus::exception::SdBusError& e)
++    catch (sdbusplus::exception::exception& e)
+     {
+         log<level::ERR>("Failed to fetch object from dbus",
+                         entry("INTERFACE=%s", session::sessionIntf),
+@@ -213,7 +213,7 @@ uint8_t closeMyNetInstanceSession(uint32_t reqSessionId,
+ }
+ 
+ std::vector<uint8_t> closeSession(const std::vector<uint8_t>& inPayload,
+-                                  const message::Handler& handler)
++                                  std::shared_ptr<message::Handler>& handler)
+ {
+     // minimum inPayload size is reqSessionId (uint32_t)
+     // maximum inPayload size is struct CloseSessionRequest
+@@ -265,10 +265,10 @@ std::vector<uint8_t> closeSession(const std::vector<uint8_t>& inPayload,
+         ipmiNetworkInstance =
+             std::get<session::Manager&>(singletonPool).getNetworkInstance();
+         auto currentSession = std::get<session::Manager&>(singletonPool)
+-                                  .getSession(handler.sessionID);
++                                  .getSession(handler->sessionID);
+         currentSessionPriv = currentSession->currentPrivilege();
+     }
+-    catch (sdbusplus::exception::SdBusError& e)
++    catch (sdbusplus::exception::exception& e)
+     {
+         log<level::ERR>("Failed to fetch object from dbus",
+                         entry("INTERFACE=%s", session::sessionIntf),
+diff --git a/command/session_cmds.hpp b/command/session_cmds.hpp
+index d5d394b..026b9d8 100644
+--- a/command/session_cmds.hpp
++++ b/command/session_cmds.hpp
+@@ -77,7 +77,7 @@ struct SetSessionPrivLevelResp
+  */
+ std::vector<uint8_t>
+     setSessionPrivilegeLevel(const std::vector<uint8_t>& inPayload,
+-                             const message::Handler& handler);
++                             std::shared_ptr<message::Handler>& handler);
+ /**
+  * @struct CloseSessionRequest
+  *
+@@ -115,6 +115,6 @@ struct CloseSessionResponse
+  * @return Response data for the command
+  */
+ std::vector<uint8_t> closeSession(const std::vector<uint8_t>& inPayload,
+-                                  const message::Handler& handler);
++                                  std::shared_ptr<message::Handler>& handler);
+ 
+ } // namespace command
+diff --git a/command/sol_cmds.cpp b/command/sol_cmds.cpp
+index a1e820f..5579100 100644
+--- a/command/sol_cmds.cpp
++++ b/command/sol_cmds.cpp
+@@ -15,7 +15,7 @@ namespace command
+ using namespace phosphor::logging;
+ 
+ std::vector<uint8_t> payloadHandler(const std::vector<uint8_t>& inPayload,
+-                                    const message::Handler& handler)
++                                    std::shared_ptr<message::Handler>& handler)
+ {
+     // Check inPayload size is at least Payload
+     if (inPayload.size() < sizeof(Payload))
+@@ -36,7 +36,7 @@ std::vector<uint8_t> payloadHandler(const std::vector<uint8_t>& inPayload,
+     try
+     {
+         auto& context = std::get<sol::Manager&>(singletonPool)
+-                            .getContext(handler.sessionID);
++                            .getContext(handler->sessionID);
+ 
+         context.processInboundPayload(
+             request->packetSeqNum, request->packetAckSeqNum,
+@@ -72,7 +72,7 @@ void activating(uint8_t payloadInstance, uint32_t sessionID)
+ }
+ 
+ std::vector<uint8_t> getConfParams(const std::vector<uint8_t>& inPayload,
+-                                   const message::Handler& handler)
++                                   std::shared_ptr<message::Handler>& handler)
+ {
+     std::vector<uint8_t> outPayload(sizeof(GetConfParamsResponse));
+     auto request =
+diff --git a/command/sol_cmds.hpp b/command/sol_cmds.hpp
+index 182b73e..3e05e0f 100644
+--- a/command/sol_cmds.hpp
++++ b/command/sol_cmds.hpp
+@@ -22,7 +22,7 @@ namespace command
+  *  @return Response data for the command.
+  */
+ std::vector<uint8_t> payloadHandler(const std::vector<uint8_t>& inPayload,
+-                                    const message::Handler& handler);
++                                    std::shared_ptr<message::Handler>& handler);
+ 
+ constexpr uint8_t netfnTransport = 0x0C;
+ constexpr uint8_t solActivatingCmd = 0x20;
+@@ -185,7 +185,7 @@ struct SetConfParamsResponse
+  *  @return Response data for the command.
+  */
+ std::vector<uint8_t> setConfParams(const std::vector<uint8_t>& inPayload,
+-                                   const message::Handler& handler);
++                                   std::shared_ptr<message::Handler>& handler);
+ 
+ /** @struct GetConfParamsRequest
+  *
+@@ -228,7 +228,7 @@ struct GetConfParamsResponse
+  *  @return Response data for the command.
+  */
+ std::vector<uint8_t> getConfParams(const std::vector<uint8_t>& inPayload,
+-                                   const message::Handler& handler);
++                                   std::shared_ptr<message::Handler>& handler);
+ 
+ } // namespace command
+ 
+diff --git a/command_table.cpp b/command_table.cpp
+index 1d9e063..d623c17 100644
+--- a/command_table.cpp
++++ b/command_table.cpp
+@@ -6,6 +6,7 @@
+ #include "sessions_manager.hpp"
+ 
+ #include <iomanip>
++#include <ipmid/types.hpp>
+ #include <main.hpp>
+ #include <phosphor-logging/elog-errors.hpp>
+ #include <phosphor-logging/log.hpp>
+@@ -15,13 +16,6 @@
+ using namespace sdbusplus::xyz::openbmc_project::Common::Error;
+ using namespace phosphor::logging;
+ 
+-namespace ipmi
+-{
+-using Value = std::variant<bool, uint8_t, int16_t, uint16_t, int32_t, uint32_t,
+-                           int64_t, uint64_t, double, std::string>;
+-
+-} // namespace ipmi
+-
+ namespace command
+ {
+ 
+@@ -168,7 +162,7 @@ std::vector<uint8_t>
+         return errResponse;
+     }
+ 
+-    return functor(commandData, *handler);
++    return functor(commandData, handler);
+ }
+ 
+ } // namespace command
+diff --git a/command_table.hpp b/command_table.hpp
+index e882300..1ff360d 100644
+--- a/command_table.hpp
++++ b/command_table.hpp
+@@ -44,7 +44,7 @@ struct CommandID
+  * command is returned as a vector.
+  */
+ using CommandFunctor = std::function<std::vector<uint8_t>(
+-    const std::vector<uint8_t>&, const message::Handler&)>;
++    const std::vector<uint8_t>&, std::shared_ptr<message::Handler>&)>;
+ 
+ /**
+  * @struct CmdDetails
+diff --git a/sessions_manager.cpp b/sessions_manager.cpp
+index ec6194b..b1ff2d2 100644
+--- a/sessions_manager.cpp
++++ b/sessions_manager.cpp
+@@ -98,7 +98,7 @@ std::shared_ptr<Session>
+             bmcSessionID = (crypto::prng::rand());
+             bmcSessionID &= session::multiIntfaceSessionIDMask;
+             // In sessionID , BIT 31 BIT30 are used for netipmid instance
+-            bmcSessionID |= ipmiNetworkInstance << 30;
++            bmcSessionID |= static_cast<uint32_t>(ipmiNetworkInstance) << 30;
+             /*
+              * Every IPMI Session has two ID's attached to it Remote Console
+              * Session ID and BMC Session ID. The remote console ID is passed
+@@ -130,7 +130,7 @@ std::shared_ptr<Session>
+         }
+         sessionHandle &= session::multiIntfaceSessionHandleMask;
+         // In sessionID , BIT 31 BIT30 are used for netipmid instance
+-        sessionHandle |= ipmiNetworkInstance << 6;
++        sessionHandle |= static_cast<uint8_t>(ipmiNetworkInstance) << 6;
+         std::stringstream sstream;
+         sstream << std::hex << bmcSessionID;
+         std::stringstream shstream;
+-- 
+2.7.4
+

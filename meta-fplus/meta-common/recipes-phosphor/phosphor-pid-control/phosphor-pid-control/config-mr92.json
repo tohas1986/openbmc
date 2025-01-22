@@ -1,0 +1,276 @@
+{
+    "sensors" : [
+        {
+            "name": "fan1",
+            "type": "fan",
+            "readPath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/fan1_input",
+            "writePath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/pwm1",
+            "min": 0,
+            "max": 255
+        },
+        {
+            "name": "fan2",
+            "type": "fan",
+            "readPath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/fan2_input",
+            "writePath": "/sys/devices/platform/ahb/ahb:apb/1e786000.pwm-tacho-controller/hwmon/**/pwm2",
+            "min": 0,
+            "max": 255
+        },
+        {    "name": "CPU0_DTS", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/CPU0_DTS", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "CPU1_DTS", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/CPU1_DTS", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+
+        {    "name": "DIMM_P0_A0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_A0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_B0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_B0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_C0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_C0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_D0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_D0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_E0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_E0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_F0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_F0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_G0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_G0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P0_H0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P0_H0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_J0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_J0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_K0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_K0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_L0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_L0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_M0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_M0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_N0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_N0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_P0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_P0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_R0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_R0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "DIMM_P1_T0", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/DIMM_P1_T0", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+
+        {    "name": "SATA0_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SATA0_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SATA1_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SATA1_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SATA2_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SATA2_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "SATA3_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/SATA3_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+
+        {    "name": "NVME_0_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_0_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_1_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_1_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_2_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_2_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_3_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_3_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_4_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_4_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "NVME_5_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/NVME_5_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "M2_0_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/M2_0_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "M2_1_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/M2_1_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+
+        {    "name": "OCP30_LEFT_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/OCP30_LEFT_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "OCP30_RIGHT_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/OCP30_RIGHT_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "GPUT4_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/GPUT4_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "PCIE1_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/PCIE1_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" },
+        {    "name": "PCIE2_TEMP", "type": "temp", "readPath": "/xyz/openbmc_project/sensors/temperature/PCIE2_TEMP", "timeout": 0, "ignoreDbusMinMax": true, "writePath": "" }
+    ],
+    "zones" : [
+        {
+            "id": 0,
+            "minThermalOutput": 20.0,
+            "failsafePercent": 100.0,
+            "pids": [
+                {
+                    "name": "FAN",
+                    "type": "fan",
+                    "setpoint": 65.0,
+                    "inputs": ["fan1", "fan2"],
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "proportionalCoeff": 0.0,
+                        "integralCoeff": 0.0,
+                        "feedFwdOffsetCoeff": 0.0,
+                        "feedFwdGainCoeff": 1.0,
+                        "integralLimit_min": 0.0,
+                        "integralLimit_max": 0.0,
+                        "outLim_min": 0.0,
+                        "outLim_max": 100.0,
+                        "slewNeg": 0.0,
+                        "slewPos": 0.0
+                    }
+                },
+                {
+                    "inputs": [
+                        "CPU0_DTS"
+                    ],
+                    "name": "CPU0",
+                    "pid": {
+                        "feedFwdGainCoeff": 0.0,
+                        "feedFwdOffsetCoeff": 0.0,
+                        "integralCoeff": 0.1,
+                        "integralLimit_max": 0.0,
+                        "integralLimit_min": 0.0,
+                        "isCeiling": false,
+                        "negativeHysteresis": 0.0,
+                        "outLim_max": 70.0,
+                        "outLim_min": 0.0,
+                        "positiveHysteresis": 0.0,
+                        "proportionalCoeff": 20.0,
+                        "samplePeriod": 1.0,
+                        "slewNeg": 0.0,
+                        "slewPos": 0.0
+                    },
+                    "setpoint": 10.0,
+                    "type": "temp"
+                },
+                {
+                    "inputs": [
+                        "CPU1_DTS"
+                    ],
+                    "name": "CPU1",
+                    "pid": {
+                        "feedFwdGainCoeff": 0.0,
+                        "feedFwdOffsetCoeff": 0.0,
+                        "integralCoeff": 0.1,
+                        "integralLimit_max": 0.0,
+                        "integralLimit_min": 0.0,
+                        "isCeiling": false,
+                        "negativeHysteresis": 0.0,
+                        "outLim_max": 70.0,
+                        "outLim_min": 0.0,
+                        "positiveHysteresis": 0.0,
+                        "proportionalCoeff": 20.0,
+                        "samplePeriod": 1.0,
+                        "slewNeg": 0.0,
+                        "slewPos": 0.0
+                    },
+                    "setpoint": 10.0,
+                    "type": "temp"
+                },
+                {
+                    "name": "GPU",
+                    "type": "temp",
+                    "inputs": [ "GPUT4_TEMP" ],
+                    "setpoint": 70.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "proportionalCoeff": -20.0,
+                        "integralCoeff": -0.1,
+                        "feedFwdOffsetCoeff": 0.0,
+                        "feedFwdGainCoeff": 0.0,
+                        "integralLimit_min": 0.0,
+                        "integralLimit_max": 0.0,
+                        "outLim_min": 0.0,
+                        "outLim_max": 70.0,
+                        "slewNeg": 0.0,
+                        "slewPos": 0.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false
+                    }
+                },
+                {
+                    "name": "PCIE1",
+                    "type": "temp",
+                    "inputs": [ "PCIE1_TEMP" ],
+                    "setpoint": 80.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "proportionalCoeff": -20.0,
+                        "integralCoeff": -0.1,
+                        "feedFwdOffsetCoeff": 0.0,
+                        "feedFwdGainCoeff": 0.0,
+                        "integralLimit_min": 0.0,
+                        "integralLimit_max": 0.0,
+                        "outLim_min": 0.0,
+                        "outLim_max": 70.0,
+                        "slewNeg": 0.0,
+                        "slewPos": 0.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false
+                    }
+                },
+                {
+                    "name": "PCIE2",
+                    "type": "temp",
+                    "inputs": [ "PCIE2_TEMP" ],
+                    "setpoint": 80.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "proportionalCoeff": -20.0,
+                        "integralCoeff": -0.1,
+                        "feedFwdOffsetCoeff": 0.0,
+                        "feedFwdGainCoeff": 0.0,
+                        "integralLimit_min": 0.0,
+                        "integralLimit_max": 0.0,
+                        "outLim_min": 0.0,
+                        "outLim_max": 70.0,
+                        "slewNeg": 0.0,
+                        "slewPos": 0.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false
+                    }
+                },
+                {
+                    "name": "DIMM",
+                    "type": "stepwise",
+                    "inputs":
+                            [
+                                "DIMM_P0_A0", "DIMM_P0_B0", "DIMM_P0_C0", "DIMM_P0_D0", "DIMM_P0_E0", "DIMM_P0_F0", "DIMM_P0_G0",
+                                "DIMM_P0_H0", "DIMM_P1_J0", "DIMM_P1_K0", "DIMM_P1_L0", "DIMM_P1_M0", "DIMM_P1_N0", "DIMM_P1_P0",
+                                "DIMM_P1_R0", "DIMM_P1_T0"
+                            ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 61, "1": 85},
+                        "output":  { "0": 0,  "1": 70}
+                    }
+                },
+                {
+                    "name": "M2",
+                    "type": "stepwise",
+                    "inputs": [ "M2_0_TEMP", "M2_1_TEMP" ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 50, "1": 65 },
+                        "output":  { "0":  0, "1": 70 }
+                    }
+                },
+                {
+                    "name": "NVME",
+                    "type": "stepwise",
+                    "inputs": [ "NVME_0_TEMP", "NVME_1_TEMP", "NVME_2_TEMP", "NVME_3_TEMP", "NVME_4_TEMP", "NVME_5_TEMP" ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 50, "1": 70 },
+                        "output":  { "0":  0, "1": 70 }
+                    }
+                },
+                {
+                    "name": "SATA",
+                    "type": "stepwise",
+                    "inputs": [ "SATA0_TEMP", "SATA1_TEMP", "SATA2_TEMP", "SATA3_TEMP"],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 10.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 35, "1": 55 },
+                        "output":  { "0":  0, "1": 50 }
+                    }
+                },
+                {
+                    "name": "OCP30",
+                    "type": "stepwise",
+                    "inputs": [ "OCP30_LEFT_TEMP", "OCP30_RIGHT_TEMP" ],
+                    "setpoint": 0.0,
+                    "pid": {
+                        "samplePeriod": 1.0,
+                        "positiveHysteresis": 1.0,
+                        "negativeHysteresis": 1.0,
+                        "isCeiling": false,
+                        "reading": { "0": 65, "1": 85 },
+                        "output":  { "0":  0, "1": 70 }
+                    }
+                }
+            ]
+        }
+    ]
+}

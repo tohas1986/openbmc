@@ -11,8 +11,7 @@ DEPENDS = "glib-2.0 glib-2.0-native libxml2 sqlite3 libpsl"
 
 SHRT_VER = "${@d.getVar('PV').split('.')[0]}.${@d.getVar('PV').split('.')[1]}"
 
-SRC_URI = "${GNOME_MIRROR}/libsoup/${SHRT_VER}/libsoup-${PV}.tar.xz \
-           file://0001-Fix-build-with-libxml2-2.12.0-and-clang-17.patch"
+SRC_URI = "${GNOME_MIRROR}/libsoup/${SHRT_VER}/libsoup-${PV}.tar.xz"
 SRC_URI[sha256sum] = "e4b77c41cfc4c8c5a035fcdc320c7bc6cfb75ef7c5a034153df1413fa1d92f13"
 
 CVE_PRODUCT = "libsoup"
@@ -26,24 +25,12 @@ UPSTREAM_CHECK_REGEX = "libsoup-(?P<pver>2(\.(?!99)\d+)+)\.tar"
 GIR_MESON_ENABLE_FLAG = 'enabled'
 GIR_MESON_DISABLE_FLAG = 'disabled'
 
+# libsoup-gnome is entirely deprecated and just stubs in 2.42 onwards. Disable by default.
 PACKAGECONFIG ??= ""
-PACKAGECONFIG[brotli] = "-Dbrotli=enabled,-Dbrotli=disabled,brotli"
-# libsoup-gnome is entirely deprecated and just stubs in 2.42 onwards
 PACKAGECONFIG[gnome] = "-Dgnome=true,-Dgnome=false"
 PACKAGECONFIG[gssapi] = "-Dgssapi=enabled,-Dgssapi=disabled,krb5"
-PACKAGECONFIG[ntlm] = "-Dntlm=enabled,-Dntlm=disabled"
-PACKAGECONFIG[sysprof] = "-Dsysprof=enabled,-Dsysprof=disabled,sysprof"
 
-# Tell libsoup where the target ntlm_auth is installed
-do_write_config:append:class-target() {
-    cat >${WORKDIR}/soup.cross <<EOF
-[binaries]
-ntlm_auth = '${bindir}/ntlm_auth'
-EOF
-}
-EXTRA_OEMESON:append:class-target = " --cross-file ${WORKDIR}/soup.cross"
-
-EXTRA_OEMESON += "-Dvapi=disabled -Dtls_check=false"
+EXTRA_OEMESON:append = " -Dvapi=disabled -Dtls_check=false"
 
 GTKDOC_MESON_OPTION = "gtk_doc"
 

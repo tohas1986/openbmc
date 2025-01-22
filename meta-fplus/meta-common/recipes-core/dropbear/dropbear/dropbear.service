@@ -1,0 +1,15 @@
+[Unit]
+Description=SSH standalone Server
+After=systemd-networkd.service
+Before=systemd-networkd-wait-online.service
+
+[Service]
+Environment="DROPBEAR_RSAKEY_DIR=/etc/dropbear"
+EnvironmentFile=-/etc/default/dropbear
+ExecStart=-/usr/sbin/dropbear -R -r ${DROPBEAR_RSAKEY_DIR}/dropbear_rsa_host_key $DROPBEAR_EXTRA_ARGS
+Type=forking
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=network.target

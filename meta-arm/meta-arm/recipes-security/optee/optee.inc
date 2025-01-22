@@ -15,9 +15,6 @@ OPTEE_ARCH:arm = "arm32"
 OPTEE_ARCH:aarch64 = "arm64"
 OPTEE_CORE = "${@d.getVar('OPTEE_ARCH').upper()}"
 
-# FIXME - breaks with Clang 18.  See https://github.com/OP-TEE/optee_os/issues/6754
-TOOLCHAIN = "gcc"
-
 OPTEE_TOOLCHAIN = "${@d.getVar('TOOLCHAIN') or 'gcc'}"
 OPTEE_COMPILER = "${@bb.utils.contains("BBFILE_COLLECTIONS", "clang-layer", "${OPTEE_TOOLCHAIN}", "gcc", d)}"
 
@@ -34,8 +31,3 @@ EXTRA_OEMAKE += "V=1 \
 # python3-cryptography needs the legacy provider, so set OPENSSL_MODULES to the
 # right path until this is relocated automatically.
 export OPENSSL_MODULES="${STAGING_LIBDIR_NATIVE}/ossl-modules"
-
-CFLAGS += "--sysroot=${STAGING_DIR_HOST}"
-
-# See the rationale in https://github.com/f-secure-foundry/advisories/blob/master/Security_Advisory-Ref_FSC-HWSEC-VR2021-0001-OP-TEE_TrustZone_bypass.txt.
-CVE_STATUS[CVE-2021-36133] = "disputed: devices shipped open for development purposes"

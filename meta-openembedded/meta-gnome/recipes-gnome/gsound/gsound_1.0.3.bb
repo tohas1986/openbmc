@@ -7,8 +7,7 @@ DEPENDS = " \
     libcanberra \
 "
 
-
-VALA_MESON_OPTION = "enable_vala"
+GNOMEBASEBUILDCLASS = "meson"
 
 inherit gnomebase gettext gobject-introspection vala
 

@@ -1,2 +1,0 @@
-MACHINE_FEATURES:append = " fb-ncsi-nic"
-MACHINEOVERRIDES:append = ":mf-fb-ncsi-nic"

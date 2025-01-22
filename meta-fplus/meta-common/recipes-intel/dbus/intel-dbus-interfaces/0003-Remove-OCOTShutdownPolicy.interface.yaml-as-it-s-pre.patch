@@ -1,0 +1,42 @@
+From d9bd8d80c3bf10f8cd3b938a600fda8df6c67c44 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 6 Oct 2022 11:05:58 +0000
+Subject: [PATCH] Remove OCOTShutdownPolicy.interface.yaml as it's present in
+ phosphor-dbus-interfaces
+
+---
+ .../Control/OCOTShutdownPolicy.interface.yaml | 24 -------------------
+ 1 file changed, 24 deletions(-)
+ delete mode 100644 com/intel/Control/OCOTShutdownPolicy.interface.yaml
+
+diff --git a/com/intel/Control/OCOTShutdownPolicy.interface.yaml b/com/intel/Control/OCOTShutdownPolicy.interface.yaml
+deleted file mode 100644
+index ccbb6e2..0000000
+--- a/com/intel/Control/OCOTShutdownPolicy.interface.yaml
++++ /dev/null
+@@ -1,24 +0,0 @@
+-description: >
+-    An interface for node shutdown policy on multi-node products.
+-    It is used by Intel OEM IPMI command.
+-properties:
+-    - name: OCOTPolicy
+-      type: enum[self.Policy]
+-      description: >
+-          Node shutdown policy on a power supply over current(OC)
+-          or over temperature(OT) event,
+-          Only available on multi-node products.
+-
+-      default: 'NoShutdownOnOCOT'
+-
+-enumerations:
+-   - name: Policy
+-     description: >
+-       The type of shutdown policy.
+-     values:
+-       - name: 'NoShutdownOnOCOT'
+-         description: >
+-           Do not shutdown node on an OC/OT event.
+-       - name: 'ShutdownOnOCOT'
+-         description: >
+-           Shutdown node on an OC/OT event.
+\ No newline at end of file

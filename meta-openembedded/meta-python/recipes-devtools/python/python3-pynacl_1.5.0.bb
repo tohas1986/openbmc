@@ -11,7 +11,13 @@ PYPI_PACKAGE = "PyNaCl"
 inherit pypi python_setuptools_build_meta
 
 DEPENDS += "\
-    python3-cffi-native \
+    ${PYTHON_PN}-cffi-native \
+    libsodium \
+"
+
+RDEPENDS:${PN} = "\
+    ${PYTHON_PN}-six \
+    ${PYTHON_PN}-cffi \
     libsodium \
 "
 
@@ -22,17 +28,3 @@ do_compile:prepend() {
 do_install:prepend() {
     export SODIUM_INSTALL=system
 }
-
-RDEPENDS:${PN} = "\
-    python3-six \
-    python3-cffi \
-    libsodium \
-"
-
-RPROVIDES:${PN} = "python3-nacl"
-
-# in meta-virtualization layer
-#
-RCONFLICTS:${PN} = "python3-nacl"
-
-BBCLASSEXTEND = "native nativesdk"

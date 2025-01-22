@@ -1,0 +1,24 @@
+From 8d02ad6c0ef4f10697b70668ea9eff1ceb7ec209 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 14 Oct 2022 12:43:17 +0000
+Subject: [PATCH] Disable netlink
+
+---
+ nbd-client.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/nbd-client.c b/nbd-client.c
+index c187e8c..36c28d8 100644
+--- a/nbd-client.c
++++ b/nbd-client.c
+@@ -46,6 +46,10 @@
+ 
+ #include <linux/ioctl.h>
+ 
++#ifdef HAVE_NETLINK
++#undef HAVE_NETLINK
++#endif
++#define HAVE_NETLINK 0
+ #if HAVE_NETLINK
+ #include "nbd-netlink.h"
+ #include <netlink/netlink.h>

@@ -1,0 +1,35 @@
+From 06d0c17d57e1e456f3e89272553da94ca017d88f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Oct 2020 15:24:30 +0000
+Subject: [PATCH] adcsensor: add information about created sensors on startup
+ in verbose mode
+
+---
+ src/ADCSensorMain.cpp | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/src/ADCSensorMain.cpp b/src/ADCSensorMain.cpp
+index 3b2065c..65cf1d7 100644
+--- a/src/ADCSensorMain.cpp
++++ b/src/ADCSensorMain.cpp
+@@ -283,6 +283,20 @@ void createSensors(
+                     }
+                 }
+ 
++                if (DEBUG)
++                {
++                    std::cerr << "Creating sensor " << sensorName;
++                    std::cerr << " PowerState:";
++                    if (powerState == PowerState::always)
++                        std::cerr << "Always";
++                    if (powerState == PowerState::on)
++                        std::cerr << "On";
++                    if (powerState == PowerState::biosPost)
++                        std::cerr << "biosPost";
++
++                    std::cerr << " Scale factor:" << scaleFactor;
++                    std::cerr << "\n";
++                }
+                 sensor = std::make_shared<ADCSensor>(
+                     path.string(), objectServer, dbusConnection, io, sensorName,
+                     std::move(sensorThresholds), scaleFactor, powerState,

@@ -1,0 +1,194 @@
+From 3a61cbb93690de0a306c40461ee967cff41bbd28 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 15 Dec 2022 15:10:18 +0000
+Subject: [PATCH] Fix FRU write and read
+
+---
+ src/fru_utils.cpp | 52 +++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 37 insertions(+), 15 deletions(-)
+
+diff --git a/src/fru_utils.cpp b/src/fru_utils.cpp
+index cb3493c..a3a3f57 100644
+--- a/src/fru_utils.cpp
++++ b/src/fru_utils.cpp
+@@ -196,6 +196,8 @@ bool verifyOffset(const std::vector<uint8_t>& fruBytes, fruAreas currentArea,
+ {
+ 
+     unsigned int fruBytesSize = fruBytes.size();
++    if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__
++                         << " len=" << +len << "\n";
+ 
+     // check if Fru data has at least 8 byte header
+     if (fruBytesSize <= fruBlockSize)
+@@ -221,6 +223,11 @@ bool verifyOffset(const std::vector<uint8_t>& fruBytes, fruAreas currentArea,
+     unsigned int start = fruBytes[currentAreaIndex];
+     unsigned int end = start + len;
+ 
++    if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__
++                         << " start:" << +start
++                         << " end:" << +end
++                         << " currentAreaIndex:" << +currentAreaIndex
++                         << "\n";
+     /* Verify each offset within the range of start and end */
+     for (fruAreas area = fruAreas::fruAreaInternal;
+          area <= fruAreas::fruAreaMultirecord; ++area)
+@@ -250,8 +257,7 @@ bool verifyOffset(const std::vector<uint8_t>& fruBytes, fruAreas currentArea,
+         {
+             std::cerr << getFruAreaName(currentArea)
+                       << " offset is overlapping with " << getFruAreaName(area)
+-                      << " offset\n";
+-            std::cerr << " areaOffset:" << +areaOffset << " start:" << +start
++                      << " areaOffset:" << +areaOffset << " start:" << +start
+                       << " end:" << +end << "\n";
+         }
+     }
+@@ -263,7 +269,7 @@ resCodes
+                   boost::container::flat_map<std::string, std::string>& result)
+ {
+     resCodes ret = resCodes::resOK;
+-    if (DEBUG) std::cerr << __FUNCTION__ << " size:" << fruBytes.size() << "\n";
++    if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " Total size:" << fruBytes.size() << "\n";
+     if (fruBytes.size() <= fruBlockSize)
+     {
+         std::cerr << "Error: trying to parse empty FRU \n";
+@@ -285,8 +291,7 @@ resCodes
+             continue;
+         }
+         offset *= fruBlockSize;
+-        if (DEBUG) std::cerr << __FUNCTION__ << " Area offset:" << +offset
+-                             << " area:" << std::to_string(static_cast<int>(area)) << "\n";
++
+         std::vector<uint8_t>::const_iterator fruBytesIter =
+             fruBytes.begin() + offset;
+         if (fruBytesIter + fruBlockSize >= fruBytes.end())
+@@ -309,19 +314,32 @@ resCodes
+             // At this point fruBytesIter points to Version. Next byte is length
+             ++fruBytesIter;
+             fruAreaSize = *fruBytesIter * fruBlockSize;
++
+             fruBytesIterEndArea = fruBytes.begin() + offset + fruAreaSize - 1;
++            if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__
++                             << " Area " << getFruAreaName(area) //std::to_string(static_cast<int>(area))
++                             << " begin:" << +offset
++                             << " size:" << +fruAreaSize
++                             << " end:" << offset + fruAreaSize - 1
++                             << "\n";
++
+             ++fruBytesIter;
+             // Now fruBytesIter points to the actual data of the area
+             /* Verify other area offset for overlap with current area by passing
+              * length of current area offset pointed by *fruBytesIter
+              */
++            /* Looks like this code is not needed */
++            /*
+             if (!verifyOffset(fruBytes, area, *fruBytesIter))
+             {
++                if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " verifyOffset returned error\n";
+                 return resCodes::resErr;
+             }
++            */
+         }
+         else
+         {
++            if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " MultiArea\n";
+             fruBytesIterEndArea = fruBytes.end();
+         }
+ 
+@@ -331,13 +349,12 @@ resCodes
+         {
+             std::stringstream ss;
+             ss << std::hex << std::setfill('0');
+-            ss << "Checksum error in FRU area " << getFruAreaName(area) << "\n";
+-            ss << "\tComputed checksum: 0x" << std::setw(2)
+-               << static_cast<int>(fruComputedChecksum) << "\n";
+-            ss << "\tThe read checksum: 0x" << std::setw(2)
++            ss << "Checksum error in FRU area " << getFruAreaName(area);
++            ss << " Computed 0x" << std::setw(2)
++               << static_cast<int>(fruComputedChecksum);
++            ss << " != read 0x" << std::setw(2)
+                << static_cast<int>(*fruBytesIterEndArea) << "\n";
+             std::cerr << ss.str();
+-            ret = resCodes::resWarn;
+         }
+ 
+         /* Set default language flag to true as Chassis Fru area are always
+@@ -401,7 +418,7 @@ resCodes
+             {
+                 uint8_t record_length = *(fruBytesIter + 2);
+                 uint8_t record_type = *fruBytesIter;
+-                if (DEBUG) std::cerr << __FUNCTION__ << " MultiRecord type:"
++                if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " MultiRecord type:"
+                                      << +record_type << " Length:" << +record_length
+                                      << " @" << static_cast<int>(fruBytesIter - fruBytes.begin())
+                                      << "\n";
+@@ -413,7 +430,7 @@ resCodes
+                 // On exit fruBytesIter must be at the same position
+                 if (record_type == 0x03 && *fruBytesIter == 0x07)
+                 {
+-                    if (DEBUG) std::cerr << __FUNCTION__ << " GUID found\n";
++                    if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " GUID found\n";
+                     std::stringstream ss_guid;
+                     for(auto i=0; i<16; i++)
+                     {
+@@ -421,13 +438,13 @@ resCodes
+                         if (i == 3 || i == 5 || i == 7 || i == 9)
+                             ss_guid << "-";
+                     }
+-                    if (DEBUG) std::cerr << __FUNCTION__ << " GUID:" << ss_guid.str() << "\n";
++                    if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " GUID:" << ss_guid.str() << "\n";
+                     result["GUID"] = ss_guid.str();
+                 }
+ 
+                 fruBytesIter += record_length;
+ 
+-                if (DEBUG) std::cerr << __FUNCTION__ << " fruBytesIter:"
++                if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " fruBytesIter:"
+                                      << static_cast<int>(fruBytesIter - fruBytes.begin()) << "\n";
+                 break;
+             }
+@@ -689,6 +706,7 @@ std::vector<uint8_t> readFRUContents(FRUReader& reader,
+ 
+     if (!findFRUHeader(reader, errorHelp, blockData, baseOffset))
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << "\n";
+         return {};
+     }
+ 
+@@ -701,6 +719,7 @@ std::vector<uint8_t> readFRUContents(FRUReader& reader,
+     for (fruAreas area = fruAreas::fruAreaInternal;
+          area <= fruAreas::fruAreaMultirecord; ++area)
+     {
++        if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << "\n";
+         // Offset value can be 255.
+         unsigned int areaOffset = device[getHeaderAreaFieldOffset(area)];
+         if (areaOffset == 0)
+@@ -746,7 +765,7 @@ std::vector<uint8_t> readFRUContents(FRUReader& reader,
+ 
+     if (hasMultiRecords)
+     {
+-        if (DEBUG) std::cerr << __FUNCTION__ << " Multi-record detected\n";
++        if (DEBUG) std::cerr << __FUNCTION__ << ":" << __LINE__ << " Multi-record detected\n";
+         // device[area count] is the index to the last area because the 0th
+         // entry is not an offset in the common header.
+         unsigned int areaOffset =
+@@ -818,14 +837,17 @@ unsigned int getHeaderAreaFieldOffset(fruAreas area)
+ 
+ std::vector<uint8_t>& getFRUInfo(const uint16_t& bus, const uint8_t& address)
+ {
++    std::cerr << __FUNCTION__ << ":" << __LINE__ << " Start. bus:" << +bus << " address:" << +address << "\n";
+     auto deviceMap = busMap.find(bus);
+     if (deviceMap == busMap.end())
+     {
++        std::cerr << __FUNCTION__ << ":" << __LINE__ << " Error Invalid Bus\n";
+         throw std::invalid_argument("Invalid Bus.");
+     }
+     auto device = deviceMap->second->find(address);
+     if (device == deviceMap->second->end())
+     {
++        std::cerr << __FUNCTION__ << ":" << __LINE__ << " Error Invalid Address\n";
+         throw std::invalid_argument("Invalid Address.");
+     }
+     std::vector<uint8_t>& ret = device->second;
+-- 
+2.36.0
+

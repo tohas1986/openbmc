@@ -1,0 +1,40 @@
+From 2723885f14ac434d1c35d3492d9a85e62a35516f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 24 Mar 2022 08:49:32 +0000
+Subject: [PATCH] Add ReleaseDate to Revision and Software Version interface
+
+---
+ .../Inventory/Decorator/Revision.interface.yaml               | 4 ++++
+ yaml/xyz/openbmc_project/Software/Version.interface.yaml      | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/yaml/xyz/openbmc_project/Inventory/Decorator/Revision.interface.yaml b/yaml/xyz/openbmc_project/Inventory/Decorator/Revision.interface.yaml
+index d2f7123a..6018a093 100644
+--- a/yaml/xyz/openbmc_project/Inventory/Decorator/Revision.interface.yaml
++++ b/yaml/xyz/openbmc_project/Inventory/Decorator/Revision.interface.yaml
+@@ -5,3 +5,7 @@ properties:
+       type: string
+       description: >
+           The item version.
++    - name: ReleaseDate
++      type: string
++      description: >
++          The item release date.
+diff --git a/yaml/xyz/openbmc_project/Software/Version.interface.yaml b/yaml/xyz/openbmc_project/Software/Version.interface.yaml
+index 61760102..bcad75b2 100644
+--- a/yaml/xyz/openbmc_project/Software/Version.interface.yaml
++++ b/yaml/xyz/openbmc_project/Software/Version.interface.yaml
+@@ -10,6 +10,10 @@ properties:
+       type: string
+       description: >
+           The version identifier.
++    - name: ReleaseDate
++      type: string
++      description: >
++        The version release date.
+     - name: Purpose
+       type: enum[self.VersionPurpose]
+       description: >
+-- 
+2.35.1
+

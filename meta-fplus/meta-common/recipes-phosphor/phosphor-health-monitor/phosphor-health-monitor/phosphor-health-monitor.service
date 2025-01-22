@@ -1,0 +1,16 @@
+[Unit]
+Description=BMC health monitoring
+
+[Service]
+ExecStartPre=/bin/sleep 300
+ExecStart=/usr/bin/health-monitor
+Type=dbus
+BusName=xyz.openbmc_project.HealthMon
+SyslogIdentifier=phosphor-health-monitor
+TimeoutStartSec=6min
+TimeoutSec=6min
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

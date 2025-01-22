@@ -1,0 +1,26 @@
+From 7c6b8c7e5083a2497356d35cdfa086af17247c53 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 28 Jun 2022 12:41:02 +0000
+Subject: [PATCH] Disable gpt-auto-generator
+
+---
+ src/gpt-auto-generator/gpt-auto-generator.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/gpt-auto-generator/gpt-auto-generator.c b/src/gpt-auto-generator/gpt-auto-generator.c
+index 64ca9bb2f9..bdb3cfa078 100644
+--- a/src/gpt-auto-generator/gpt-auto-generator.c
++++ b/src/gpt-auto-generator/gpt-auto-generator.c
+@@ -847,6 +847,9 @@ static int parse_proc_cmdline_item(const char *key, const char *value, void *dat
+ static int run(const char *dest, const char *dest_early, const char *dest_late) {
+         int r, k;
+ 
++        /* Kitsok */
++        return 0;
++
+         assert_se(arg_dest = dest_late);
+ 
+         if (detect_container() > 0) {
+-- 
+2.36.1
+

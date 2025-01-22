@@ -63,19 +63,20 @@ python () {
         else:
             d.setVar('B', '${WORKDIR}/${BPN}-${PV}')
 
-        bb.fetch.get_hashvalue(d)
         local_srcuri = []
         fetch = bb.fetch2.Fetch((d.getVar('SRC_URI') or '').split(), d)
         for url in fetch.urls:
             url_data = fetch.ud[url]
             parm = url_data.parm
-            if url_data.type in ['file', 'npmsw', 'crate'] or parm.get('type') in ['kmeta', 'git-dependency']:
+            if (url_data.type == 'file' or
+                    url_data.type == 'npmsw' or url_data.type == 'crate' or
+                    'type' in parm and parm['type'] == 'kmeta'):
                 local_srcuri.append(url)
 
         d.setVar('SRC_URI', ' '.join(local_srcuri))
 
-        # sstate is never going to work for external source trees, disable it
-        d.setVar('SSTATE_SKIP_CREATION', '1')
+        # Dummy value because the default function can't be called with blank SRC_URI
+        d.setVar('SRCPV', '999')
 
         if d.getVar('CONFIGUREOPT_DEPTRACK') == '--disable-dependency-tracking':
             d.setVar('CONFIGUREOPT_DEPTRACK', '')
@@ -83,7 +84,10 @@ python () {
         tasks = filter(lambda k: d.getVarFlag(k, "task"), d.keys())
 
         for task in tasks:
-            if os.path.realpath(d.getVar('S')) == os.path.realpath(d.getVar('B')):
+            if task.endswith("_setscene"):
+                # sstate is never going to work for external source trees, disable it
+                bb.build.deltask(task, d)
+            elif os.path.realpath(d.getVar('S')) == os.path.realpath(d.getVar('B')):
                 # Since configure will likely touch ${S}, ensure only we lock so one task has access at a time
                 d.appendVarFlag(task, "lockfiles", " ${S}/singletask.lock")
 
@@ -104,7 +108,6 @@ python () {
         # If we deltask do_patch, there's no dependency to ensure do_unpack gets run, so add one
         # Note that we cannot use d.appendVarFlag() here because deps is expected to be a list object, not a string
         d.setVarFlag('do_configure', 'deps', (d.getVarFlag('do_configure', 'deps', False) or []) + ['do_unpack'])
-        d.setVarFlag('do_populate_lic', 'deps', (d.getVarFlag('do_populate_lic', 'deps', False) or []) + ['do_unpack'])
 
         for task in d.getVar("SRCTREECOVEREDTASKS").split():
             if local_srcuri and task in fetch_tasks:
@@ -125,9 +128,6 @@ python () {
 
         d.setVarFlag('do_compile', 'file-checksums', '${@srctree_hash_files(d)}')
         d.setVarFlag('do_configure', 'file-checksums', '${@srctree_configure_hash_files(d)}')
-
-        d.appendVarFlag('do_compile', 'prefuncs', ' fetcher_hashes_dummyfunc')
-        d.appendVarFlag('do_configure', 'prefuncs', ' fetcher_hashes_dummyfunc')
 
         # We don't want the workdir to go away
         d.appendVar('RM_WORK_EXCLUDE', ' ' + d.getVar('PN'))
@@ -230,7 +230,7 @@ def srctree_hash_files(d, srcdir=None):
             env['GIT_INDEX_FILE'] = tmp_index.name
             subprocess.check_output(['git', 'add', '-A', '.'], cwd=s_dir, env=env)
             git_sha1 = subprocess.check_output(['git', 'write-tree'], cwd=s_dir, env=env).decode("utf-8")
-            if os.path.exists(os.path.join(s_dir, ".gitmodules")) and os.path.getsize(os.path.join(s_dir, ".gitmodules")) > 0:
+            if os.path.exists(".gitmodules"):
                 submodule_helper = subprocess.check_output(["git", "config", "--file", ".gitmodules", "--get-regexp", "path"], cwd=s_dir, env=env).decode("utf-8")
                 for line in submodule_helper.splitlines():
                     module_dir = os.path.join(s_dir, line.rsplit(maxsplit=1)[1])
@@ -253,8 +253,6 @@ def srctree_configure_hash_files(d):
     Get the list of files that should trigger do_configure to re-execute,
     based on the value of CONFIGURE_FILES
     """
-    import fnmatch
-
     in_files = (d.getVar('CONFIGURE_FILES') or '').split()
     out_items = []
     search_files = []
@@ -266,8 +264,8 @@ def srctree_configure_hash_files(d):
     if search_files:
         s_dir = d.getVar('EXTERNALSRC')
         for root, _, files in os.walk(s_dir):
-            for p in search_files:
-                for f in fnmatch.filter(files, p):
+            for f in files:
+                if f in search_files:
                     out_items.append('%s:True' % os.path.join(root, f))
     return ' '.join(out_items)
 

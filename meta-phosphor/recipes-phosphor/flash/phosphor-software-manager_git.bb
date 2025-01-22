@@ -9,7 +9,9 @@ DEPENDS += " \
     ${PYTHON_PN}-sdbus++-native \
     sdbusplus \
 "
-PACKAGECONFIG[verify_signature] = "-Dverify-signature=enabled, -Dverify-signature=disabled"
+PACKAGECONFIG[verify_signature] = " \
+    -Dverify-full-signature=enabled, \
+    -Dverify-full-signature=disabled"
 PACKAGECONFIG[sync_bmc_files] = "-Dsync-bmc-files=enabled, -Dsync-bmc-files=disabled"
 PACKAGECONFIG[usb_code_update] = "-Dusb-code-update=enabled, -Dusb-code-update=disabled, cli11"
 PACKAGECONFIG[side_switch_on_boot] = "-Dside-switch-on-boot=enabled, -Dside-switch-on-boot=disabled, cli11"
@@ -17,8 +19,6 @@ PACKAGECONFIG[ubifs_layout] = "-Dbmc-layout=ubi"
 PACKAGECONFIG[mmc_layout] = "-Dbmc-layout=mmc"
 PACKAGECONFIG[flash_bios] = "-Dhost-bios-upgrade=enabled, -Dhost-bios-upgrade=disabled"
 PACKAGECONFIG[static-dual-image] = "-Dbmc-static-dual-image=enabled, -Dbmc-static-dual-image=disabled"
-PACKAGECONFIG[software-update-dbus-interface] = "-Dsoftware-update-dbus-interface=enabled, -Dsoftware-update-dbus-interface=disabled"
-
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
@@ -68,14 +68,13 @@ RDEPENDS:${PN}-updater += " \
     bash \
     virtual-obmc-image-manager \
     ${@bb.utils.contains('PACKAGECONFIG', 'verify_signature', 'phosphor-image-signing', '', d)} \
-    ${@bb.utils.contains('PACKAGECONFIG', 'mmc_layout', 'e2fsprogs-e2fsck', '', d)} \
 "
 
 RPROVIDES:${PN}-version += " \
     virtual-obmc-image-manager \
 "
 
-FILES:${PN}-version += "${bindir}/phosphor-version-software-manager ${exec_prefix}/lib/tmpfiles.d/software.conf ${bindir}/phosphor-software-manager "
+FILES:${PN}-version += "${bindir}/phosphor-version-software-manager ${exec_prefix}/lib/tmpfiles.d/software.conf"
 FILES:${PN}-download-mgr += "${bindir}/phosphor-download-manager"
 FILES:${PN}-updater += " \
     ${bindir}/phosphor-image-updater \
@@ -100,25 +99,7 @@ ALLOW_EMPTY:${PN} = "1"
 
 PACKAGE_BEFORE_PN += "${SOFTWARE_MGR_PACKAGES}"
 DBUS_PACKAGES = "${SOFTWARE_MGR_PACKAGES}"
-DBUS_SERVICE:${PN}-version += " \
-    xyz.openbmc_project.Software.Version.service \
-    ${@bb.utils.contains('PACKAGECONFIG', 'software-update-dbus-interface', 'xyz.openbmc_project.Software.Manager.service', '', d)} \
-"
+DBUS_SERVICE:${PN}-version += "xyz.openbmc_project.Software.Version.service"
 DBUS_SERVICE:${PN}-download-mgr += "xyz.openbmc_project.Software.Download.service"
 DBUS_SERVICE:${PN}-updater += "xyz.openbmc_project.Software.BMC.Updater.service"
 DBUS_SERVICE:${PN}-sync += "xyz.openbmc_project.Software.Sync.service"
-
-pkg_postinst:${PN}-side-switch() {
-    if ${@bb.utils.contains('PACKAGECONFIG', 'side_switch_on_boot', 'true', 'false', d)} ; then
-        mkdir -p $D$systemd_system_unitdir/obmc-host-startmin@0.target.wants
-        LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.wants/phosphor-bmc-side-switch.service"
-        TARGET="../phosphor-bmc-side-switch.service"
-        ln -s $TARGET $LINK
-    fi
-}
-pkg_prerm:${PN}-side-switch() {
-    if ${@bb.utils.contains('PACKAGECONFIG', 'side_switch_on_boot', 'true', 'false', d)} ; then
-        LINK="$D$systemd_system_unitdir/obmc-host-startmin@0.target.wants/phosphor-bmc-side-switch.service"
-        rm $LINK
-    fi
-}

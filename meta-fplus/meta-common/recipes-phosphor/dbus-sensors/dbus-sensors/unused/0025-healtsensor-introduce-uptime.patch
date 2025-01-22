@@ -1,0 +1,107 @@
+From f622cbb4266e8716e063c63cc77308783490127b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 19 Nov 2020 09:43:00 +0000
+Subject: [PATCH] healtsensor: introduce uptime
+
+---
+ include/HealthSensor.hpp |  3 ++-
+ src/HealthSensor.cpp     | 34 ++++++++++++++++++++++++++--------
+ 2 files changed, 28 insertions(+), 9 deletions(-)
+
+diff --git a/include/HealthSensor.hpp b/include/HealthSensor.hpp
+index f52dcfd..8942904 100644
+--- a/include/HealthSensor.hpp
++++ b/include/HealthSensor.hpp
+@@ -13,7 +13,8 @@
+ enum class SensorTypes
+ {
+     cpu,
+-    memory
++    memory,
++    uptime
+ };
+ 
+ struct HealthSensor : public Sensor
+diff --git a/src/HealthSensor.cpp b/src/HealthSensor.cpp
+index 3bd75e5..2e99453 100644
+--- a/src/HealthSensor.cpp
++++ b/src/HealthSensor.cpp
+@@ -85,14 +85,13 @@ HealthSensor::HealthSensor(std::shared_ptr<sdbusplus::asio::connection>& conn,
+     objectServer(objectServer), waitTimer(io), failCount(0), pollTime(_pollTime),
+     failTime(_failTime), isReboot(_isReboot), rebootCmd(_rebootCmd)
+ {
+-
+-    if (DEBUG) {
+-        std::cerr << "__FUNCTION__ Construct sensor sensorTypeName:" << sensorTypeName << "\n";
+-    }
+-
+     type = SensorTypes::cpu;
+     if (sensorTypeName == "Memory")
+         type = SensorTypes::memory;
++    else if (sensorTypeName == "CPU")
++        type = SensorTypes::cpu;
++    else if (sensorTypeName == "Uptime")
++        type = SensorTypes::uptime;
+ 
+     std::string objPath = "/xyz/openbmc_project/sensors/utilization/";
+     objPath += name;
+@@ -161,6 +160,21 @@ void HealthSensor::checkThresholds(void)
+     }
+ }
+ 
++double readUptime()
++{
++    struct sysinfo s_info;
++    sysinfo(&s_info);
++
++    double uptime = s_info.uptime / (60.0 * 60.0 * 24.0) ; /* Convert to days */
++
++    if (DEBUG)
++    {
++        std::cerr << "Uptime: " << uptime << " raw:" << s_info.uptime << "\n";
++    }
++
++    return uptime;
++}
++
+ double readMemoryUtilization()
+ {
+     struct sysinfo s_info;
+@@ -270,6 +284,10 @@ void HealthSensor::readSensor(void)
+         {
+             value = readMemoryUtilization();
+         }
++        else if (type == SensorTypes::uptime)
++        {
++            value = readUptime();
++        }
+ 
+         if (ret >= 0)
+         {
+@@ -336,7 +354,7 @@ void createSensors(
+                     }
+                     catch (...)
+                     {
+-                        std::cerr << "Unable to get FailTime, setting to default\n";
++                        if (DEBUG) std::cerr << "Unable to get FailTime, setting to default\n";
+                     }
+ 
+                     try
+@@ -345,7 +363,7 @@ void createSensors(
+                     }
+                     catch (...)
+                     {
+-                        std::cerr << "Unable to get PollTime, setting to default\n";
++                        if (DEBUG) std::cerr << "Unable to get PollTime, setting to default\n";
+                     }
+ 
+                     try
+@@ -354,7 +372,7 @@ void createSensors(
+                     }
+                     catch (...)
+                     {
+-                        std::cerr << "Unable to get IsReboot, setting to default\n";
++                        if (DEBUG) std::cerr << "Unable to get IsReboot, setting to default\n";
+                     }
+ 
+                     if (DEBUG)

@@ -1,0 +1,32 @@
+From 86c5de887c95b1b18253993b60ae3a712f3819c0 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 14:55:00 +0000
+Subject: [PATCH 1/1] compiler.h: only include asm/rwonce.h for kernel code
+
+---
+ include/linux/compiler.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/compiler.h b/include/linux/compiler.h
+index b8fe0c2..6bd0df0 100644
+--- a/include/linux/compiler.h
++++ b/include/linux/compiler.h
+@@ -211,6 +211,8 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
+ 	__v;								\
+ })
+ 
++#include <asm/rwonce.h>
++
+ #endif /* __KERNEL__ */
+ 
+ /*
+@@ -243,6 +245,4 @@ static inline void *offset_to_ptr(const int *off)
+  */
+ #define prevent_tail_call_optimization()	mb()
+ 
+-#include <asm/rwonce.h>
+-
+ #endif /* __LINUX_COMPILER_H */
+-- 
+2.7.4
+

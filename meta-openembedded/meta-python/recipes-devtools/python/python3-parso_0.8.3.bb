@@ -1,5 +1,6 @@
 SUMMARY = "A Python Parser"
 HOMEPAGE = "https://github.com/davidhalter/parso"
+AUTHOR = "David Halter <davidhalter88@gmail.com>"
 LICENSE = "MIT"
 LIC_FILES_CHKSUM = "file://LICENSE.txt;md5=cbaa2675b2424d771451332a7a69503f"
 
@@ -10,7 +11,7 @@ SRC_URI[sha256sum] = "8c07be290bb59f03588915921e29e8a50002acaf2cdc5fa0e0114f9170
 inherit setuptools3 pypi
 
 RDEPENDS:${PN} = " \
-	python3-crypt \
-	python3-difflib \
-	python3-logging \
+	${PYTHON_PN}-crypt \
+	${PYTHON_PN}-difflib \
+	${PYTHON_PN}-logging \
 "

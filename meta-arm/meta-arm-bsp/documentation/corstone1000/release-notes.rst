@@ -1,5 +1,5 @@
 ..
- # Copyright (c) 2022-2023, Arm Limited.
+ # Copyright (c) 2022, Arm Limited.
  #
  # SPDX-License-Identifier: MIT
 
@@ -7,64 +7,8 @@
 Release notes
 #############
 
-
-*************************
-Disclaimer
-*************************
-
-You expressly assume all liabilities and risks relating to your use or operation
-of Your Software and Your Hardware designed or modified using the Arm Tools,
-including without limitation, Your software or Your Hardware designed or
-intended for safety-critical applications. Should Your Software or Your Hardware
-prove defective, you assume the entire cost of all necessary servicing, repair
-or correction.
-
-***********************
-Release notes - 2023.11
-***********************
-
-Known Issues or Limitations
----------------------------
-
- - Use Ethernet over VirtIO due to lan91c111 Ethernet driver support dropped from U-Boot.
- - Temporally removing the External system support in Linux due to it using multiple custom devicetree bindings that caused problems with SystemReady IR 2.0 certification. For External system support please refer to the version 2023.06. We are aiming to restore it in a more standardised manner in our next release.
- - Due to the performance uplimit of MPS3 FPGA and FVP, some Linux distros like Fedora Rawhide can not boot on Corstone-1000 (i.e. user may experience timeouts or boot hang).
- - PSA Crypto tests (psa-crypto-api-test command) approximately take 30 minutes to complete for FVP and MPS3.
- - Corstone-1000 SoC on FVP doesn't have a secure debug peripheral. It does on the MPS3.
- - See previous release notes for the known limitations regarding ACS tests.
-
-Platform Support
------------------
- - This software release is tested on Corstone-1000 FPGA version AN550_v2
-   https://developer.arm.com/downloads/-/download-fpga-images
- - This software release is tested on Corstone-1000 Fast Model platform (FVP) version 11.23_25
-   https://developer.arm.com/tools-and-software/open-source-software/arm-platforms-software/arm-ecosystem-fvps
-
-***********************
-Release notes - 2023.06
-***********************
-
-Known Issues or Limitations
----------------------------
- - FPGA supports Linux distro install and boot through installer. However, FVP only supports openSUSE raw image installation and boot.
- - Due to the performance uplimit of MPS3 FPGA and FVP, some Linux distros like Fedora Rawhide can not boot on Corstone-1000 (i.e. user may experience timeouts or boot hang).
- - PSA Crypto tests (psa-crypto-api-test command) take 30 minutes to complete for FVP and 1 hour for MPS3.
- - Corstone-1000 SoC on FVP doesn't have a secure debug peripheral. It does on the MPS3 .
- - The following limitations listed in the previous release are still applicable:
-
-   - UEFI Compliant - Boot from network protocols must be implemented -- FAILURE
-
-   - Known limitations regarding ACS tests - see previous release's notes.
-
-Platform Support
------------------
- - This software release is tested on Corstone-1000 FPGA version AN550_v2
-   https://developer.arm.com/downloads/-/download-fpga-images
- - This software release is tested on Corstone-1000 Fast Model platform (FVP) version 11.19_21
-   https://developer.arm.com/tools-and-software/open-source-software/arm-platforms-software/arm-ecosystem-fvps
-
 **************************
-Release notes - 2022.11.23
+Release notes - 2022.11.10
 **************************
 
 Known Issues or Limitations
@@ -74,12 +18,9 @@ Known Issues or Limitations
  - Due to the performance uplimit of MPS3 FPGA and FVP, some Linux distros like Fedora Rawhide can not boot on Corstone-1000 (i.e. user may experience timeouts or boot hang).
  - Below SCT FAILURE is a known issues in the FVP:
    UEFI Compliant - Boot from network protocols must be implemented -- FAILURE
- - Below SCT FAILURE is a known issue when a terminal emulator (in the system where the user connects to serial ports) does not support 80x25 or 80x50 mode:
-   EFI_SIMPLE_TEXT_OUT_PROTOCOL.SetMode - SetMode() with valid mode -- FAILURE
  - Known limitations regarding ACS tests: The behavior after running ACS tests on FVP is not consistent.  Both behaviors are expected and are valid;
    The system might boot till the Linux prompt. Or, the system might wait after finishing the ACS tests.
    In both cases, the system executes the entire test suite and writes the results as stated in the user guide.
-
 
 Platform Support
 -----------------
@@ -211,10 +152,8 @@ Known Issues or Limitations
 
 Support
 -------
-For technical support email: support-subsystem-iot@arm.com
-
-For all security issues, contact Arm by email at arm-security@arm.com.
+For support email: support-subsystem-iot@arm.com
 
 --------------
 
-*Copyright (c) 2022-2023, Arm Limited. All rights reserved.*
+*Copyright (c) 2022, Arm Limited. All rights reserved.*

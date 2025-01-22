@@ -18,18 +18,6 @@ inherit image-artifact-names
 
 TESTIMAGE_AUTO ??= "0"
 
-# When any test fails, TESTIMAGE_FAILED_QA ARTIFACTS will be parsed and for
-# each entry in it, if artifact pointed by path description exists on target,
-# it will be retrieved onto host
-
-TESTIMAGE_FAILED_QA_ARTIFACTS = "\
-    ${localstatedir}/log \
-    ${sysconfdir}/version \
-    ${sysconfdir}/os-release"
-
-# If some ptests are run and fail, retrieve corresponding directories
-TESTIMAGE_FAILED_QA_ARTIFACTS += "${@bb.utils.contains('DISTRO_FEATURES', 'ptest', '${libdir}/${MCNAME}/ptest', '', d)}"
-
 # You can set (or append to) TEST_SUITES in local.conf to select the tests
 # which you want to run for your target.
 # The test names are the module names in meta/lib/oeqa/runtime/cases.
@@ -110,7 +98,34 @@ TESTIMAGELOCK:qemuall = ""
 
 TESTIMAGE_DUMP_DIR ?= "${LOG_DIR}/runtime-hostdump/"
 
-TESTIMAGE_UPDATE_VARS ?= "DL_DIR WORKDIR DEPLOY_DIR_IMAGE IMAGE_LINK_NAME"
+TESTIMAGE_UPDATE_VARS ?= "DL_DIR WORKDIR DEPLOY_DIR"
+
+testimage_dump_target () {
+    top -bn1
+    ps
+    free
+    df
+    # The next command will export the default gateway IP
+    export DEFAULT_GATEWAY=$(ip route | awk '/default/ { print $3}')
+    ping -c3 $DEFAULT_GATEWAY
+    dmesg
+    netstat -an
+    ip address
+    # Next command will dump logs from /var/log/
+    find /var/log/ -type f 2>/dev/null -exec echo "====================" \; -exec echo {} \; -exec echo "====================" \; -exec cat {} \; -exec echo "" \;
+}
+
+testimage_dump_host () {
+    top -bn1
+    iostat -x -z -N -d -p ALL 20 2
+    ps -ef
+    free
+    df
+    memstat
+    dmesg
+    ip -s link
+    netstat -an
+}
 
 testimage_dump_monitor () {
     query-status
@@ -149,6 +164,13 @@ def get_testimage_configuration(d, test_type, machine):
     return configuration
 get_testimage_configuration[vardepsexclude] = "DATETIME"
 
+def get_testimage_json_result_dir(d):
+    json_result_dir = os.path.join(d.getVar("LOG_DIR"), 'oeqa')
+    custom_json_result_dir = d.getVar("OEQA_JSON_RESULT_DIR")
+    if custom_json_result_dir:
+        json_result_dir = custom_json_result_dir
+    return json_result_dir
+
 def get_testimage_result_id(configuration):
     return '%s_%s_%s_%s' % (configuration['TEST_TYPE'], configuration['IMAGE_BASENAME'], configuration['MACHINE'], configuration['STARTTIME'])
 
@@ -170,6 +192,7 @@ def get_testimage_boot_patterns(d):
                 boot_patterns[flag] = flagval.encode().decode('unicode-escape')
     return boot_patterns
 
+
 def testimage_main(d):
     import os
     import json
@@ -183,8 +206,6 @@ def testimage_main(d):
     from oeqa.core.target.qemu import supported_fstypes
     from oeqa.core.utils.test import getSuiteCases
     from oeqa.utils import make_logger_bitbake_compatible
-    from oeqa.utils import get_json_result_dir
-    from oeqa.utils.postactions import run_failed_tests_post_actions
 
     def sigterm_exception(signum, stackframe):
         """
@@ -215,13 +236,12 @@ def testimage_main(d):
         with open(tdname, "r") as f:
             td = json.load(f)
     except FileNotFoundError as err:
-        bb.fatal('File %s not found (%s).\nHave you built the image with IMAGE_CLASSES += "testimage" in the conf/local.conf?' % (tdname, err))
+        bb.fatal('File %s not found (%s).\nHave you built the image with INHERIT += "testimage" in the conf/local.conf?' % (tdname, err))
 
     # Some variables need to be updates (mostly paths) with the
     # ones of the current environment because some tests require them.
     for var in d.getVar('TESTIMAGE_UPDATE_VARS').split():
         td[var] = d.getVar(var)
-    td['ORIGPATH'] = d.getVar("BB_ORIGENV").getVar("PATH")
 
     image_manifest = "%s.manifest" % image_name
     image_packages = OERuntimeTestContextExecutor.readPackagesManifest(image_manifest)
@@ -272,7 +292,7 @@ def testimage_main(d):
     ovmf = d.getVar("QEMU_USE_OVMF")
 
     slirp = False
-    if bb.utils.contains('TEST_RUNQEMUPARAMS', 'slirp', True, False, d):
+    if d.getVar("QEMU_USE_SLIRP"):
         slirp = True
 
     # TODO: We use the current implementation of qemu runner because of
@@ -302,6 +322,7 @@ def testimage_main(d):
     target_kwargs['serialcontrol_cmd'] = d.getVar("TEST_SERIALCONTROL_CMD") or None
     target_kwargs['serialcontrol_extra_args'] = d.getVar("TEST_SERIALCONTROL_EXTRA_ARGS") or ""
     target_kwargs['testimage_dump_monitor'] = d.getVar("testimage_dump_monitor") or ""
+    target_kwargs['testimage_dump_target'] = d.getVar("testimage_dump_target") or ""
 
     def export_ssh_agent(d):
         import os
@@ -318,24 +339,19 @@ def testimage_main(d):
     # runtime use network for download projects for build
     export_proxies(d)
 
-    if slirp:
-        # Default to 127.0.0.1 and let the runner identify the port forwarding
-        # (as OEQemuTarget does), but allow overriding.
-        target_ip = d.getVar("TEST_TARGET_IP") or "127.0.0.1"
-        # Default to 10.0.2.2 as this is the IP that the guest has with the
-        # default qemu slirp networking configuration, but allow overriding.
-        server_ip = d.getVar("TEST_SERVER_IP") or "10.0.2.2"
-    else:
-        target_ip = d.getVar("TEST_TARGET_IP")
-        server_ip = d.getVar("TEST_SERVER_IP")
+    # we need the host dumper in test context
+    host_dumper = OERuntimeTestContextExecutor.getHostDumper(
+        d.getVar("testimage_dump_host"),
+        d.getVar("TESTIMAGE_DUMP_DIR"))
 
     # the robot dance
     target = OERuntimeTestContextExecutor.getTarget(
-        d.getVar("TEST_TARGET"), logger, target_ip,
-        server_ip, **target_kwargs)
+        d.getVar("TEST_TARGET"), logger, d.getVar("TEST_TARGET_IP"),
+        d.getVar("TEST_SERVER_IP"), **target_kwargs)
 
     # test context
-    tc = OERuntimeTestContext(td, logger, target, image_packages, extract_dir)
+    tc = OERuntimeTestContext(td, logger, target, host_dumper,
+                              image_packages, extract_dir)
 
     # Load tests before starting the target
     test_paths = get_runtime_paths(d)
@@ -367,8 +383,6 @@ def testimage_main(d):
             pass
         results = tc.runTests()
         complete = True
-        if results.hasAnyFailingTest():
-            run_failed_tests_post_actions(d, tc)
     except (KeyboardInterrupt, BlockingIOError) as err:
         if isinstance(err, KeyboardInterrupt):
             bb.error('testimage interrupted, shutting down...')
@@ -384,14 +398,14 @@ def testimage_main(d):
     # Show results (if we have them)
     if results:
         configuration = get_testimage_configuration(d, 'runtime', machine)
-        results.logDetails(get_json_result_dir(d),
+        results.logDetails(get_testimage_json_result_dir(d),
                         configuration,
                         get_testimage_result_id(configuration),
                         dump_streams=d.getVar('TESTREPORT_FULLLOGS'))
         results.logSummary(pn)
 
     # Copy additional logs to tmp/log/oeqa so it's easier to find them
-    targetdir = os.path.join(get_json_result_dir(d), d.getVar("PN"))
+    targetdir = os.path.join(get_testimage_json_result_dir(d), d.getVar("PN"))
     os.makedirs(targetdir, exist_ok=True)
     os.symlink(bootlog, os.path.join(targetdir, os.path.basename(bootlog)))
     os.symlink(d.getVar("BB_LOGFILE"), os.path.join(targetdir, os.path.basename(d.getVar("BB_LOGFILE") + "." + d.getVar('DATETIME'))))

@@ -1,0 +1,6 @@
+[Unit]
+Description=Flash Nvidia FPGA image %I to Yandex JBOG
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/usr/sbin/fpga-update.sh /tmp/images/%i

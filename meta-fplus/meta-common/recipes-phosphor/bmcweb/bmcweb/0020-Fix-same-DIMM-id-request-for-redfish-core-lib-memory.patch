@@ -1,0 +1,52 @@
+From d15a4ac1a769e0c172b9193436be3946ce0120a1 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Tue, 13 Sep 2022 12:57:52 +0000
+Subject: [PATCH] Fix same DIMM id request for redfish-core/lib/memory
+
+---
+ redfish-core/lib/memory.hpp | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/redfish-core/lib/memory.hpp b/redfish-core/lib/memory.hpp
+index d3bbc07..251b746 100644
+--- a/redfish-core/lib/memory.hpp
++++ b/redfish-core/lib/memory.hpp
+@@ -27,6 +27,8 @@
+ namespace redfish
+ {
+ 
++std::string tempId;
++
+ inline std::string translateMemoryTypeToRedfish(const std::string& memoryType)
+ {
+     if (memoryType == "xyz.openbmc_project.Inventory.Item.Dimm.DeviceType.DDR")
+@@ -452,6 +454,10 @@ inline void getDimmDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
+ 
+             for (const auto& property : properties)
+             {
++				if(tempId == dimmId)
++				{
++					continue;
++				}
+                 if (property.first == "MemoryDataWidth")
+                 {
+                     const uint16_t* value =
+@@ -673,6 +679,7 @@ inline void getDimmDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
+                     }
+                     aResp->res.jsonValue["MemoryLocation"][property.first] =
+                         *value;
++					std::cerr << "MemoryLocation: " << *value << "\n";
+                 }
+                 else if (property.first == "SparePartNumber")
+                 {
+@@ -714,6 +721,7 @@ inline void getDimmDataByService(std::shared_ptr<bmcweb::AsyncResp> aResp,
+                     getPersistentMemoryProperties(aResp, property);
+                 }
+             }
++			tempId = dimmId;
+         },
+         service, objPath, "org.freedesktop.DBus.Properties", "GetAll", "");
+ }
+-- 
+2.36.1
+

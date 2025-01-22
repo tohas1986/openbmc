@@ -1,0 +1,281 @@
+From 23b7ebd7638698aa787b7dd70c4fdc93b7d0f77e Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@yandex-team.ru>
+Date: Fri, 7 Oct 2022 13:09:46 +0000
+Subject: [PATCH] Introduce NBP service for CLOUD
+
+---
+ redfish-core/include/redfish.hpp              |   4 +-
+ .../include/registries/privilege_registry.hpp |   8 ++
+ redfish-core/lib/chassis.hpp                  |   6 +-
+ redfish-core/lib/nvidia-post-box.hpp          | 114 ++++++++++++++++++
+ scripts/update_schemas.py                     |   1 +
+ static/redfish/v1/$metadata/index.xml         |  16 ++-
+ .../v1/JsonSchemas/NpbService/index.json      |  21 ++++
+ static/redfish/v1/JsonSchemas/index.json      |   3 +
+ 8 files changed, 169 insertions(+), 4 deletions(-)
+ create mode 100644 redfish-core/lib/nvidia-post-box.hpp
+ create mode 100644 static/redfish/v1/JsonSchemas/NpbService/index.json
+
+diff --git a/redfish-core/include/redfish.hpp b/redfish-core/include/redfish.hpp
+index 0b3db926..1fc52540 100644
+--- a/redfish-core/include/redfish.hpp
++++ b/redfish-core/include/redfish.hpp
+@@ -48,6 +48,7 @@
+ #include "../lib/rmt.hpp"
+ #include "../lib/bw.hpp"
+ #include "../lib/st.hpp"
++#include "../lib/nvidia-post-box.hpp"
+ 
+ namespace redfish
+ {
+@@ -94,7 +95,8 @@ class RedfishService
+         requestRoutesRmtService(app);
+         requestRoutesBWService(app);
+         requestRoutesSTService(app);
+-        requestRoutesCable(app);
++        requestRoutesNPBService(app);
++		requestRoutesCable(app);
+         requestRoutesCableCollection(app);
+ #ifdef BMCWEB_INSECURE_ENABLE_REDFISH_FW_TFTP_UPDATE
+         requestRoutesUpdateServiceActionsSimpleUpdate(app);
+diff --git a/redfish-core/include/registries/privilege_registry.hpp b/redfish-core/include/registries/privilege_registry.hpp
+index b7e28313..d95c99ff 100644
+--- a/redfish-core/include/registries/privilege_registry.hpp
++++ b/redfish-core/include/registries/privilege_registry.hpp
+@@ -284,6 +284,14 @@ const static auto& putSt = privilegeSetConfigureComponents;
+ const static auto& deleteSt = privilegeSetConfigureComponents;
+ const static auto& postSt = privilegeSetConfigureComponents;
+ 
++// NPB
++const static auto& getNpb = privilegeSetLogin;
++const static auto& headNpb = privilegeSetLogin;
++const static auto& patchNpb = privilegeSetConfigureComponents;
++const static auto& putNpb = privilegeSetConfigureComponents;
++const static auto& deleteNpb = privilegeSetConfigureComponents;
++const static auto& postNpb = privilegeSetConfigureComponents;
++
+ // ChassisCollection
+ const static auto& getChassisCollection = privilegeSetLogin;
+ const static auto& headChassisCollection = privilegeSetLogin;
+diff --git a/redfish-core/lib/chassis.hpp b/redfish-core/lib/chassis.hpp
+index 25236749..465abbe2 100644
+--- a/redfish-core/lib/chassis.hpp
++++ b/redfish-core/lib/chassis.hpp
+@@ -396,10 +396,12 @@ inline void requestRoutesChassis(App& app)
+                                 asyncResp->res.jsonValue["BWService"] = {
+                                     {"@odata.id", "/redfish/v1/Chassis/" +
+                                                     chassisId + "/BWService"}};
+-				asyncResp->res.jsonValue["STService"] = {
++								asyncResp->res.jsonValue["STService"] = {
+                                     {"@odata.id", "/redfish/v1/Chassis/" +
+                                                     chassisId + "/STService"}};
+-
++                                asyncResp->res.jsonValue["NpbService"] = {
++                                    {"@odata.id", "/redfish/v1/Chassis/" +
++                                                    chassisId + "/NpbService"}};
+ 
+                                 asyncResp->res
+                                     .jsonValue["Links"]["ComputerSystems"] = {
+diff --git a/redfish-core/lib/nvidia-post-box.hpp b/redfish-core/lib/nvidia-post-box.hpp
+new file mode 100644
+index 00000000..43b0f8fa
+--- /dev/null
++++ b/redfish-core/lib/nvidia-post-box.hpp
+@@ -0,0 +1,114 @@
++/*
++ *  redfish-core/lib/rmt.hpp
++ *
++ *  Created on: Jan 12, 2022
++ *  Author: Nikita Vedeneev
++ *
++ */
++
++#pragma once
++
++#include <utils/fw_utils.hpp>
++#include <iostream>
++#include <fstream>
++
++namespace redfish
++{
++
++/*
++ * RmtService class supports handle get method for rmt.
++ */
++
++/*inline bool fileExist(const std::string& name)
++{
++    std::ifstream f(name.c_str());
++    return f.good();
++}
++
++inline bool isEmpty(std::ifstream& pFile)
++{
++    return pFile.peek() == std::ifstream::traits_type::eof();
++}*/
++
++inline void getNpbResults(const std::shared_ptr<bmcweb::AsyncResp>& aResp)
++{
++    std::string path = "/var/log/jbog-info.json";
++
++    if(!fileExist(path))
++    {
++        std::cerr << "File not found!" << "\n";
++        return;
++    }
++
++    std::ifstream input(path);
++    nlohmann::json j;
++
++    if(isEmpty(input))
++    {
++        std::cerr << "File Empty, no Nvidia Post Box results found!" << "\n";
++        input.close();
++        return;
++    }
++
++    try
++    {
++        if(!(nlohmann::json::accept(input)))
++        {
++            std::cerr << "Invalid JSON file!" << "\n";
++            input.close();
++            return;
++        }
++        else
++        {
++            input.clear();
++            input.seekg(0);
++            input >> j;
++        }
++    }
++    catch(nlohmann::json::exception &e)
++    {
++        std::cerr << "Error in JSON object caught!" << "\n";
++        input.close();
++        return;
++    }
++
++    for (auto& el : j.items())
++    {
++        aResp->res.jsonValue[el.key()] = el.value();
++    }
++
++    input.close();
++}
++
++inline void requestRoutesNPBService(App& app)
++{
++    BMCWEB_ROUTE(app, "/redfish/v1/Chassis/<str>/NpbService/")
++        .privileges(redfish::privileges::getNpb)
++        .methods(boost::beast::http::verb::get)(
++            [](const crow::Request&,
++               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
++               const std::string& param) {
++                BMCWEB_LOG_DEBUG << "Get NPB method called";
++                
++                if (param.empty())
++                {
++                    return;
++                }
++
++                const std::string& chassisId = param;
++
++                asyncResp->res.jsonValue = {
++                    {"@odata.type",
++                     "#NpbService.v1_0_0.NpbService"},
++                    {"Name", "NPB Subsystem for Chassis"},
++                    {"Id", "NpbService"}};
++                asyncResp->res.jsonValue["@odata.id"] =
++                    "/redfish/v1/Chassis/" + chassisId + "/NpbService";
++
++                asyncResp->res.jsonValue["Status"] = {{"State", "Enabled"},
++                                                      {"Health", "OK"}};
++
++                getNpbResults(asyncResp);
++            });
++}
++}
+diff --git a/scripts/update_schemas.py b/scripts/update_schemas.py
+index e0412672..f51adf25 100755
+--- a/scripts/update_schemas.py
++++ b/scripts/update_schemas.py
+@@ -21,6 +21,7 @@ include_list = [
+     'RmtService',
+     'BWService',
+     'STService',
++	'NpbService',
+     'Cable',
+     'CableCollection',
+     'Certificate',
+diff --git a/static/redfish/v1/$metadata/index.xml b/static/redfish/v1/$metadata/index.xml
+index fda3d923..6242a513 100644
+--- a/static/redfish/v1/$metadata/index.xml
++++ b/static/redfish/v1/$metadata/index.xml
+@@ -2603,7 +2603,21 @@
+         <edmx:Include Namespace="STService.v1_4_0"/>
+         <edmx:Include Namespace="STService.v1_4_1"/>
+     </edmx:Reference>
+-
++    </edmx:Reference>
++    <edmx:Reference Uri="/redfish/v1/schema/NpbService_v1.xml">
++        <edmx:Include Namespace="NpbService"/>
++        <edmx:Include Namespace="NpbService.v1_0_0"/>
++        <edmx:Include Namespace="NpbService.v1_0_1"/>
++        <edmx:Include Namespace="NpbService.v1_0_2"/>
++        <edmx:Include Namespace="NpbService.v1_0_3"/>
++        <edmx:Include Namespace="NpbService.v1_1_0"/>
++        <edmx:Include Namespace="NpbService.v1_1_1"/>
++        <edmx:Include Namespace="NpbService.v1_1_2"/>
++        <edmx:Include Namespace="NpbService.v1_2_0"/>
++        <edmx:Include Namespace="NpbService.v1_3_0"/>
++        <edmx:Include Namespace="NpbService.v1_4_0"/>
++        <edmx:Include Namespace="NpbService.v1_4_1"/>
++    </edmx:Reference>
+     <edmx:Reference Uri="/redfish/v1/schema/VLanNetworkInterfaceCollection_v1.xml">
+         <edmx:Include Namespace="VLanNetworkInterfaceCollection"/>
+     </edmx:Reference>
+diff --git a/static/redfish/v1/JsonSchemas/NpbService/index.json b/static/redfish/v1/JsonSchemas/NpbService/index.json
+new file mode 100644
+index 00000000..20dccea1
+--- /dev/null
++++ b/static/redfish/v1/JsonSchemas/NpbService/index.json
+@@ -0,0 +1,21 @@
++{
++    "@odata.context": "/redfish/v1/$metadata#JsonSchemaFile.JsonSchemaFile",
++    "@odata.id": "/redfish/v1/JsonSchemas/NpbService",
++    "@odata.type": "#JsonSchemaFile.v1_0_2.JsonSchemaFile",
++    "Name": "NpbService Schema File",
++    "Schema": "#NpbService.NpbService",
++    "Description": "NpbService Schema File Location",
++    "Id": "NpbService",
++    "Languages": [
++        "en"
++    ],
++    "Languages@odata.count": 1,
++    "Location": [
++        {
++            "Language": "en",
++            "PublicationUri": "http://redfish.dmtf.org/schemas/v1/Npbervice.json",
++            "Uri": "/redfish/v1/JsonSchemas/RmtService/NpbService.json"
++        }
++    ],
++    "Location@odata.count": 1
++}
+diff --git a/static/redfish/v1/JsonSchemas/index.json b/static/redfish/v1/JsonSchemas/index.json
+index b97458c4..28c4db78 100644
+--- a/static/redfish/v1/JsonSchemas/index.json
++++ b/static/redfish/v1/JsonSchemas/index.json
+@@ -186,6 +186,9 @@
+     {
+       "@odata.id": "/redfish/v1/JsonSchemas/STService"
+     },
++    {
++      "@odata.id": "/redfish/v1/JsonSchemas/NpbService"
++    },
+     {
+       "@odata.id": "/redfish/v1/JsonSchemas/odata"
+     },
+-- 
+2.36.1
+

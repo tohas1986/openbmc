@@ -16,6 +16,6 @@ do_install() {
     install -m 0755 ${S}/checksec ${D}${bindir}
 }
 
-RDEPENDS:${PN} = "bash openssl-bin binutils findutils file procps"
+RDEPENDS:${PN} = "bash openssl-bin binutils"
 
 BBCLASSEXTEND = "native"

@@ -1,0 +1,27 @@
+[
+    {
+        "Name": "BaseBoardPower",
+        "LineName": "MB_PWR_GD",
+        "GpioNum": 57,
+        "ChipId": "gpiochip0",
+        "EventMon": "BOTH",
+        "Continue": true,
+        "Target":
+        {
+            "RISING": [ "SetPowerGoodPropertyOn.service" ],
+            "FALLING": [ "SetPowerGoodPropertyOff.service" ]
+        }
+    },
+    {
+        "Name": "ACPIeventMonitor",
+        "LineName": "MB_RST_IN_N1",
+        "GpioNum": 10,
+        "ChipId": "gpiochip0",
+        "EventMon": "FALLING",
+        "Continue": true,
+        "Target":
+        {
+            "FALLING": [ "SetPowerGoodPropertyCycle.service" ]
+        }
+    }
+]

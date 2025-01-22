@@ -1,0 +1,25 @@
+From 8fedb13cd65b46a4c241ca97c996c4c67fe68e2f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 29 Mar 2022 09:31:50 +0000
+Subject: [PATCH] Limit maximum MTU size to avoid issues with VLANs
+
+---
+ drivers/usb/gadget/function/u_ether.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/usb/gadget/function/u_ether.c b/drivers/usb/gadget/function/u_ether.c
+index d15a54f6c24b..e2fdf2f3109b 100644
+--- a/drivers/usb/gadget/function/u_ether.c
++++ b/drivers/usb/gadget/function/u_ether.c
+@@ -48,7 +48,7 @@
+ /* Experiments show that both Linux and Windows hosts allow up to 16k
+  * frame sizes. Set the max MTU size to 15k+52 to prevent allocating 32k
+  * blocks and still have efficient handling. */
+-#define GETHER_MAX_MTU_SIZE 15412
++#define GETHER_MAX_MTU_SIZE 1440
+ #define GETHER_MAX_ETH_FRAME_LEN (GETHER_MAX_MTU_SIZE + ETH_HLEN)
+ 
+ struct eth_dev {
+-- 
+2.35.1
+

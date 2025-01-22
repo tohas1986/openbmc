@@ -1,0 +1,53 @@
+From 0acf0422f43fb3fe920dbfe2db497b93976c6948 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 27 Oct 2020 13:25:09 +0000
+Subject: [PATCH 1/1] aspeed-lpc-snoop: introduce de-duplication in IRQ handler
+
+---
+ drivers/soc/aspeed/aspeed-lpc-snoop.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/soc/aspeed/aspeed-lpc-snoop.c b/drivers/soc/aspeed/aspeed-lpc-snoop.c
+index 20acac6..0c654a9 100644
+--- a/drivers/soc/aspeed/aspeed-lpc-snoop.c
++++ b/drivers/soc/aspeed/aspeed-lpc-snoop.c
+@@ -70,6 +70,7 @@ struct aspeed_lpc_snoop {
+ 	int			irq;
+ 	struct clk		*clk;
+ 	struct aspeed_lpc_snoop_channel chan[NUM_SNOOP_CHANNELS];
++	u8 prev_val[NUM_SNOOP_CHANNELS];
+ };
+ 
+ static struct aspeed_lpc_snoop_channel *snoop_file_to_chan(struct file *file)
+@@ -148,12 +149,18 @@ static irqreturn_t aspeed_lpc_snoop_irq(int irq, void *arg)
+ 	if (reg & HICR6_STR_SNP0W) {
+ 		u8 val = (data & SNPWDR_CH0_MASK) >> SNPWDR_CH0_SHIFT;
+ 
+-		put_fifo_with_discard(&lpc_snoop->chan[0], val);
++		if (val != lpc_snoop->prev_val[0]) {
++			put_fifo_with_discard(&lpc_snoop->chan[0], val);
++			lpc_snoop->prev_val[0] = val;
++		}
+ 	}
+ 	if (reg & HICR6_STR_SNP1W) {
+ 		u8 val = (data & SNPWDR_CH1_MASK) >> SNPWDR_CH1_SHIFT;
+ 
+-		put_fifo_with_discard(&lpc_snoop->chan[1], val);
++		if (val != lpc_snoop->prev_val[1]) {
++			put_fifo_with_discard(&lpc_snoop->chan[1], val);
++			lpc_snoop->prev_val[1] = val;
++		}
+ 	}
+ 
+ 	return IRQ_HANDLED;
+@@ -202,6 +209,7 @@ static int aspeed_lpc_enable_snoop(struct aspeed_lpc_snoop *lpc_snoop,
+ 		devm_kasprintf(dev, GFP_KERNEL, "%s%d", DEVICE_NAME, channel);
+ 	lpc_snoop->chan[channel].miscdev.fops = &snoop_fops;
+ 	lpc_snoop->chan[channel].miscdev.parent = dev;
++	lpc_snoop->prev_val[channel] = 0xff;
+ 	rc = misc_register(&lpc_snoop->chan[channel].miscdev);
+ 	if (rc)
+ 		return rc;
+-- 
+2.7.4
+

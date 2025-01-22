@@ -1,0 +1,25 @@
+From b2e1ecbf103c4dcb2793299c56e3e523d2d4b5f9 Mon Sep 17 00:00:00 2001
+From: Nikita Vedeneev <vedenena@playground.rnd.yandex.net>
+Date: Mon, 7 Sep 2020 17:11:42 +0000
+Subject: [PATCH] Changing IPMB channel to ME
+
+---
+ NodeManagerProxy.hpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/NodeManagerProxy.hpp b/NodeManagerProxy.hpp
+index 8ca0688..104fdff 100644
+--- a/NodeManagerProxy.hpp
++++ b/NodeManagerProxy.hpp
+@@ -70,7 +70,7 @@ constexpr uint32_t framesInterval =
+ /**
+  * @brief Ipmb defines
+  */
+-constexpr uint8_t ipmbMeChannelNum = 1;
++constexpr uint8_t ipmbMeChannelNum = 1;
+ 
+ /**
+  * @brief Ipmi defines
+-- 
+2.7.4
+

@@ -14,8 +14,6 @@ Content-Transfer-Encoding: 8bit
 Signed-off-by: Andreas Müller <schnitzeltony@gmail.com>
 
 ---
-Upstream-Status: Pending
-
  docs/Makefile.am | 22 +++++++++++-----------
  1 file changed, 11 insertions(+), 11 deletions(-)
 

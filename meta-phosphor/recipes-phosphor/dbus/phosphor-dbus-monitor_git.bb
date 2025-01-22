@@ -16,14 +16,13 @@ DEPENDS += " \
         ${PYTHON_PN}-setuptools-native \
         ${PYTHON_PN}-mako-native \
         "
-SRCREV = "eab4f8c0a047e1aaedf74d6144d83132d1b003de"
+SRCREV = "7b7cb1a8361c64fc58a0adc1d61be6923901a181"
 PV = "1.0+git${SRCPV}"
 PR = "r1"
 
 SRC_URI = "git://github.com/openbmc/phosphor-dbus-monitor;branch=master;protocol=https"
 
 SYSTEMD_PACKAGES = "${PN} phosphor-msl-verify"
-SYSTEMD_SERVICE:${PN} = "phosphor-dbus-monitor.service"
 SYSTEMD_SERVICE:phosphor-msl-verify = "phosphor-msl-verify.service"
 S = "${WORKDIR}/git"
 

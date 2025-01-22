@@ -1,0 +1,67 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/aspeed-gpio.h>
+
+/ {
+	compatible = "aspeed,ast2500";
+
+	fragment@0 {
+		target = <&i2c8>;
+		__overlay__ {
+			bus-frequency = <100000>;
+			aspeed,dma-buf-size = <4095>;
+			aspeed,hw-timeout-ms = <300>;
+			status = "okay";
+			nct7802@28 {
+				compatible = "nuvoton,nct7802";
+				reg = <0x28>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				sensor@0 {
+					compatible = "nuvoton,nct7802-sensor";
+					reg = <0>;
+					sensor-type = "thermistor";
+				};
+
+				sensor@1 {
+					compatible = "nuvoton,nct7802-sensor";
+					reg = <1>;
+					sensor-type = "thermistor";
+				};
+			};
+			nct7802@29 {
+				compatible = "nuvoton,nct7802";
+				reg = <0x29>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				sensor@0 {
+					compatible = "nuvoton,nct7802-sensor";
+					reg = <0>;
+					sensor-type = "thermistor";
+				};
+
+				sensor@1 {
+					compatible = "nuvoton,nct7802-sensor";
+					reg = <1>;
+					sensor-type = "thermistor";
+				};
+			};
+			nct7802@2a {
+				compatible = "nuvoton,nct7802";
+				reg = <0x2a>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				sensor@0 {
+					compatible = "nuvoton,nct7802-sensor";
+					reg = <0>;
+					sensor-type = "thermistor";
+				};
+			};
+		};
+	};
+};

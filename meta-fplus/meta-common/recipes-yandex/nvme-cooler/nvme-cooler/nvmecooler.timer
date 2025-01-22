@@ -1,0 +1,12 @@
+[Unit]
+Description=Runs nvmecooler every 15 minutes
+
+[Timer]
+# Run after booting
+OnBootSec=3min
+# Run every
+OnUnitActiveSec=10min
+Unit=nvmecooler.service
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,3 @@
-Upstream-Status: Pending
-
 An all-in-one patch that fixes several issues:
 
 1) UnscaledCycleClock not fully implemented for ppc*-musl (disabled on musl)

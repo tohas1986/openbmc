@@ -1,0 +1,45 @@
+From f2c339ef12d30aa1a6c199e8c758b1e44bd06330 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 30 Sep 2022 12:04:12 +0000
+Subject: [PATCH] Implement static /redfish/v1/OEM/ directory
+
+---
+ include/webassets.hpp             | 3 +--
+ redfish-core/lib/service_root.hpp | 1 +
+ static/redfish/v1/OEM/index.json  | 1 +
+ 3 files changed, 3 insertions(+), 2 deletions(-)
+ create mode 100644 static/redfish/v1/OEM/index.json
+
+diff --git a/include/webassets.hpp b/include/webassets.hpp
+index cd57eb30..cafa7641 100644
+--- a/include/webassets.hpp
++++ b/include/webassets.hpp
+@@ -79,8 +79,7 @@ inline void requestRoutes(App& app)
+         if (std::filesystem::is_directory(dir))
+         {
+             // don't recurse into hidden directories or symlinks
+-            if (dir.path().filename().string().starts_with(".") ||
+-                std::filesystem::is_symlink(dir))
++            if (dir.path().filename().string().starts_with("."))
+             {
+                 dirIter.disable_recursion_pending();
+             }
+diff --git a/redfish-core/lib/service_root.hpp b/redfish-core/lib/service_root.hpp
+index 451c84cc..90883f1c 100644
+--- a/redfish-core/lib/service_root.hpp
++++ b/redfish-core/lib/service_root.hpp
+@@ -77,6 +77,7 @@ inline void handleServiceRootGetImpl(
+     asyncResp->res.jsonValue["TelemetryService"]["@odata.id"] =
+         "/redfish/v1/TelemetryService";
+     asyncResp->res.jsonValue["Cables"]["@odata.id"] = "/redfish/v1/Cables";
++    asyncResp->res.jsonValue["OEM"] = {{"@odata.id", "/redfish/v1/OEM"}};
+ 
+     nlohmann::json& protocolFeatures =
+         asyncResp->res.jsonValue["ProtocolFeaturesSupported"];
+diff --git a/static/redfish/v1/OEM/index.json b/static/redfish/v1/OEM/index.json
+new file mode 100644
+index 00000000..d883ea9a
+--- /dev/null
++++ b/static/redfish/v1/OEM/index.json
+@@ -0,0 +1 @@
++{ "data": "placeholder" }

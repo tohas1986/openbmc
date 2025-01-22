@@ -1,5 +1,6 @@
 SUMMARY = "Package of environment files for SDK"
 LICENSE = "MIT"
+PR = "r8"
 
 EXCLUDE_FROM_WORLD = "1"
 

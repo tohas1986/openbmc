@@ -1,0 +1,55 @@
+From 5006fae3a91116b057c4244f74a6ed06fe52c74f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Tue, 12 Jan 2021 12:01:37 +0000
+Subject: [PATCH 1/1] cosmetics: Remove trailing spaces
+
+---
+ src/storagecommands.cpp | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/storagecommands.cpp b/src/storagecommands.cpp
+index 4f53a00..0647215 100755
+--- a/src/storagecommands.cpp
++++ b/src/storagecommands.cpp
+@@ -1094,7 +1094,7 @@ ipmi::RspType<uint16_t> ipmiStorageAddSELEntry(
+         recordID, recordType, timestamp, generatorID, evmRev, sensorType,
+         sensorNum, eventType, eventData1, eventData2, eventData3);
+ 
+-//mitac start: add to sel 
++//mitac start: add to sel
+     //log SEL
+     std::vector<uint8_t> eventData(9, 0xFF);
+     eventData[0] = generatorID;
+@@ -1105,14 +1105,14 @@ ipmi::RspType<uint16_t> ipmiStorageAddSELEntry(
+     eventData[5] = eventType;
+     eventData[6] = eventData1;
+     eventData[7] = eventData2;
+-    eventData[8] = eventData3; 
++    eventData[8] = eventData3;
+ 
+-    std::shared_ptr<sdbusplus::asio::connection> bus = getSdBus();                   
++    std::shared_ptr<sdbusplus::asio::connection> bus = getSdBus();
+     sdbusplus::message::message writeSEL = bus->new_method_call(
+         ipmiSELService, ipmiSELPath, ipmiSELAddInterface, "IpmiSelAddOem");
+     writeSEL.append(ipmiSELAddMessage,  eventData, recordType);
+ 
+-    uint16_t responseID = 0xFFFF;                
++    uint16_t responseID = 0xFFFF;
+     try
+     {
+         auto ret = bus->call(writeSEL);
+@@ -1121,9 +1121,9 @@ ipmi::RspType<uint16_t> ipmiStorageAddSELEntry(
+     catch (sdbusplus::exception_t& e)
+     {
+         std::cerr << "call IpmiSelAdd failed\n";
+-    }   
++    }
+ //mitac end
+-        
++
+ 
+     return ipmi::responseSuccess(responseID);
+ }
+-- 
+2.7.4
+

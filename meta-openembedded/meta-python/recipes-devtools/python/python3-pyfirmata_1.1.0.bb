@@ -4,7 +4,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=84ddcef430b7c44caa22b2ff4b37a3df"
 PYPI_PACKAGE = "pyFirmata"
 
 RDEPENDS:${PN} = "\
-    python3-pyserial \
+    ${PYTHON_PN}-pyserial \
 "
 
 SRC_URI[md5sum] = "159673cfb56c72ceafc30fe91eedd847"

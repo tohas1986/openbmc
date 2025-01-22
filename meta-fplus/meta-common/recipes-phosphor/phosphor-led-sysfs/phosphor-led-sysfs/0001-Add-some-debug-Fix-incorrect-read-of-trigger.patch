@@ -1,0 +1,116 @@
+From 145e42e93437507ba277336bd5e29b52c48476f6 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 18 Apr 2022 12:55:14 +0000
+Subject: [PATCH] Add some debug; Fix incorrect read of trigger
+
+---
+ physical.cpp |  8 ++++++++
+ sysfs.cpp    | 19 +++++++++++++++++--
+ sysfs.hpp    |  5 +++++
+ 3 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/physical.cpp b/physical.cpp
+index f4ef8a1..6767d73 100644
+--- a/physical.cpp
++++ b/physical.cpp
+@@ -38,6 +38,8 @@ void Physical::setInitialState()
+         auto percentScale = periodMs / 100;
+         this->dutyOn(delayOn / percentScale);
+         this->period(periodMs);
++        sdbusplus::xyz::openbmc_project::Led::server::Physical::state(
++                Action::Blink);
+     }
+     else
+     {
+@@ -45,11 +47,13 @@ void Physical::setInitialState()
+         auto brightness = led.getBrightness();
+         if (brightness && assert)
+         {
++            std::cerr << __FUNCTION__ << ":" << __LINE__ << " Initial set " << led.getRoot() << " to on\n";
+             sdbusplus::xyz::openbmc_project::Led::server::Physical::state(
+                 Action::On);
+         }
+         else
+         {
++            std::cerr << __FUNCTION__ << ":" << __LINE__ << " Initial set " << led.getRoot() << " to off\n";
+             sdbusplus::xyz::openbmc_project::Led::server::Physical::state(
+                 Action::Off);
+         }
+@@ -79,6 +83,7 @@ void Physical::driveLED(Action current, Action request)
+ {
+     if (current == request)
+     {
++        std::cerr << __FUNCTION__ << ":" << __LINE__ << " Same action, skipping\n";
+         return;
+     }
+ 
+@@ -95,6 +100,7 @@ void Physical::stableStateOperation(Action action)
+ {
+     auto value = (action == Action::On) ? assert : DEASSERT;
+ 
++    std::cerr << __FUNCTION__ << ":" << __LINE__ << " LED:" << led.getRoot() << " Action:" << value <<"\n";
+     led.setTrigger("none");
+     led.setBrightness(value);
+     return;
+@@ -104,6 +110,8 @@ void Physical::blinkOperation()
+ {
+     auto dutyOn = this->dutyOn();
+ 
++    std::cerr << __FUNCTION__ << ":" << __LINE__ << " LED:" << led.getRoot() << " Action:blink\n";
++
+     /*
+       The configuration of the trigger type must precede the configuration of
+       the trigger type properties. From the kernel documentation:
+diff --git a/sysfs.cpp b/sysfs.cpp
+index 985a991..a44b3e0 100644
+--- a/sysfs.cpp
++++ b/sysfs.cpp
+@@ -41,7 +41,7 @@ std::string get_sysfs_attr(const fs::path& path)
+ {
+     std::string content;
+     std::ifstream file(path);
+-    file >> content;
++    std::getline(file, content);
+     return content;
+ }
+ 
+@@ -76,7 +76,22 @@ unsigned long SysfsLed::getMaxBrightness()
+ 
+ std::string SysfsLed::getTrigger()
+ {
+-    return get_sysfs_attr<std::string>(root / TRIGGER);
++    std::string trigger_line = get_sysfs_attr<std::string>(root / TRIGGER);
++
++    size_t start = trigger_line.find_first_of('[');
++    size_t end = trigger_line.find_first_of(']');
++    if (start >= end ||
++        start == std::string::npos ||
++        end == std::string::npos)
++    {
++        return "none";
++    }
++
++    std::string rc = trigger_line.substr(start + 1, end - start - 1);
++    if (rc == "")
++        return "none";
++
++    return rc;
+ }
+ 
+ void SysfsLed::setTrigger(const std::string& trigger)
+diff --git a/sysfs.hpp b/sysfs.hpp
+index 752bc57..a725c6e 100644
+--- a/sysfs.hpp
++++ b/sysfs.hpp
+@@ -41,6 +41,11 @@ class SysfsLed
+     virtual unsigned long getDelayOff();
+     virtual void setDelayOff(unsigned long ms);
+ 
++    std::string getRoot()
++    {
++        return root;
++    }
++
+   protected:
+     static constexpr char BRIGHTNESS[] = "brightness";
+     static constexpr char MAX_BRIGHTNESS[] = "max_brightness";

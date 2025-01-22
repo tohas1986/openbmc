@@ -58,7 +58,7 @@ inherit overlayfs
 
         config = """
 IMAGE_INSTALL:append = " overlayfs-user"
-DISTRO_FEATURES:append = " systemd overlayfs usrmerge"
+DISTRO_FEATURES:append = " systemd overlayfs"
 """
 
         self.write_config(config)
@@ -79,7 +79,7 @@ DISTRO_FEATURES:append = " systemd overlayfs usrmerge"
 
         config = """
 IMAGE_INSTALL:append = " overlayfs-user"
-DISTRO_FEATURES:append = " systemd overlayfs usrmerge"
+DISTRO_FEATURES += "systemd overlayfs"
 OVERLAYFS_QA_SKIP[mnt-overlay] = "mount-configured"
 """
 
@@ -97,7 +97,7 @@ OVERLAYFS_QA_SKIP[mnt-overlay] = "mount-configured"
 
         config = """
 IMAGE_INSTALL:append = " overlayfs-user"
-DISTRO_FEATURES:append = " systemd overlayfs usrmerge"
+DISTRO_FEATURES:append = " systemd overlayfs"
 """
 
         self.write_config(config)
@@ -115,7 +115,7 @@ DISTRO_FEATURES:append = " systemd overlayfs usrmerge"
 
         config = """
 IMAGE_INSTALL:append = " overlayfs-user"
-DISTRO_FEATURES:append = " systemd overlayfs usrmerge"
+DISTRO_FEATURES:append = " systemd overlayfs"
 """
 
         wrong_machine_config = """
@@ -139,10 +139,10 @@ OVERLAYFS_MOUNT_POINT[usr-share-overlay] = "/usr/share/overlay"
 
         config = """
 IMAGE_INSTALL:append = " overlayfs-user systemd-machine-units"
-DISTRO_FEATURES:append = " overlayfs"
+DISTRO_FEATURES:append = " systemd overlayfs"
 
 # Use systemd as init manager
-INIT_MANAGER = "systemd"
+VIRTUAL-RUNTIME_init_manager = "systemd"
 
 # enable overlayfs in the kernel
 KERNEL_EXTRA_FEATURES:append = " features/overlayfs/overlayfs.scc"
@@ -274,8 +274,10 @@ class OverlayFSEtcRunTimeTests(OESelftestTestCase):
         """
 
         configBase = """
+DISTRO_FEATURES:append = " systemd"
+
 # Use systemd as init manager
-INIT_MANAGER = "systemd"
+VIRTUAL-RUNTIME_init_manager = "systemd"
 
 # enable overlayfs in the kernel
 KERNEL_EXTRA_FEATURES:append = " features/overlayfs/overlayfs.scc"
@@ -314,8 +316,10 @@ OVERLAYFS_ETC_DEVICE = "/dev/mmcblk0p1"
         """
 
         config = """
+DISTRO_FEATURES:append = " systemd"
+
 # Use systemd as init manager
-INIT_MANAGER = "systemd"
+VIRTUAL-RUNTIME_init_manager = "systemd"
 
 # enable overlayfs in the kernel
 KERNEL_EXTRA_FEATURES:append = " features/overlayfs/overlayfs.scc"
@@ -340,8 +344,10 @@ EXTRA_IMAGE_FEATURES += "package-management"
         """
 
         config = """
+DISTRO_FEATURES:append = " systemd"
+
 # Use systemd as init manager
-INIT_MANAGER = "systemd"
+VIRTUAL-RUNTIME_init_manager = "systemd"
 
 # enable overlayfs in the kernel
 KERNEL_EXTRA_FEATURES:append = " features/overlayfs/overlayfs.scc"
@@ -353,7 +359,6 @@ EXTRA_IMAGE_FEATURES += "read-only-rootfs"
 # Image configuration for overlayfs-etc
 OVERLAYFS_ETC_MOUNT_POINT = "/data"
 OVERLAYFS_ETC_DEVICE = "/dev/sda3"
-OVERLAYFS_ROOTFS_TYPE = "ext4"
 """
 
         self.write_config(config)
@@ -368,17 +373,13 @@ OVERLAYFS_ROOTFS_TYPE = "ext4"
 
     @skipIfNotMachine("qemux86-64", "tests are qemux86-64 specific currently")
     def test_sbin_init_preinit(self):
-        self.run_sbin_init(False, "ext4")
+        self.run_sbin_init(False)
 
     @skipIfNotMachine("qemux86-64", "tests are qemux86-64 specific currently")
     def test_sbin_init_original(self):
-        self.run_sbin_init(True, "ext4")
+        self.run_sbin_init(True)
 
-    @skipIfNotMachine("qemux86-64", "tests are qemux86-64 specific currently")
-    def test_sbin_init_read_only(self):
-        self.run_sbin_init(True, "squashfs")
-
-    def run_sbin_init(self, origInit, rootfsType):
+    def run_sbin_init(self, origInit):
         """
         Summary:   Confirm we can replace original init and mount overlay on top of /etc
         Expected:  Image is created successfully and /etc is mounted as an overlay
@@ -389,9 +390,7 @@ OVERLAYFS_ROOTFS_TYPE = "ext4"
 
         args = {
             'OVERLAYFS_INIT_OPTION': "" if origInit else "init=/sbin/preinit",
-            'OVERLAYFS_ETC_USE_ORIG_INIT_NAME': int(origInit == True),
-            'OVERLAYFS_ROOTFS_TYPE': rootfsType,
-            'OVERLAYFS_ETC_CREATE_MOUNT_DIRS': int(rootfsType == "ext4")
+            'OVERLAYFS_ETC_USE_ORIG_INIT_NAME': int(origInit == True)
         }
 
         self.write_config(config.format(**args))
@@ -444,9 +443,7 @@ IMAGE_INSTALL:append = " overlayfs-user"
 
         args = {
             'OVERLAYFS_INIT_OPTION': "",
-            'OVERLAYFS_ETC_USE_ORIG_INIT_NAME': 1,
-            'OVERLAYFS_ROOTFS_TYPE': "ext4",
-            'OVERLAYFS_ETC_CREATE_MOUNT_DIRS': 1
+            'OVERLAYFS_ETC_USE_ORIG_INIT_NAME': 1
         }
 
         self.write_config(config.format(**args))
@@ -468,18 +465,16 @@ IMAGE_INSTALL:append = " overlayfs-user"
 
     def get_working_config(self):
         return """
+DISTRO_FEATURES:append = " systemd"
+
 # Use systemd as init manager
-INIT_MANAGER = "systemd"
+VIRTUAL-RUNTIME_init_manager = "systemd"
 
 # enable overlayfs in the kernel
-KERNEL_EXTRA_FEATURES:append = " \
-    features/overlayfs/overlayfs.scc \
-    cfg/fs/squashfs.scc"
+KERNEL_EXTRA_FEATURES:append = " features/overlayfs/overlayfs.scc"
 
 IMAGE_FSTYPES += "wic"
 OVERLAYFS_INIT_OPTION = "{OVERLAYFS_INIT_OPTION}"
-OVERLAYFS_ROOTFS_TYPE = "{OVERLAYFS_ROOTFS_TYPE}"
-OVERLAYFS_ETC_CREATE_MOUNT_DIRS = "{OVERLAYFS_ETC_CREATE_MOUNT_DIRS}"
 WKS_FILE = "overlayfs_etc.wks.in"
 
 EXTRA_IMAGE_FEATURES += "read-only-rootfs"
@@ -490,13 +485,4 @@ OVERLAYFS_ETC_MOUNT_POINT = "/data"
 OVERLAYFS_ETC_FSTYPE = "ext4"
 OVERLAYFS_ETC_DEVICE = "/dev/sda3"
 OVERLAYFS_ETC_USE_ORIG_INIT_NAME = "{OVERLAYFS_ETC_USE_ORIG_INIT_NAME}"
-
-ROOTFS_POSTPROCESS_COMMAND += "{OVERLAYFS_ROOTFS_TYPE}_rootfs"
-
-ext4_rootfs() {{
-}}
-
-squashfs_rootfs() {{
-    mkdir -p ${{IMAGE_ROOTFS}}/data
-}}
 """

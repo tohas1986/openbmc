@@ -1,0 +1,26 @@
+From 725207dfc1d98aa3cf913a54cd60f35d6d02359f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 31 Jan 2020 19:07:02 +0300
+Subject: [PATCH 1/1] Disable hardware flow control
+
+---
+ tty-handler.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/tty-handler.c b/tty-handler.c
+index 3546aca..73d705b 100644
+--- a/tty-handler.c
++++ b/tty-handler.c
+@@ -215,6 +215,9 @@ static int make_terminal_raw(struct tty_handler *th, const char *tty_name) {
+ 	 * generating characters. */
+ 	cfmakeraw(&term_options);
+ 
++	/* Disable hardware flow control */
++	term_options.c_cflag &= ~(CRTSCTS);
++
+ 	if (tcsetattr(th->fd, TCSAFLUSH, &term_options) < 0) {
+ 		warn("Couldn't commit terminal options for %s", tty_name);
+ 		return -1;
+-- 
+1.9.1
+

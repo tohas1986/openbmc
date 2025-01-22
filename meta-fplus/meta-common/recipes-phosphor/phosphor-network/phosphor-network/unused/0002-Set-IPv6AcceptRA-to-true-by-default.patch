@@ -1,0 +1,25 @@
+From fa4cbbce5a5a726004bb2cc28afb872a7133470b Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 13 Mar 2020 13:38:31 +0300
+Subject: [PATCH 1/1] Set IPv6AcceptRA to true by default
+
+---
+ network_config.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/network_config.cpp b/src/network_config.cpp
+index e83b16c..494e709 100644
+--- a/src/network_config.cpp
++++ b/src/network_config.cpp
+@@ -24,7 +24,7 @@ void writeDHCPDefault(const std::string& filename, const std::string& interface)
+ #else
+                 "LinkLocalAddressing=no\n"
+ #endif
+-                "IPv6AcceptRA=false\n"
++                "IPv6AcceptRA=true\n"
+                 "[DHCP]\nClientIdentifier=mac\n";
+     filestream.close();
+ }
+-- 
+1.9.1
+

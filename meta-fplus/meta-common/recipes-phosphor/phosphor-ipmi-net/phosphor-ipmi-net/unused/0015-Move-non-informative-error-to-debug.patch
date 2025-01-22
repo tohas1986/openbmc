@@ -1,0 +1,24 @@
+From 3fcad4a97b2505ce56d8a18ea1d91bf104c6e366 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 16 Sep 2020 07:24:05 +0000
+Subject: [PATCH] Move non-informative error to debug
+
+---
+ sd_event_loop.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sd_event_loop.cpp b/sd_event_loop.cpp
+index 23f91e4..73ab41e 100644
+--- a/sd_event_loop.cpp
++++ b/sd_event_loop.cpp
+@@ -31,8 +31,8 @@ void EventLoop::handleRmcpPacket()
+     }
+     catch (const std::exception& e)
+     {
+-        log<level::ERR>("Executing the IPMI message failed",
+-                        entry("EXCEPTION=%s", e.what()));
++        std::string s = "Executing the IPMI message failed:" + std::string(e.what());
++        log<level::DEBUG>(s.c_str());
+     }
+ }
+ 

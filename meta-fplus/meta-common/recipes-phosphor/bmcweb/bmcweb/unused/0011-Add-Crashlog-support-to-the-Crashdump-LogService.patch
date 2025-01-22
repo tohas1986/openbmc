@@ -1,0 +1,602 @@
+From 4d837d4747ac55c51f6d815e602dde59919b19fd Mon Sep 17 00:00:00 2001
+From: "Jason M. Bills" <jason.m.bills@linux.intel.com>
+Date: Fri, 7 May 2021 07:59:19 -0700
+Subject: [PATCH] Add Crashlog support to the Crashdump LogService
+
+This adds Crashlog support to the Crashdump LogService.
+The LogService will now search for Crashlog entry objects on
+D-Bus under '/xyz/openbmc_project/dump/crashlog' to include
+in the LogEntryCollection.
+
+Any Crashlogs found will be exposed as LogEntry resources with
+an AdditionalDataURI property that provides a link to download
+the Crashlog content as a zip file.
+
+The CollectDiagnosticData Action has a new 'SystemDiagnostics'
+OEM type to trigger the BMC to collect a new Crashlog.
+
+Tested:
+Ran CollectDiagnosticData and confirmed that it triggers the BMC
+to collect the Crashlog data.  The new Crashlog data is then
+exposed in the LogEntryCollection and the LogEntry can be
+downloaded correctly using the AdditionalDataURI.
+
+Signed-off-by: Jason M. Bills <jason.m.bills@linux.intel.com>
+---
+ redfish-core/lib/log_services.hpp | 482 +++++++++++++++++++++---------
+ 1 file changed, 345 insertions(+), 137 deletions(-)
+
+diff --git a/redfish-core/lib/log_services.hpp b/redfish-core/lib/log_services.hpp
+index 7c75ddd..b45409e 100644
+--- a/redfish-core/lib/log_services.hpp
++++ b/redfish-core/lib/log_services.hpp
+@@ -2419,17 +2419,32 @@ static void
+             std::string crashdumpURI =
+                 "/redfish/v1/Systems/system/LogServices/Crashdump/Entries/" +
+                 logID + "/" + filename;
+-            logEntryJson = {{"@odata.type", "#LogEntry.v1_7_0.LogEntry"},
+-                            {"@odata.id", "/redfish/v1/Systems/system/"
+-                                          "LogServices/Crashdump/Entries/" +
+-                                              logID},
+-                            {"Name", "CPU Crashdump"},
+-                            {"Id", logID},
+-                            {"EntryType", "Oem"},
+-                            {"AdditionalDataURI", std::move(crashdumpURI)},
+-                            {"DiagnosticDataType", "OEM"},
+-                            {"OEMDiagnosticDataType", "PECICrashdump"},
+-                            {"Created", std::move(timestamp)}};
++            nlohmann::json logEntry = {
++                {"@odata.type", "#LogEntry.v1_7_0.LogEntry"},
++                {"@odata.id", "/redfish/v1/Systems/system/"
++                              "LogServices/Crashdump/Entries/" +
++                                  logID},
++                {"Name", "CPU Crashdump"},
++                {"Id", logID},
++                {"EntryType", "Oem"},
++                {"AdditionalDataURI", std::move(crashdumpURI)},
++                {"DiagnosticDataType", "OEM"},
++                {"OEMDiagnosticDataType", "PECICrashdump"},
++                {"Created", std::move(timestamp)}};
++
++            // If logEntryJson references an array of LogEntry resources
++            // ('Members' list), then push this as a new entry, otherwise set it
++            // directly
++            if (logEntryJson.is_array())
++            {
++                logEntryJson.push_back(logEntry);
++                asyncResp->res.jsonValue["Members@odata.count"] =
++                    logEntryJson.size();
++            }
++            else
++            {
++                logEntryJson = logEntry;
++            }
+         };
+     crow::connections::systemBus->async_method_call(
+         std::move(getStoredLogCallback), crashdumpObject,
+@@ -2437,6 +2452,88 @@ static void
+         "org.freedesktop.DBus.Properties", "GetAll", crashdumpInterface);
+ }
+ 
++static void logCrashlogEntry(
++    const std::shared_ptr<bmcweb::AsyncResp>& asyncResp, std::string logID,
++    boost::container::flat_map<std::string, GetManagedPropertyType> interfaces,
++    nlohmann::json& logEntryJson)
++{
++    std::time_t timestamp = 0;
++    uint64_t size = 0;
++
++    for (auto& [interface, properties] : interfaces)
++    {
++        if (interface == "xyz.openbmc_project.Dump.Entry")
++        {
++
++            for (auto& [property, value] : properties)
++            {
++                if (property == "Size")
++                {
++                    const uint64_t* sizePtr = std::get_if<uint64_t>(&value);
++                    if (sizePtr == nullptr)
++                    {
++                        messages::internalError(asyncResp->res);
++                        break;
++                    }
++                    size = *sizePtr;
++                    break;
++                }
++            }
++        }
++        else if (interface == "xyz.openbmc_project.Time.EpochTime")
++        {
++
++            for (auto& [property, value] : properties)
++            {
++                if (property == "Elapsed")
++                {
++                    const uint64_t* usecsTimeStamp =
++                        std::get_if<uint64_t>(&value);
++                    if (usecsTimeStamp == nullptr)
++                    {
++                        messages::internalError(asyncResp->res);
++                        break;
++                    }
++                    timestamp =
++                        static_cast<std::time_t>(*usecsTimeStamp / 1000 / 1000);
++                    break;
++                }
++            }
++        }
++    }
++
++    std::filesystem::path crashlogURI =
++        std::filesystem::path(
++            "/redfish/v1/Systems/system/LogServices/Crashdump/Entries") /
++        logID / logID;
++    crashlogURI.replace_extension(".zip");
++    nlohmann::json logEntry = {
++        {"@odata.type", "#LogEntry.v1_7_0.LogEntry"},
++        {"@odata.id", "/redfish/v1/Systems/system/"
++                      "LogServices/Crashdump/Entries/" +
++                          logID},
++        {"Name", "CPU Crashlog"},
++        {"Id", logID},
++        {"EntryType", "Oem"},
++        {"AdditionalDataURI", std::move(crashlogURI)},
++        {"AdditionalDataSizeBytes", std::move(size)},
++        {"DiagnosticDataType", "OEM"},
++        {"OEMDiagnosticDataType", "SystemDiagnostics"},
++        {"Created", crow::utility::getDateTime(timestamp)}};
++
++    // If logEntryJson references an array of LogEntry resources ('Members'
++    // list), then push this as a new entry, otherwise set it directly
++    if (logEntryJson.is_array())
++    {
++        logEntryJson.push_back(logEntry);
++        asyncResp->res.jsonValue["Members@odata.count"] = logEntryJson.size();
++    }
++    else
++    {
++        logEntryJson = logEntry;
++    }
++}
++
+ inline void requestRoutesCrashdumpEntryCollection(App& app)
+ {
+     // Note: Deviated from redfish privilege registry for GET & HEAD
+@@ -2447,27 +2544,11 @@ inline void requestRoutesCrashdumpEntryCollection(App& app)
+     BMCWEB_ROUTE(app,
+                  "/redfish/v1/Systems/system/LogServices/Crashdump/Entries/")
+         .privileges({{"ConfigureComponents"}})
+-        .methods(
+-            boost::beast::http::verb::
+-                get)([](const crow::Request&,
+-                        const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
+-            // Collections don't include the static data added by SubRoute
+-            // because it has a duplicate entry for members
+-            auto getLogEntriesCallback = [asyncResp](
+-                                             const boost::system::error_code ec,
+-                                             const std::vector<std::string>&
+-                                                 resp) {
+-                if (ec)
+-                {
+-                    if (ec.value() !=
+-                        boost::system::errc::no_such_file_or_directory)
+-                    {
+-                        BMCWEB_LOG_DEBUG << "failed to get entries ec: "
+-                                         << ec.message();
+-                        messages::internalError(asyncResp->res);
+-                        return;
+-                    }
+-                }
++        .methods(boost::beast::http::verb::get)(
++            [](const crow::Request&,
++               const std::shared_ptr<bmcweb::AsyncResp>& asyncResp) {
++                // Collections don't include the static data added by SubRoute
++                // because it has a duplicate entry for members
+                 asyncResp->res.jsonValue["@odata.type"] =
+                     "#LogEntryCollection.LogEntryCollection";
+                 asyncResp->res.jsonValue["@odata.id"] =
+@@ -2475,42 +2556,63 @@ inline void requestRoutesCrashdumpEntryCollection(App& app)
+                 asyncResp->res.jsonValue["Name"] = "Open BMC Crashdump Entries";
+                 asyncResp->res.jsonValue["Description"] =
+                     "Collection of Crashdump Entries";
+-                nlohmann::json& logEntryArray =
+-                    asyncResp->res.jsonValue["Members"];
+-                logEntryArray = nlohmann::json::array();
+-                std::vector<std::string> logIDs;
+-                // Get the list of log entries and build up an empty array big
+-                // enough to hold them
+-                for (const std::string& objpath : resp)
+-                {
+-                    // Get the log ID
+-                    std::size_t lastPos = objpath.rfind('/');
+-                    if (lastPos == std::string::npos)
+-                    {
+-                        continue;
+-                    }
+-                    logIDs.emplace_back(objpath.substr(lastPos + 1));
++                asyncResp->res.jsonValue["Members"] = nlohmann::json::array();
+ 
+-                    // Add a space for the log entry to the array
+-                    logEntryArray.push_back({});
+-                }
+-                // Now go through and set up async calls to fill in the entries
+-                size_t index = 0;
+-                for (const std::string& logID : logIDs)
+-                {
+-                    // Add the log entry to the array
+-                    logCrashdumpEntry(asyncResp, logID, logEntryArray[index++]);
+-                }
+-                asyncResp->res.jsonValue["Members@odata.count"] =
+-                    logEntryArray.size();
+-            };
+-            crow::connections::systemBus->async_method_call(
+-                std::move(getLogEntriesCallback),
+-                "xyz.openbmc_project.ObjectMapper",
+-                "/xyz/openbmc_project/object_mapper",
+-                "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", "", 0,
+-                std::array<const char*, 1>{crashdumpInterface});
+-        });
++                crow::connections::systemBus->async_method_call(
++                    [asyncResp](const boost::system::error_code ec,
++                                const std::vector<std::string>& resp) {
++                        if (ec)
++                        {
++                            if (ec.value() !=
++                                boost::system::errc::no_such_file_or_directory)
++                            {
++                                BMCWEB_LOG_DEBUG << "failed to get entries ec: "
++                                                 << ec.message();
++                                messages::internalError(asyncResp->res);
++                                return;
++                            }
++                        }
++                        for (const std::string& path : resp)
++                        {
++                            const std::filesystem::path objpath = path;
++                            // Get the log ID
++                            std::string logID = objpath.filename().string();
++                            if (logID.empty())
++                            {
++                                continue;
++                            }
++                            // Add the log entry to the array
++                            logCrashdumpEntry(
++                                asyncResp, logID,
++                                asyncResp->res.jsonValue["Members"]);
++                        }
++                    },
++                    "xyz.openbmc_project.ObjectMapper",
++                    "/xyz/openbmc_project/object_mapper",
++                    "xyz.openbmc_project.ObjectMapper", "GetSubTreePaths", "",
++                    0, std::array<const char*, 1>{crashdumpInterface});
++                crow::connections::systemBus->async_method_call(
++                    [asyncResp](const boost::system::error_code ec,
++                                GetManagedObjectsType& resp) {
++                        if (ec)
++                        {
++                            BMCWEB_LOG_DEBUG
++                                << "failed to get crashlog entries ec: "
++                                << ec.message();
++                            messages::internalError(asyncResp->res);
++                            return;
++                        }
++                        for (auto& [path, interfaces] : resp)
++                        {
++                            // Add the log entry to the array
++                            logCrashlogEntry(
++                                asyncResp, path.filename(), interfaces,
++                                asyncResp->res.jsonValue["Members"]);
++                        }
++                    },
++                    "com.intel.crashlog", "/xyz/openbmc_project/dump/crashlog",
++                    "org.freedesktop.DBus.ObjectManager", "GetManagedObjects");
++            });
+ }
+ 
+ inline void requestRoutesCrashdumpEntry(App& app)
+@@ -2526,7 +2628,44 @@ inline void requestRoutesCrashdumpEntry(App& app)
+                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                const std::string& param) {
+                 const std::string& logID = param;
+-                logCrashdumpEntry(asyncResp, logID, asyncResp->res.jsonValue);
++                if (boost::starts_with(logID, "crashlog"))
++                {
++                    crow::connections::systemBus->async_method_call(
++                        [asyncResp, logID](const boost::system::error_code ec,
++                                           GetManagedObjectsType& resp) {
++                            if (ec)
++                            {
++                                BMCWEB_LOG_DEBUG
++                                    << "failed to get crashlog entries ec: "
++                                    << ec.message();
++                                messages::internalError(asyncResp->res);
++                                return;
++                            }
++
++                            for (auto& [path, interfaces] : resp)
++                            {
++                                if (path.filename() == logID)
++                                {
++                                    logCrashlogEntry(asyncResp, path.filename(),
++                                                     interfaces,
++                                                     asyncResp->res.jsonValue);
++                                    return;
++                                }
++                            }
++                            // No log entry found, so return an error
++                            messages::resourceMissingAtURI(asyncResp->res,
++                                                           logID);
++                        },
++                        "com.intel.crashlog",
++                        "/xyz/openbmc_project/dump/crashlog",
++                        "org.freedesktop.DBus.ObjectManager",
++                        "GetManagedObjects");
++                }
++                else
++                {
++                    logCrashdumpEntry(asyncResp, logID,
++                                      asyncResp->res.jsonValue);
++                }
+             });
+ }
+ 
+@@ -2542,79 +2681,131 @@ inline void requestRoutesCrashdumpFile(App& app)
+             [](const crow::Request&,
+                const std::shared_ptr<bmcweb::AsyncResp>& asyncResp,
+                const std::string& logID, const std::string& fileName) {
+-                auto getStoredLogCallback =
+-                    [asyncResp, logID, fileName](
+-                        const boost::system::error_code ec,
+-                        const std::vector<std::pair<std::string, VariantType>>&
+-                            resp) {
+-                        if (ec)
+-                        {
+-                            BMCWEB_LOG_DEBUG << "failed to get log ec: "
+-                                             << ec.message();
+-                            messages::internalError(asyncResp->res);
+-                            return;
+-                        }
++                if (boost::starts_with(logID, "crashlog"))
++                {
++                    // Strip out any potential paths and keep just the filename
++                    // from fileName.  Then check that the filename is what was
++                    // requested
++                    const std::filesystem::path fileNameClean =
++                        std::filesystem::path(fileName).filename();
++                    if (fileNameClean != fileName)
++                    {
++                        messages::invalidObject(asyncResp->res, fileName);
++                        return;
++                    }
+ 
+-                        std::string dbusFilename{};
+-                        std::string dbusTimestamp{};
+-                        std::string dbusFilepath{};
++                    std::filesystem::path filePath =
++                        "/tmp/crashlog" / fileNameClean;
+ 
+-                        parseCrashdumpParameters(resp, dbusFilename,
+-                                                 dbusTimestamp, dbusFilepath);
++                    // The stem() should now match the logID, so check it to
++                    // make sure the full URI was correct
++                    if (filePath.stem() != logID)
++                    {
++                        messages::invalidObject(asyncResp->res, logID);
++                        return;
++                    }
+ 
+-                        if (dbusFilename.empty() || dbusTimestamp.empty() ||
+-                            dbusFilepath.empty())
+-                        {
+-                            messages::resourceMissingAtURI(asyncResp->res,
+-                                                           fileName);
+-                            return;
+-                        }
++                    // Check that the file exists and is not a symlink to
++                    // another file
++                    if (!std::filesystem::exists(filePath))
++                    {
++                        messages::resourceMissingAtURI(asyncResp->res,
++                                                       fileNameClean);
++                        return;
++                    }
++                    if (std::filesystem::is_symlink(filePath))
++                    {
++                        messages::invalidObject(asyncResp->res, fileNameClean);
++                        return;
++                    }
+ 
+-                        // Verify the file name parameter is correct
+-                        if (fileName != dbusFilename)
+-                        {
+-                            messages::resourceMissingAtURI(asyncResp->res,
+-                                                           fileName);
+-                            return;
+-                        }
++                    std::ifstream ifs(filePath,
++                                      std::ios::in | std::ios::binary);
++                    asyncResp->res.body() =
++                        std::string(std::istreambuf_iterator<char>{ifs}, {});
+ 
+-                        if (!std::filesystem::exists(dbusFilepath))
+-                        {
+-                            messages::resourceMissingAtURI(asyncResp->res,
+-                                                           fileName);
+-                            return;
+-                        }
+-                        std::ifstream ifs(dbusFilepath, std::ios::in |
+-                                                            std::ios::binary |
+-                                                            std::ios::ate);
+-                        std::ifstream::pos_type fileSize = ifs.tellg();
+-                        if (fileSize < 0)
+-                        {
+-                            messages::generalError(asyncResp->res);
+-                            return;
+-                        }
+-                        ifs.seekg(0, std::ios::beg);
++                    // Configure this to be a file download when accessed from
++                    // a browser
++                    asyncResp->res.addHeader("Content-Disposition",
++                                             "attachment");
++                }
++                else
++                {
++                    auto getStoredLogCallback =
++                        [asyncResp, logID, fileName](
++                            const boost::system::error_code ec,
++                            const std::vector<
++                                std::pair<std::string, VariantType>>& resp) {
++                            if (ec)
++                            {
++                                BMCWEB_LOG_DEBUG << "failed to get log ec: "
++                                                 << ec.message();
++                                messages::internalError(asyncResp->res);
++                                return;
++                            }
+ 
+-                        auto crashData = std::make_unique<char[]>(
+-                            static_cast<unsigned int>(fileSize));
++                            std::string dbusFilename{};
++                            std::string dbusTimestamp{};
++                            std::string dbusFilepath{};
+ 
+-                        ifs.read(crashData.get(), static_cast<int>(fileSize));
++                            parseCrashdumpParameters(resp, dbusFilename,
++                                                     dbusTimestamp,
++                                                     dbusFilepath);
+ 
+-                        // The cast to std::string is intentional in order to
+-                        // use the assign() that applies move mechanics
+-                        asyncResp->res.body().assign(
+-                            static_cast<std::string>(crashData.get()));
++                            if (dbusFilename.empty() || dbusTimestamp.empty() ||
++                                dbusFilepath.empty())
++                            {
++                                messages::resourceMissingAtURI(asyncResp->res,
++                                                               fileName);
++                                return;
++                            }
+ 
+-                        // Configure this to be a file download when accessed
+-                        // from a browser
+-                        asyncResp->res.addHeader("Content-Disposition",
+-                                                 "attachment");
+-                    };
+-                crow::connections::systemBus->async_method_call(
+-                    std::move(getStoredLogCallback), crashdumpObject,
+-                    crashdumpPath + std::string("/") + logID,
+-                    "org.freedesktop.DBus.Properties", "GetAll",
+-                    crashdumpInterface);
++                            // Verify the file name parameter is correct
++                            if (fileName != dbusFilename)
++                            {
++                                messages::resourceMissingAtURI(asyncResp->res,
++                                                               fileName);
++                                return;
++                            }
++                            if (!std::filesystem::exists(dbusFilepath))
++                            {
++                                messages::resourceMissingAtURI(asyncResp->res,
++                                                               fileName);
++                                return;
++                            }
++                            std::ifstream ifs(dbusFilepath,
++                                              std::ios::in | std::ios::binary |
++                                                  std::ios::ate);
++                            std::ifstream::pos_type fileSize = ifs.tellg();
++                            if (fileSize < 0)
++                            {
++                                messages::generalError(asyncResp->res);
++                                return;
++                            }
++                            ifs.seekg(0, std::ios::beg);
++
++                            auto crashData = std::make_unique<char[]>(
++                                static_cast<unsigned int>(fileSize));
++
++                            ifs.read(crashData.get(),
++                                     static_cast<int>(fileSize));
++
++                            // The cast to std::string is intentional in order
++                            // to use the assign() that applies move mechanics
++                            asyncResp->res.body().assign(
++                                static_cast<std::string>(crashData.get()));
++
++                            // Configure this to be a file download when
++                            // accessed from a browser
++                            asyncResp->res.addHeader("Content-Disposition",
++                                                     "attachment");
++                        };
++                    crow::connections::systemBus->async_method_call(
++                        std::move(getStoredLogCallback), crashdumpObject,
++                        crashdumpPath + std::string("/") + logID,
++                        "org.freedesktop.DBus.Properties", "GetAll",
++                        crashdumpInterface);
++                }
+             });
+ }
+ 
+@@ -2649,7 +2840,9 @@ inline void requestRoutesCrashdumpCollect(App& app)
+                 return;
+             }
+ 
+-            auto collectCrashdumpCallback = [asyncResp, req](
++            std::shared_ptr<std::string> taskMatchStr =
++                std::make_shared<std::string>(std::string());
++            auto collectCrashdumpCallback = [asyncResp, req, taskMatchStr](
+                                                 const boost::system::error_code
+                                                     ec,
+                                                 const std::string&) {
+@@ -2686,10 +2879,8 @@ inline void requestRoutesCrashdumpCollect(App& app)
+                             }
+                             return task::completed;
+                         },
+-                        "type='signal',interface='org.freedesktop.DBus."
+-                        "Properties',"
+-                        "member='PropertiesChanged',arg0namespace='com.intel."
+-                        "crashdump'");
++                        *taskMatchStr);
++
+                 task->startTimer(std::chrono::minutes(5));
+                 task->populateResp(asyncResp->res);
+                 task->payload.emplace(req);
+@@ -2697,6 +2888,9 @@ inline void requestRoutesCrashdumpCollect(App& app)
+ 
+             if (oemDiagnosticDataType == "OnDemand")
+             {
++                *taskMatchStr = "type='signal',interface='org.freedesktop.DBus."
++                                "Properties',member='PropertiesChanged',"
++                                "arg0namespace='com.intel.crashdump'";
+                 crow::connections::systemBus->async_method_call(
+                     std::move(collectCrashdumpCallback), crashdumpObject,
+                     crashdumpPath, crashdumpOnDemandInterface,
+@@ -2704,11 +2898,25 @@ inline void requestRoutesCrashdumpCollect(App& app)
+             }
+             else if (oemDiagnosticDataType == "Telemetry")
+             {
++                *taskMatchStr = "type='signal',interface='org.freedesktop.DBus."
++                                "Properties',member='PropertiesChanged',"
++                                "arg0namespace='com.intel.crashdump'";
+                 crow::connections::systemBus->async_method_call(
+                     std::move(collectCrashdumpCallback), crashdumpObject,
+                     crashdumpPath, crashdumpTelemetryInterface,
+                     "GenerateTelemetryLog");
+             }
++            else if (oemDiagnosticDataType == "SystemDiagnostics")
++            {
++                *taskMatchStr =
++                    "type='signal',interface='org.freedesktop.DBus."
++                    "ObjectManager',member='InterfacesAdded',path='/"
++                    "xyz/openbmc_project/dump/crashlog'";
++                crow::connections::systemBus->async_method_call(
++                    std::move(collectCrashdumpCallback), "com.intel.crashlog",
++                    "/xyz/openbmc_project/dump/crashlog",
++                    "xyz.openbmc_project.Dump.Create", "CreateDump");
++            }
+             else
+             {
+                 BMCWEB_LOG_ERROR << "Unsupported OEMDiagnosticDataType: "
+-- 
+2.17.1
+

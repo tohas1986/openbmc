@@ -1,0 +1,47 @@
+From be4e0c0915f3ca810d55cf9d0cdba94c695558f5 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 10:27:25 +0000
+Subject: [PATCH] PSUSensor: Change timer
+
+---
+ include/PSUSensor.hpp | 2 +-
+ src/PSUSensor.cpp     | 3 +--
+ 2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/include/PSUSensor.hpp b/include/PSUSensor.hpp
+index 0559073..41cf4db 100644
+--- a/include/PSUSensor.hpp
++++ b/include/PSUSensor.hpp
+@@ -27,7 +27,7 @@ class PSUSensor : public Sensor, public std::enable_shared_from_this<PSUSensor>
+   private:
+     sdbusplus::asio::object_server& objServer;
+     boost::asio::posix::stream_descriptor inputDev;
+-    boost::asio::deadline_timer waitTimer;
++    boost::asio::steady_timer waitTimer;
+     std::shared_ptr<boost::asio::streambuf> readBuf;
+     std::string path;
+     std::string pathRatedMax;
+diff --git a/src/PSUSensor.cpp b/src/PSUSensor.cpp
+index e292863..fdbe8f5 100644
+--- a/src/PSUSensor.cpp
++++ b/src/PSUSensor.cpp
+@@ -20,7 +20,6 @@
+ #include <boost/algorithm/string/predicate.hpp>
+ #include <boost/algorithm/string/replace.hpp>
+ #include <boost/asio/read_until.hpp>
+-#include <boost/date_time/posix_time/posix_time.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+@@ -198,7 +197,7 @@ void PSUSensor::handleResponse(const boost::system::error_code& err)
+     }
+ 
+     lseek(fd, 0, SEEK_SET);
+-    waitTimer.expires_from_now(boost::posix_time::milliseconds(sensorPollMs));
++    waitTimer.expires_from_now(boost::asio::chrono::milliseconds(sensorPollMs));
+ 
+     std::weak_ptr<PSUSensor> weakRef = weak_from_this();
+     waitTimer.async_wait([weakRef](const boost::system::error_code& ec) {
+-- 
+2.7.4
+

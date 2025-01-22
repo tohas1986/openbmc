@@ -1,0 +1,23 @@
+From 220d4fc16c649ef02c4cc5bfb176b618801bef82 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Wed, 25 Nov 2020 17:21:39 +0000
+Subject: [PATCH] Fix hang with /128 IPv6 mask
+
+---
+ util.cpp | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/util.cpp b/src/util.cpp
+index cb9e720..2cf1ba7 100644
+--- a/src/util.cpp
++++ b/src/util.cpp
+@@ -43,6 +43,9 @@ uint8_t toV6Cidr(const std::string& subnetMask)
+     uint16_t buff{};
+     do
+     {
++        if (cidr >= 128)
++            return 128;
++
+         // subnet mask look like ffff:ffff::
+         // or ffff:c000::
+         pos = subnetMask.find(":", prevPos);

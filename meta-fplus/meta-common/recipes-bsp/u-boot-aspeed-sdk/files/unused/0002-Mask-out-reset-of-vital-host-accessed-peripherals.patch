@@ -1,0 +1,86 @@
+From f01e11059c6d815cdeea1a16e81cf3a4f5ea9966 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 24 Jan 2022 09:56:16 +0000
+Subject: [PATCH] Mask out reset of vital host-accessed peripherals
+
+
+---
+ arch/arm/mach-aspeed/ast2600/platform.S | 58 +++++++++++++++++++++++++
+ 1 file changed, 58 insertions(+)
+
+diff --git a/arch/arm/mach-aspeed/ast2600/platform.S b/arch/arm/mach-aspeed/ast2600/platform.S
+index 25325ef10b..d0452c9e51 100644
+--- a/arch/arm/mach-aspeed/ast2600/platform.S
++++ b/arch/arm/mach-aspeed/ast2600/platform.S
+@@ -59,6 +59,19 @@
+ #define AST_FMC_WDT1_CTRL_MODE	(AST_FMC_BASE + 0x060)
+ #define AST_FMC_WDT2_CTRL_MODE	(AST_FMC_BASE + 0x064)
+ 
++#define AST_WDT1_BASE			0x1E785000
++#define AST_WDT1_RESET_MASK1	(AST_WDT1_BASE + 0x01C)
++#define AST_WDT1_RESET_MASK2	(AST_WDT1_BASE + 0x020)
++#define AST_WDT2_BASE			0x1E785040
++#define AST_WDT2_RESET_MASK1	(AST_WDT2_BASE + 0x01C)
++#define AST_WDT2_RESET_MASK2	(AST_WDT2_BASE + 0x020)
++#define AST_WDT3_BASE			0x1E785080
++#define AST_WDT3_RELOAD_VALUE	(AST_WDT3_BASE + 0x04)
++#define AST_WDT3_CNT_RESTART	(AST_WDT3_BASE + 0x08)
++#define AST_WDT3_CTRL			(AST_WDT3_BASE + 0x0C)
++#define AST_WDT3_RESET_MASK1	(AST_WDT3_BASE + 0x01C)
++#define AST_WDT3_RESET_MASK2	(AST_WDT3_BASE + 0x020)
++
+ #define AST_GPIO_BASE		(0x1E780000)
+ #define AST_GPIOYZ_DATA_VALUE	(AST_GPIO_BASE + 0x1E0)
+ 
+@@ -239,6 +252,51 @@ wait_lock:
+ 	str	r1, [r0]
+ 
+ 2:
++	/* disable eSPI, LPC and PWM resets on WDT1 reset */
++	ldr r0, =AST_WDT1_RESET_MASK1
++	ldr r1, [r0]
++	ldr r2, =0x00000804 // Mask out reset of AHB bridges, Video engine
++	bic r1, r2
++	str r1, [r0]
++	ldr r0, =AST_WDT1_RESET_MASK2
++	ldr r1, [r0]
++	ldr r2, =0x04002804 // Mask out reset of eSPI, PWM, LPC, AHB2
++	bic r1, r2
++	str r1, [r0]
++
++	/* disable eSPI, LPC and PWM resets on WDT2 reset */
++	ldr r0, =AST_WDT2_RESET_MASK1
++	ldr r1, [r0]
++	ldr r2, =0x00000804 // Mask out reset of AHB bridges, Video engine
++	bic r1, r2
++	str r1, [r0]
++	ldr r0, =AST_WDT2_RESET_MASK2
++	ldr r1, [r0]
++	ldr r2, =0x04002804
++	bic r1, r2
++	str r1, [r0]
++
++	/* Set up WDT3 to 10 seconds */
++	ldr r0, =AST_WDT3_RESET_MASK1
++	ldr r1, [r0]
++	ldr r2, =0x00000804 // Mask out reset of AHB bridges, Video engine
++	bic r1, r2
++	str r1, [r0]
++	ldr r0, =AST_WDT3_RESET_MASK2
++	ldr r1, [r0]
++	ldr r2, =0x04002804
++	bic r1, r2
++	str r1, [r0]
++	ldr r0, =AST_WDT3_RELOAD_VALUE
++	ldr r1, =(1000000 * 10)
++	str r1, [r0]
++	ldr r0, =AST_WDT3_CNT_RESTART
++	ldr r1, =0x4755
++	str r1, [r0]
++	ldr r0, =AST_WDT3_CTRL
++	ldr r1, =0x13
++	str r1, [r0]
++
+ 	/* PCIeRC/E2M8 power-on reset comes from SCU040
+ 	It need set SCU040[18] high to reset PCIeRC/E2M
+ 	when AC power-on */

@@ -104,6 +104,7 @@ do_fru_flash() {
 	ampere_fru_upgrade -d "$FRU_DEVICE" -f "$FRU_IMAGE"
 
 	systemctl restart xyz.openbmc_project.FruDevice.service
+	systemctl restart phosphor-ipmi-host.service
 
 	echo "Done"
 }
@@ -114,7 +115,7 @@ do_mb_cpld_flash() {
 	gpioset $(gpiofind hpm-fw-recovery)=1
 	gpioset $(gpiofind jtag-program-sel)=1
 	sleep 2
-	ampere_cpldupdate_jtag -p "$MB_CPLD_IMAGE"
+	ampere_cpldupdate_jtag -t 1 -p "$MB_CPLD_IMAGE"
 	gpioset $(gpiofind hpm-fw-recovery)=0
 	echo "Done"
 }
@@ -124,7 +125,7 @@ do_bmc_cpld_flash() {
 	echo "Flashing BMC CPLD"
 	gpioset $(gpiofind jtag-program-sel)=0
 	sleep 2
-	ampere_cpldupdate_jtag -p "$BMC_CPLD_IMAGE"
+	ampere_cpldupdate_jtag -t 1 -p "$BMC_CPLD_IMAGE"
 	echo "Done"
 }
 
@@ -133,19 +134,19 @@ do_bp_cpld_flash() {
 	BP_TARGET=$2
 	if [[ $BP_TARGET == 1 ]]; then
 		echo "Flashing Front Backplane 1 CPLD"
-		ampere_cpldupdate_i2c -b 101 -s 0x40 -p "$BP_CPLD_IMAGE"
+		ampere_cpldupdate_i2c -b 101 -s 0x40 -t 2 -p "$BP_CPLD_IMAGE"
 	elif [[ $BP_TARGET == 2 ]]; then
 		echo "Flashing Front Backplane 2 CPLD"
-		ampere_cpldupdate_i2c -b 102 -s 0x40 -p "$BP_CPLD_IMAGE"
+		ampere_cpldupdate_i2c -b 102 -s 0x40 -t 2 -p "$BP_CPLD_IMAGE"
 	elif [[ $BP_TARGET == 3 ]]; then
 		echo "Flashing Front Backplane 3 CPLD"
-		ampere_cpldupdate_i2c -b 100 -s 0x40 -p "$BP_CPLD_IMAGE"
+		ampere_cpldupdate_i2c -b 100 -s 0x40 -t 2 -p "$BP_CPLD_IMAGE"
 		elif [[ $BP_TARGET == 4 ]]; then
 		echo "Flashing Rear Backplane 1 CPLD"
-		ampere_cpldupdate_i2c -b 103 -s 0x40 -p "$BP_CPLD_IMAGE"
+		ampere_cpldupdate_i2c -b 103 -s 0x40 -t 2 -p "$BP_CPLD_IMAGE"
 		elif [[ $BP_TARGET == 5 ]]; then
 		echo "Flashing Rear Backplane 2 CPLD"
-		ampere_cpldupdate_i2c -b 104 -s 0x40 -p "$BP_CPLD_IMAGE"
+		ampere_cpldupdate_i2c -b 104 -s 0x40 -t 2 -p "$BP_CPLD_IMAGE"
 	fi
 
 	echo "Done"

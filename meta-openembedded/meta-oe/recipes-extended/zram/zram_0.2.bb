@@ -8,6 +8,7 @@ RDEPENDS:${PN} = "kmod \
     ${@bb.utils.contains('DISTRO_FEATURES','systemd','util-linux','util-linux-swaponoff',d)}"
 RRECOMMENDS:${PN} = "kernel-module-zram"
 
+PR = "r3"
 
 SRC_URI = " \
            file://init \

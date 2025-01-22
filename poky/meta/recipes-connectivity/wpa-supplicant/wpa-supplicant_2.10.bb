@@ -18,7 +18,6 @@ SRC_URI = "http://w1.fi/releases/wpa_supplicant-${PV}.tar.gz \
            file://0001-build-Re-enable-options-for-libwpa_client.so-and-wpa.patch \
            file://0002-Fix-removal-of-wpa_passphrase-on-make-clean.patch \
            file://0001-Install-wpa_passphrase-when-not-disabled.patch \
-           file://0001-PEAP-client-Update-Phase-2-authentication-requiremen.patch \
            "
 SRC_URI[sha256sum] = "20df7ae5154b3830355f8ab4269123a87affdea59fe74fe9292a91d0d7e17b2f"
 
@@ -135,4 +134,4 @@ python split_wpa_supplicant_libs () {
         d.setVar('RRECOMMENDS:' + pn + '-plugins', ' '.join(split_packages))
         d.appendVar('RRECOMMENDS:' + pn + '-dbg', ' ' + ' '.join(split_dbg_packages))
 }
-PACKAGESPLITFUNCS += "split_wpa_supplicant_libs"
+PACKAGESPLITFUNCS:prepend = "split_wpa_supplicant_libs "

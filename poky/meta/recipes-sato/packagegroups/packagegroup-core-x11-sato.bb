@@ -5,6 +5,7 @@
 SUMMARY = "Sato desktop"
 DESCRIPTION = "Packagegroups provide a convenient mechanism of bundling a collection of packages."
 HOMEPAGE = "https://www.yoctoproject.org/"
+PR = "r33"
 
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 

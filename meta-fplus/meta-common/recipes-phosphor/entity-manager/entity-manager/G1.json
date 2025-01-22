@@ -1,0 +1,669 @@
+{
+    "Exposes": [
+        { "Name": "BMC_CPU", "Type": "HealthSensor", "Class": "CPU", "FailTime": 1500, "IsReboot": true,
+          "RebootCmd": "/sbin/reboot",
+          "Thresholds": [ { "Direction": "greater than", "Name": "upper critical", "Severity": 0, "Value": 99 } ]
+        },
+        { "Name": "BMC_MEM", "Type": "HealthSensor", "Class": "Memory", "FailTime": 1500, "IsReboot": true,
+          "RebootCmd": "/sbin/reboot",
+          "Thresholds": [ { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 80 } ]
+        },
+        { "Name": "BMC_DAYS", "Type": "HealthSensor", "Class": "Uptime", "FailTime": 300, "IsReboot": true,
+          "RebootCmd": "/sbin/reboot",
+          "Thresholds": [ { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 10 } ]
+        },
+        {
+          "Address":"0x58",
+          "Bus":"14",
+          "Index": 0,
+          "Mutable":true,
+          "Name":"SYS_FAN1",
+          "Type":"I2CFan",
+          "PowerState": "On",
+          "Thresholds": [
+            { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 1000 },
+            { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 800 }
+          ]
+        },
+        {
+          "Address":"0x58",
+          "Bus":"14",
+          "Index": 1,
+          "Mutable":true,
+          "Name":"SYS_FAN2",
+          "Type":"I2CFan",
+          "PowerState": "On",
+          "Thresholds": [
+            { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 1000 },
+            { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 800 }
+          ]
+        },
+        {
+          "Address":"0x58",
+          "Bus":"14",
+          "Index": 2,
+          "Mutable":true,
+          "Name":"SYS_FAN3",
+          "Type":"I2CFan",
+          "PowerState": "On",
+          "Thresholds": [
+            { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 1000 },
+            { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 800 }
+          ]
+        },
+        {
+          "Address":"0x58",
+          "Bus":"14",
+          "Index": 3,
+          "Mutable":true,
+          "Name":"SYS_FAN4",
+          "Type":"I2CFan",
+          "PowerState": "On",
+          "Thresholds": [
+            { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 1000 },
+            { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 800 }
+          ]
+        },
+        {
+          "Address":"0x58",
+          "Bus":"15",
+          "Index": 0,
+          "Mutable":true,
+          "Name":"SYS_FAN5",
+          "Type":"I2CFan",
+          "PowerState": "On",
+          "Thresholds": [
+            { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 1000 },
+            { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 800 }
+          ]
+        },
+        {
+          "Address":"0x58",
+          "Bus":"15",
+          "Index": 1,
+          "Mutable":true,
+          "Name":"SYS_FAN6",
+          "Type":"I2CFan",
+          "PowerState": "On",
+          "Thresholds": [
+            { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 1000 },
+            { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 800 }
+          ]
+        },
+        {
+          "Address":"0x58",
+          "Bus":"15",
+          "Index": 2,
+          "Mutable":true,
+          "Name":"SYS_FAN7",
+          "Type":"I2CFan",
+          "PowerState": "On",
+          "Thresholds": [
+            { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 1000 },
+            { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 800 }
+          ]
+        },
+        {
+          "Address":"0x58",
+          "Bus":"15",
+          "Index": 3,
+          "Mutable":true,
+          "Name":"SYS_FAN8",
+          "Type":"I2CFan",
+          "PowerState": "On",
+          "Thresholds": [
+            { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 1000 },
+            { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 800 }
+          ]
+        },
+        {
+            "Address": "0x40", "Bus": 30,
+            "Name": "LM5066",
+            "pin_Name": "INF_BRD_PWR", "pin_Min": 0.0, "pin_Max": 4000.0,
+            "vin_Name" : "PSU_VIN", "vin_Min": 0.0, "vin_Max": 55.0,
+            "vout1_Name" : "PSU_VOUT", "vout1_Min": 0.0, "vout1_Max": 55.0,
+            "temp1_Name" : "PSU_TEMP", "temp1_Min":0.0, "temp1_Max": 110.0,
+            "Labels": [ "vin", "vout1", "pin", "temp1" ],
+            "Type": "LM5066I05"
+        },
+        {
+            "Address": "0x40", "Bus": 14,
+            "Name": "LM5066_1",
+            "pin_Name": "FAN_BRD1_PWR", "pin_Min": 0.0, "pin_Max": 400.0,
+            "Labels": [ "pin" ],
+            "Type": "LM5066I05"
+        },
+        {
+            "Address": "0x40", "Bus": 15,
+            "Name": "LM5066_2",
+            "pin_Name": "FAN_BRD2_PWR", "pin_Min": 0.0, "pin_Max": 400.0,
+            "Labels": [ "pin" ],
+            "Type": "LM5066I05"
+        },
+        {
+            "Address": "0x4C", "Bus": 4, "Reg": "0x00",
+            "Class": "MCUTemp",
+            "Name": "GPU1_TEMP",
+            "Type": "MCUTempSensor",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 87 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 85 }
+            ]
+        },
+        {
+            "Address": "0x4D", "Bus": 4, "Reg": "0x00",
+            "Class": "MCUTemp",
+            "Name": "GPU2_TEMP",
+            "Type": "MCUTempSensor",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 87 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 85 }
+            ]
+        },
+        {
+            "Address": "0x4E", "Bus": 4, "Reg": "0x00",
+            "Class": "MCUTemp",
+            "Name": "GPU3_TEMP",
+            "Type": "MCUTempSensor",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 87 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 85 }
+            ]
+        },
+        {
+            "Address": "0x4F", "Bus": 4, "Reg": "0x00",
+            "Class": "MCUTemp",
+            "Name": "GPU4_TEMP",
+            "Type": "MCUTempSensor",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 87 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 85 }
+            ]
+        },
+        {
+            "Address": "0x44", "Bus": 4, "Reg": "0x00",
+            "Class": "MCUTemp",
+            "Name": "GPU5_TEMP",
+            "Type": "MCUTempSensor",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 87 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 85 }
+            ]
+        },
+        {
+            "Address": "0x45", "Bus": 4, "Reg": "0x00",
+            "Class": "MCUTemp",
+            "Name": "GPU6_TEMP",
+            "Type": "MCUTempSensor",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 87 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 85 }
+            ]
+        },
+        {
+            "Address": "0x46", "Bus": 4, "Reg": "0x00",
+            "Class": "MCUTemp",
+            "Name": "GPU7_TEMP",
+            "Type": "MCUTempSensor",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 87 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 85 }
+            ]
+        },
+        {
+            "Address": "0x47", "Bus": 4, "Reg": "0x00",
+            "Class": "MCUTemp",
+            "Name": "GPU8_TEMP",
+            "Type": "MCUTempSensor",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 87 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 85 }
+            ]
+        },
+        {
+            "Bus": 6,
+            "SlaveAddr": "0x19",
+            "Name" : "NVSW1_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 6,
+            "SlaveAddr": "0x1a",
+            "Name" : "NVSW2_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 6,
+            "SlaveAddr": "0x1b",
+            "Name" : "NVSW3_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 6,
+            "SlaveAddr": "0x1c",
+            "Name" : "NVSW4_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 6,
+            "SlaveAddr": "0x1d",
+            "Name" : "NVSW5_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 6,
+            "SlaveAddr": "0x1e",
+            "Name" : "NVSW6_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x4C",
+            "Name" : "HBM1_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "HBMTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x4D",
+            "Name" : "HBM2_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "HBMTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x4E",
+            "Name" : "HBM3_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "HBMTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x4F",
+            "Name" : "HBM4_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "HBMTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x44",
+            "Name" : "HBM5_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "HBMTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x45",
+            "Name" : "HBM6_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "HBMTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x46",
+            "Name" : "HBM7_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "HBMTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x47",
+            "Name" : "HBM8_TEMP",
+            "Type" : "GPUSensor",
+            "SubType" : "HBMTEMP",
+            "Class": "Temperature",
+            "PowerState": "On",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 95 }
+            ]
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x4C",
+            "Name" : "GPU1_PWR",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUPOWER",
+            "Class": "Power",
+            "PowerState": "On"
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x4D",
+            "Name" : "GPU2_PWR",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUPOWER",
+            "Class": "Power",
+            "PowerState": "On"
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x4E",
+            "Name" : "GPU3_PWR",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUPOWER",
+            "Class": "Power",
+            "PowerState": "On"
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x4F",
+            "Name" : "GPU4_PWR",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUPOWER",
+            "Class": "Power",
+            "PowerState": "On"
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x44",
+            "Name" : "GPU5_PWR",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUPOWER",
+            "Class": "Power",
+            "PowerState": "On"
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x45",
+            "Name" : "GPU6_PWR",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUPOWER",
+            "Class": "Power",
+            "PowerState": "On"
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x46",
+            "Name" : "GPU7_PWR",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUPOWER",
+            "Class": "Power",
+            "PowerState": "On"
+        },
+        {
+            "Bus": 4,
+            "SlaveAddr": "0x47",
+            "Name" : "GPU8_PWR",
+            "Type" : "GPUSensor",
+            "SubType" : "GPUPOWER",
+            "Class": "Power",
+            "PowerState": "On"
+        },
+        {
+            "Index": 3,
+            "Name": "P12V",
+            "PowerState": "On",
+            "ScaleFactor": 0.108,
+            "Type": "ADC",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 13.776 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 13.202 },
+                { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 10.742 },
+                { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 10.250 }
+            ]
+        },
+        {
+            "Index": 4,
+            "Name": "P12V_IN",
+            "PowerState": "On",
+            "ScaleFactor": 0.108,
+            "Type": "ADC",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 13.776 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 13.202 },
+                { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 10.742 },
+                { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 10.250 }
+            ]
+        },
+        {
+            "Index": 5,
+            "Name": "P3V3",
+            "PowerState": "On",
+            "ScaleFactor": 0.405,
+            "Type": "ADC",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 3.754 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 3.616 },
+                { "Direction": "less than", "Name": "lower non critical", "Severity": 0, "Value": 2.958 },
+                { "Direction": "less than", "Name": "lower critical", "Severity": 1, "Value": 2.820 }
+            ]
+        },
+        {
+            "Index": 7,
+            "Name": "P_1V15",
+            "PowerState": "On",
+            "ScaleFactor": 1.0,
+            "Min": 0, "Max": 2.0,
+            "Type": "ADC"
+        },
+        {
+            "Index": 8,
+            "Name": "P_1V2",
+            "PowerState": "On",
+            "ScaleFactor": 1.0,
+            "Min": 0, "Max": 2.0,
+            "Type": "ADC"
+        },
+        {
+            "Bus": 6,
+            "SlaveAddr": "0x60",
+            "Name" : "TOT_HSC_PWR",
+            "Type" : "GPUSensor",
+            "SubType" : "FPGAPOWER",
+            "DeviceNum" : "0xB0",
+            "Class": "Power",
+            "PowerState": "On"
+        },
+        {
+            "Bus": 6,
+            "SlaveAddr": "0x60",
+            "Name" : "NV_SW_G0_PWR",
+            "Type" : "GPUSensor",
+            "SubType" : "NWSWPOWER",
+            "DeviceNum" : "0x90",
+            "Class": "Power",
+            "PowerState": "On"
+        },
+        {
+            "Bus": 6,
+            "SlaveAddr": "0x60",
+            "Name" : "NV_SW_G1_PWR",
+            "Type" : "GPUSensor",
+            "SubType" : "NWSWOWER",
+            "DeviceNum" : "0x91",
+            "Class": "Power",
+            "PowerState": "On"
+        },
+        { "Bus": 18, "Address": "0x1f", "Type": "JC42", "Name": "PEX0",
+          "Labels": ["temp1"], "temp1_Name": "PEX0_TEMP",
+          "Thresholds": [
+            { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60 },
+            { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 57 }
+          ]
+        },
+        { "Bus": 19, "Address": "0x1f", "Type": "JC42", "Name": "PEX1",
+          "Labels": ["temp1"], "temp1_Name": "PEX1_TEMP",
+          "Thresholds": [
+            { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60 },
+            { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 57 }
+          ]
+        },
+        { "Bus": 24, "Address": "0x1f", "Type": "JC42", "Name": "PEX2",
+          "Labels": ["temp1"], "temp1_Name": "PEX2_TEMP",
+          "Thresholds": [
+            { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60 },
+            { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 57 }
+          ]
+        },
+        { "Bus": 25, "Address": "0x1f", "Type": "JC42", "Name": "PEX3",
+          "Labels": ["temp1"], "temp1_Name": "PEX3_TEMP",
+          "Thresholds": [
+            { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 60 },
+            { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 57 }
+          ]
+        },
+        {
+            "Address": "0x1f",
+            "Bus": 26,
+            "Name" : "PCIE1",
+            "temp2_Name": "PCIE_SLOT1_TEMP", "temp2_Min": 0.0, "temp2_Max": 90.0,
+            "Labels": [ "temp2"],
+            "PowerState": "On",
+            "Type": "TMP421",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 100 }
+            ]
+        },
+        {
+            "Address": "0x1f",
+            "Bus": 27,
+            "Name" : "PCIE2",
+            "temp2_Name": "PCIE_SLOT2_TEMP", "temp2_Min": 0.0, "temp2_Max": 90.0,
+            "Labels": [ "temp2"],
+            "PowerState": "On",
+            "Type": "TMP421",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 100 }
+            ]
+        },
+        {
+            "Address": "0x1f",
+            "Bus": 28,
+            "Name" : "PCIE3",
+            "temp2_Name": "PCIE_SLOT3_TEMP", "temp2_Min": 0.0, "temp2_Max": 90.0,
+            "Labels": [ "temp2"],
+            "PowerState": "On",
+            "Type": "TMP421",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 100 }
+            ]
+        },
+        {
+            "Address": "0x1f",
+            "Bus": 29,
+            "Name" : "PCIE4",
+            "temp2_Name": "PCIE_SLOT4_TEMP", "temp2_Min": 0.0, "temp2_Max": 90.0,
+            "Labels": [ "temp2"],
+            "PowerState": "On",
+            "Type": "TMP421",
+            "Thresholds": [
+                { "Direction": "greater than", "Name": "upper critical", "Severity": 1, "Value": 105 },
+                { "Direction": "greater than", "Name": "upper non critical", "Severity": 0, "Value": 100 }
+            ]
+        }
+    ],
+    "Name": "G1",
+    "Bus": 7,
+    "Probe": "xyz.openbmc_project.FruDevice({'PRODUCT_PRODUCT_NAME': '-G1-'})",
+    "Type": "Board",
+    "xyz.openbmc_project.Inventory.Decorator.Asset": {
+        "Manufacturer": "$BOARD_MANUFACTURER",
+        "Model": "$BOARD_PRODUCT_NAME",
+        "PartNumber": "$BOARD_PART_NUMBER",
+        "SerialNumber": "$BOARD_SERIAL_NUMBER"
+    },
+    "xyz.openbmc_project.Inventory.Decorator.AssetTag": {
+        "AssetTag": "$PRODUCT_ASSET_TAG"
+    },
+    "xyz.openbmc_project.Inventory.Item.Board.Motherboard": {
+        "ProductId": 0
+    },
+    "xyz.openbmc_project.Inventory.Item.System": {}
+}
+

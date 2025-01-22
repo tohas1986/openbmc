@@ -8,11 +8,11 @@
 
 {% block nav-target %}
   {% for t in build.get_sorted_target_list %}
-    {% if target.pk == t.pk %}
+    {% ifequal target.pk t.pk %}
       <li class="active"><a href="{% url 'target' build.pk t.pk %}">{{t.target}}</a><li>
     {% else %}
       <li><a href="{% url 'target' build.pk t.pk %}">{{t.target}}</a><li>
-    {% endif %}
+    {% endifequal %}
   {% endfor %}
 {% endblock %}
 

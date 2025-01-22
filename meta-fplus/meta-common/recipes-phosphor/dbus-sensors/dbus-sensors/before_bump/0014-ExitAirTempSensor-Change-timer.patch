@@ -1,0 +1,39 @@
+From 087c52c85337eb4636342a00a689a5039f295225 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 23 Apr 2021 10:12:31 +0000
+Subject: [PATCH 14/16] ExitAirTempSensor: Change timer
+
+---
+ src/ExitAirTempSensor.cpp | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/ExitAirTempSensor.cpp b/src/ExitAirTempSensor.cpp
+index 725cb12..0b3fb08 100644
+--- a/src/ExitAirTempSensor.cpp
++++ b/src/ExitAirTempSensor.cpp
+@@ -824,7 +824,7 @@ void createSensor(sdbusplus::asio::object_server& objectServer,
+     if (!dbusConnection)
+     {
+         std::cerr << "Connection not created\n";
+-        return;
++        exit(0);
+     }
+     auto getter = std::make_shared<GetSensorConfiguration>(
+         dbusConnection,
+@@ -921,11 +921,11 @@ int main()
+ 
+     io.post([&]() { createSensor(objectServer, sensor, systemBus); });
+ 
+-    boost::asio::deadline_timer configTimer(io);
++    boost::asio::steady_timer configTimer(io);
+ 
+     std::function<void(sdbusplus::message::message&)> eventHandler =
+         [&](sdbusplus::message::message&) {
+-            configTimer.expires_from_now(boost::posix_time::seconds(1));
++            configTimer.expires_from_now(boost::asio::chrono::seconds(1));
+             // create a timer because normally multiple properties change
+             configTimer.async_wait([&](const boost::system::error_code& ec) {
+                 if (ec == boost::asio::error::operation_aborted)
+-- 
+2.7.4
+

@@ -4,9 +4,6 @@ GOOGLE_MISC_PROJ = "dhcp-done"
 
 require ../google-misc/google-misc.inc
 
-EXTRA_OEMESON = " \
-        -Dtests=disabled \
-        "
 inherit systemd
 
 SYSTEMD_SERVICE:${PN} += "dhcp-done.service"

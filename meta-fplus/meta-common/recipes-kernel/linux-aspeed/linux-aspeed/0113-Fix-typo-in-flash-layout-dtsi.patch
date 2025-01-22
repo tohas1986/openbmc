@@ -1,0 +1,25 @@
+From 7d6855b9886491406ea59569484998bb0121db2d Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Mon, 17 Aug 2020 14:49:42 +0000
+Subject: [PATCH 1/1] Fix typo in flash layout dtsi
+
+---
+ arch/arm/boot/dts/openbmc-flash-layout.dtsi | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm/boot/dts/openbmc-flash-layout.dtsi b/arch/arm/boot/dts/openbmc-flash-layout.dtsi
+index 6c26524..b47e140 100644
+--- a/arch/arm/boot/dts/openbmc-flash-layout.dtsi
++++ b/arch/arm/boot/dts/openbmc-flash-layout.dtsi
+@@ -20,7 +20,7 @@ partitions {
+ 		label = "kernel";
+ 	};
+ 
+-	rofs@c0000 {
++	rofs@4c0000 {
+ 		reg = <0x4c0000 0x1740000>;
+ 		label = "rofs";
+ 	};
+-- 
+2.7.4
+

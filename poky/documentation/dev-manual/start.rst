@@ -29,14 +29,14 @@ however, keep in mind, the procedure here is simply a starting point.
 You can build off these steps and customize the procedure to fit any
 particular working environment and set of practices.
 
-#.  *Determine Who is Going to be Developing:* You first need to
+1.  *Determine Who is Going to be Developing:* You first need to
     understand who is going to be doing anything related to the Yocto
     Project and determine their roles. Making this determination is
     essential to completing subsequent steps, which are to get your
     equipment together and set up your development environment's
     hardware topology.
 
-    Possible roles are:
+    Here are possible roles:
 
     -  *Application Developer:* This type of developer does application
        level work on top of an existing software stack.
@@ -52,7 +52,7 @@ particular working environment and set of practices.
        automated tests that are used to ensure all application and core
        system development meets desired quality standards.
 
-#.  *Gather the Hardware:* Based on the size and make-up of the team,
+2.  *Gather the Hardware:* Based on the size and make-up of the team,
     get the hardware together. Ideally, any development, build, or test
     engineer uses a system that runs a supported Linux distribution.
     These systems, in general, should be high performance (e.g. dual,
@@ -66,13 +66,13 @@ particular working environment and set of practices.
        building Yocto Project development containers to be run under
        Docker, which is described later.
 
-#.  *Understand the Hardware Topology of the Environment:* Once you
+3.  *Understand the Hardware Topology of the Environment:* Once you
     understand the hardware involved and the make-up of the team, you
     can understand the hardware topology of the development environment.
     You can get a visual idea of the machines and their roles across the
     development environment.
 
-#.  *Use Git as Your Source Control Manager (SCM):* Keeping your
+4.  *Use Git as Your Source Control Manager (SCM):* Keeping your
     :term:`Metadata` (i.e. recipes,
     configuration files, classes, and so forth) and any software you are
     developing under the control of an SCM system that is compatible
@@ -88,18 +88,30 @@ particular working environment and set of practices.
        For information about BitBake, see the
        :doc:`bitbake:index`.
 
-    It is relatively easy to set up Git services and create infrastructure like
-    :yocto_git:`/`, which is based on server software called
-    `Gitolite <https://gitolite.com>`__
-    with `cgit <https://git.zx2c4.com/cgit/about/>`__ being used to
-    generate the web interface that lets you view the repositories.
-    ``gitolite`` identifies users using SSH keys and allows
+    It is relatively easy to set up Git services and create
+    infrastructure like :yocto_git:`/`, which is based on
+    server software called ``gitolite`` with ``cgit`` being used to
+    generate the web interface that lets you view the repositories. The
+    ``gitolite`` software identifies users using SSH keys and allows
     branch-based access controls to repositories that you can control as
     little or as much as necessary.
 
-#.  *Set up the Application Development Machines:* As mentioned earlier,
+    .. note::
+
+       The setup of these services is beyond the scope of this manual.
+       However, here are sites describing how to perform setup:
+
+       -  `Gitolite <https://gitolite.com>`__: Information for
+          ``gitolite``.
+
+       -  `Interfaces, frontends, and
+          tools <https://git.wiki.kernel.org/index.php/Interfaces,_frontends,_and_tools>`__:
+          Documentation on how to create interfaces and frontends for
+          Git.
+
+5.  *Set up the Application Development Machines:* As mentioned earlier,
     application developers are creating applications on top of existing
-    software stacks. Here are some best practices for setting up
+    software stacks. Following are some best practices for setting up
     machines used for application development:
 
     -  Use a pre-built toolchain that contains the software stack
@@ -116,9 +128,9 @@ particular working environment and set of practices.
     -  Use multiple toolchains installed locally into different
        locations to allow development across versions.
 
-#.  *Set up the Core Development Machines:* As mentioned earlier, core
+6.  *Set up the Core Development Machines:* As mentioned earlier, core
     developers work on the contents of the operating system itself.
-    Here are some best practices for setting up machines used for
+    Following are some best practices for setting up machines used for
     developing images:
 
     -  Have the :term:`OpenEmbedded Build System` available on
@@ -133,7 +145,7 @@ particular working environment and set of practices.
     -  Share layers amongst the developers of a particular project and
        contain the policy configuration that defines the project.
 
-#.  *Set up an Autobuilder:* Autobuilders are often the core of the
+7.  *Set up an Autobuilder:* Autobuilders are often the core of the
     development environment. It is here that changes from individual
     developers are brought together and centrally tested. Based on this
     automated build and test environment, subsequent decisions about
@@ -171,12 +183,12 @@ particular working environment and set of practices.
     -  Allows scheduling of builds so that resources can be used
        efficiently.
 
-#.  *Set up Test Machines:* Use a small number of shared, high
+8.  *Set up Test Machines:* Use a small number of shared, high
     performance systems for testing purposes. Developers can use these
     systems for wider, more extensive testing while they continue to
     develop locally using their primary development system.
 
-#.  *Document Policies and Change Flow:* The Yocto Project uses a
+9.  *Document Policies and Change Flow:* The Yocto Project uses a
     hierarchical structure and a pull model. There are scripts to create and
     send pull requests (i.e. ``create-pull-request`` and
     ``send-pull-request``). This model is in line with other open source
@@ -201,7 +213,7 @@ particular working environment and set of practices.
     possible. Chances are if you have discovered the need for changes,
     someone else in the community needs them also.
 
-#.  *Development Environment Summary:* Aside from the previous steps,
+10. *Development Environment Summary:* Aside from the previous steps,
     here are best practices within the Yocto Project development
     environment:
 
@@ -211,7 +223,7 @@ particular working environment and set of practices.
     -  Maintain your Metadata in layers that make sense for your
        situation. See the ":ref:`overview-manual/yp-intro:the yocto project layer model`"
        section in the Yocto Project Overview and Concepts Manual and the
-       ":ref:`dev-manual/layers:understanding and creating layers`"
+       ":ref:`dev-manual/common-tasks:understanding and creating layers`"
        section for more information on layers.
 
     -  Separate the project's Metadata and code by using separate Git
@@ -234,13 +246,14 @@ particular working environment and set of practices.
     -  The Yocto Project community encourages you to send patches to the
        project to fix bugs or add features. If you do submit patches,
        follow the project commit guidelines for writing good commit
-       messages. See the ":doc:`../contributor-guide/submit-changes`"
-       section in the Yocto Project and OpenEmbedded Contributor Guide.
+       messages. See the
+       ":ref:`dev-manual/common-tasks:submitting a change to the yocto project`"
+       section.
 
     -  Send changes to the core sooner than later as others are likely
        to run into the same issues. For some guidance on mailing lists
-       to use, see the lists in the
-       ":ref:`contributor-guide/submit-changes:finding a suitable mailing list`"
+       to use, see the list in the
+       ":ref:`dev-manual/common-tasks:submitting a change to the yocto project`"
        section. For a description
        of the available mailing lists, see the ":ref:`resources-mailinglist`" section in
        the Yocto Project Reference Manual.
@@ -283,20 +296,20 @@ Setting Up a Native Linux Host
 Follow these steps to prepare a native Linux machine as your Yocto
 Project Build Host:
 
-#. *Use a Supported Linux Distribution:* You should have a reasonably
+1. *Use a Supported Linux Distribution:* You should have a reasonably
    current Linux-based host system. You will have the best results with
    a recent release of Fedora, openSUSE, Debian, Ubuntu, RHEL or CentOS
    as these releases are frequently tested against the Yocto Project and
    officially supported. For a list of the distributions under
    validation and their status, see the ":ref:`Supported Linux
-   Distributions <system-requirements-supported-distros>`"
+   Distributions <detailed-supported-distros>`"
    section in the Yocto Project Reference Manual and the wiki page at
    :yocto_wiki:`Distribution Support </Distribution_Support>`.
 
-#. *Have Enough Free Memory:* Your system should have at least 50 Gbytes
+2. *Have Enough Free Memory:* Your system should have at least 50 Gbytes
    of free disk space for building images.
 
-#. *Meet Minimal Version Requirements:* The OpenEmbedded build system
+3. *Meet Minimal Version Requirements:* The OpenEmbedded build system
    should be able to run on any modern distribution that has the
    following versions for Git, tar, Python, gcc and make.
 
@@ -316,7 +329,7 @@ Project Build Host:
    ":ref:`ref-manual/system-requirements:required git, tar, python, make and gcc versions`"
    section in the Yocto Project Reference Manual for information.
 
-#. *Install Development Host Packages:* Required development host
+4. *Install Development Host Packages:* Required development host
    packages vary depending on your build host and what you want to do
    with the Yocto Project. Collectively, the number of required packages
    is large if you want to be able to cover all cases.
@@ -334,10 +347,7 @@ to use the Extensible SDK, see the ":doc:`/sdk-manual/extensible`" Chapter in th
 Project Application Development and the Extensible Software Development
 Kit (eSDK) manual. If you want to work on the kernel, see the :doc:`/kernel-dev/index`. If you are going to use
 Toaster, see the ":doc:`/toaster-manual/setup-and-use`"
-section in the Toaster User Manual. If you are a VSCode user, you can configure
-the `Yocto Project BitBake
-<https://marketplace.visualstudio.com/items?itemName=yocto-project.yocto-bitbake>`__
-extension accordingly.
+section in the Toaster User Manual.
 
 Setting Up to Use CROss PlatformS (CROPS)
 -----------------------------------------
@@ -351,7 +361,7 @@ Yocto Project on a Windows, Mac, or Linux machine.
 Follow these general steps to prepare a Windows, Mac, or Linux machine
 as your Yocto Project build host:
 
-#. *Determine What Your Build Host Needs:*
+1. *Determine What Your Build Host Needs:*
    `Docker <https://www.docker.com/what-docker>`__ is a software
    container platform that you need to install on the build host.
    Depending on your build host, you might have to install different
@@ -360,20 +370,20 @@ as your Yocto Project build host:
    Platforms <https://docs.docker.com/engine/install/#supported-platforms>`__"
    your build host needs to run containers.
 
-#. *Choose What To Install:* Depending on whether or not your build host
+2. *Choose What To Install:* Depending on whether or not your build host
    meets system requirements, you need to install "Docker CE Stable" or
    the "Docker Toolbox". Most situations call for Docker CE. However, if
    you have a build host that does not meet requirements (e.g.
    Pre-Windows 10 or Windows 10 "Home" version), you must install Docker
    Toolbox instead.
 
-#. *Go to the Install Site for Your Platform:* Click the link for the
+3. *Go to the Install Site for Your Platform:* Click the link for the
    Docker edition associated with your build host's native software. For
    example, if your build host is running Microsoft Windows Version 10
    and you want the Docker CE Stable edition, click that link under
    "Supported Platforms".
 
-#. *Install the Software:* Once you have understood all the
+4. *Install the Software:* Once you have understood all the
    pre-requisites, you can download and install the appropriate
    software. Follow the instructions for your specific machine and the
    type of the software you need to install:
@@ -402,15 +412,15 @@ as your Yocto Project build host:
       Ubuntu <https://docs.docker.com/engine/install/ubuntu/>`__
       for Linux build hosts running the Ubuntu distribution.
 
-#. *Optionally Orient Yourself With Docker:* If you are unfamiliar with
+5. *Optionally Orient Yourself With Docker:* If you are unfamiliar with
    Docker and the container concept, you can learn more here -
    https://docs.docker.com/get-started/.
 
-#. *Launch Docker or Docker Toolbox:* You should be able to launch
+6. *Launch Docker or Docker Toolbox:* You should be able to launch
    Docker or the Docker Toolbox and have a terminal shell on your
    development host.
 
-#. *Set Up the Containers to Use the Yocto Project:* Go to
+7. *Set Up the Containers to Use the Yocto Project:* Go to
    https://github.com/crops/docker-win-mac-docs/wiki and follow
    the directions for your particular build host (i.e. Linux, Mac, or
    Windows).
@@ -429,10 +439,7 @@ section. If you are going to use the Extensible SDK container, see the
 Project Application Development and the Extensible Software Development
 Kit (eSDK) manual. If you are going to use the Toaster container, see
 the ":doc:`/toaster-manual/setup-and-use`"
-section in the Toaster User Manual. If you are a VSCode user, you can configure
-the `Yocto Project BitBake
-<https://marketplace.visualstudio.com/items?itemName=yocto-project.yocto-bitbake>`__
-extension accordingly.
+section in the Toaster User Manual.
 
 Setting Up to Use Windows Subsystem For Linux (WSL 2)
 -----------------------------------------------------
@@ -446,7 +453,7 @@ in which you can develop using the Yocto Project.
 Follow these general steps to prepare a Windows machine using WSL 2 as
 your Yocto Project build host:
 
-#. *Make sure your Windows machine is capable of running WSL 2:*
+1. *Make sure your Windows machine is capable of running WSL 2:*
 
    While all Windows 11 and Windows Server 2022 builds support WSL 2,
    the first versions of Windows 10 and Windows Server 2019 didn't.
@@ -462,7 +469,7 @@ your Yocto Project build host:
 
       Microsoft Windows [Version 10.0.19041.153]
 
-#. *Install the Linux distribution of your choice inside WSL 2:*
+2. *Install the Linux distribution of your choice inside WSL 2:*
    Once you know your version of Windows supports WSL 2, you can
    install the distribution of your choice from the Microsoft Store.
    Open the Microsoft Store and search for Linux. While there are
@@ -472,7 +479,7 @@ your Yocto Project build host:
    making your selection, simply click "Get" to download and install the
    distribution.
 
-#. *Check which Linux distribution WSL 2 is using:* Open a Windows
+3. *Check which Linux distribution WSL 2 is using:* Open a Windows
    PowerShell and run::
 
       C:\WINDOWS\system32> wsl -l -v
@@ -482,13 +489,13 @@ your Yocto Project build host:
    Note that WSL 2 supports running as many different Linux distributions
    as you want to install.
 
-#. *Optionally Get Familiar with WSL:* You can learn more on
+4. *Optionally Get Familiar with WSL:* You can learn more on
    https://docs.microsoft.com/en-us/windows/wsl/wsl2-about.
 
-#. *Launch your WSL Distibution:* From the Windows start menu simply
+5. *Launch your WSL Distibution:* From the Windows start menu simply
    launch your WSL distribution just like any other application.
 
-#. *Optimize your WSL 2 storage often:* Due to the way storage is
+6. *Optimize your WSL 2 storage often:* Due to the way storage is
    handled on WSL 2, the storage space used by the underlying Linux
    distribution is not reflected immediately, and since BitBake heavily
    uses storage, after several builds, you may be unaware you are
@@ -560,10 +567,7 @@ Extensible SDK container, see the ":doc:`/sdk-manual/extensible`" Chapter in the
 Project Application Development and the Extensible Software Development
 Kit (eSDK) manual. If you are going to use the Toaster container, see
 the ":doc:`/toaster-manual/setup-and-use`"
-section in the Toaster User Manual. If you are a VSCode user, you can configure
-the `Yocto Project BitBake
-<https://marketplace.visualstudio.com/items?itemName=yocto-project.yocto-bitbake>`__
-extension accordingly.
+section in the Toaster User Manual.
 
 Locating Yocto Project Source Files
 ===================================
@@ -593,14 +597,14 @@ repository at :yocto_git:`/poky`.
 Use the following procedure to locate the latest upstream copy of the
 ``poky`` Git repository:
 
-#. *Access Repositories:* Open a browser and go to
+1. *Access Repositories:* Open a browser and go to
    :yocto_git:`/` to access the GUI-based interface into the
    Yocto Project source repositories.
 
-#. *Select the Repository:* Click on the repository in which you are
+2. *Select the Repository:* Click on the repository in which you are
    interested (e.g. ``poky``).
 
-#. *Find the URL Used to Clone the Repository:* At the bottom of the
+3. *Find the URL Used to Clone the Repository:* At the bottom of the
    page, note the URL used to clone that repository
    (e.g. :yocto_git:`/poky`).
 
@@ -609,43 +613,63 @@ Use the following procedure to locate the latest upstream copy of the
       For information on cloning a repository, see the
       ":ref:`dev-manual/start:cloning the \`\`poky\`\` repository`" section.
 
-Accessing Source Archives
--------------------------
+Accessing Index of Releases
+---------------------------
 
-The Yocto Project also provides source archives of its releases, which
-are available on :yocto_dl:`/releases/yocto/`. Then, choose the subdirectory
-containing the release you wish to use, for example
-:yocto_dl:`yocto-&DISTRO; </releases/yocto/yocto-&DISTRO;/>`.
-
-You will find there source archives of individual components (if you wish
-to use them individually), and of the corresponding Poky release bundling
-a selection of these components.
+Yocto Project maintains an Index of Releases area that contains related
+files that contribute to the Yocto Project. Rather than Git
+repositories, these files are tarballs that represent snapshots in time
+of a given component.
 
 .. note::
 
    The recommended method for accessing Yocto Project components is to
    use Git to clone the upstream repository and work from within that
-   locally cloned repository.
+   locally cloned repository. However, this section documents how to
+   use a tarball snapshot of any given component.
+
+Follow these steps to locate and download a particular tarball:
+
+1. *Access the Index of Releases:* Open a browser and go to
+   :yocto_dl:`Index of Releases </releases>`. The
+   list represents released components (e.g. ``bitbake``, ``sato``, and
+   so on).
+
+   .. note::
+
+      The ``yocto`` directory contains the full array of released Poky
+      tarballs. The ``poky`` directory in the Index of Releases was
+      historically used for very early releases and exists now only for
+      retroactive completeness.
+
+2. *Select a Component:* Click on any released component in which you
+   are interested (e.g. ``yocto``).
+
+3. *Find the Tarball:* Drill down to find the associated tarball. For
+   example, click on ``yocto-&DISTRO;`` to view files associated with the
+   Yocto Project &DISTRO; release.
+
+4. *Download the Tarball:* Click the tarball to download and save a
+   snapshot of the given component.
 
 Using the Downloads Page
 ------------------------
 
-The :yocto_home:`Yocto Project Website <>` uses a "RELEASES" page
+The :yocto_home:`Yocto Project Website <>` uses a "DOWNLOADS" page
 from which you can locate and download tarballs of any Yocto Project
 release. Rather than Git repositories, these files represent snapshot
 tarballs similar to the tarballs located in the Index of Releases
-described in the ":ref:`dev-manual/start:accessing source archives`" section.
+described in the ":ref:`dev-manual/start:accessing index of releases`" section.
 
-#. *Go to the Yocto Project Website:* Open The
+1. *Go to the Yocto Project Website:* Open The
    :yocto_home:`Yocto Project Website <>` in your browser.
 
-#. *Get to the Downloads Area:* Select the "RELEASES" item from the
-   pull-down "DEVELOPMENT" tab menu near the top of the page.
+2. *Get to the Downloads Area:* Select the "DOWNLOADS" item from the
+   pull-down "SOFTWARE" tab menu near the top of the page.
 
-#. *Select a Yocto Project Release:* On the top of the "RELEASE" page currently
-   supported releases are displayed, further down past supported Yocto Project
-   releases are visible. The "Download" links in the rows of the table there
-   will lead to the download tarballs for the release.
+3. *Select a Yocto Project Release:* Use the menu next to "RELEASE" to
+   display and choose a recent or past supported Yocto Project release
+   (e.g. &DISTRO_NAME_NO_CAP;, &DISTRO_NAME_NO_CAP_MINUS_ONE;, and so forth).
 
    .. note::
 
@@ -655,9 +679,9 @@ described in the ":ref:`dev-manual/start:accessing source archives`" section.
    You can use the "RELEASE ARCHIVE" link to reveal a menu of all Yocto
    Project releases.
 
-#. *Download Tools or Board Support Packages (BSPs):* Next to the tarballs you
-   will find download tools or BSPs as well. Just select a Yocto Project
-   release and look for what you need.
+4. *Download Tools or Board Support Packages (BSPs):* From the
+   "DOWNLOADS" page, you can download tools or BSPs as well. Just scroll
+   down the page and look for what you need.
 
 Cloning and Checking Out Branches
 =================================
@@ -683,10 +707,10 @@ Cloning the ``poky`` Repository
 Follow these steps to create a local version of the upstream
 :term:`Poky` Git repository.
 
-#. *Set Your Directory:* Change your working directory to where you want
+1. *Set Your Directory:* Change your working directory to where you want
    to create your local copy of ``poky``.
 
-#. *Clone the Repository:* The following example command clones the
+2. *Clone the Repository:* The following example command clones the
    ``poky`` repository and uses the default name "poky" for your local
    repository::
 
@@ -742,13 +766,13 @@ and then specifically check out that development branch.
    Further development on top of the branch that occurs after check it
    out can occur.
 
-#. *Switch to the Poky Directory:* If you have a local poky Git
+1. *Switch to the Poky Directory:* If you have a local poky Git
    repository, switch to that directory. If you do not have the local
    copy of poky, see the
    ":ref:`dev-manual/start:cloning the \`\`poky\`\` repository`"
    section.
 
-#. *Determine Existing Branch Names:*
+2. *Determine Existing Branch Names:*
    ::
 
       $ git branch -a
@@ -769,7 +793,7 @@ and then specifically check out that development branch.
       remotes/origin/zeus-next
       ... and so on ...
 
-#. *Check out the Branch:* Check out the development branch in which you
+3. *Check out the Branch:* Check out the development branch in which you
    want to work. For example, to access the files for the Yocto Project
    &DISTRO; Release (&DISTRO_NAME;), use the following command::
 
@@ -803,19 +827,19 @@ similar to checking out by branch name except you use tag names.
    Checking out a branch based on a tag gives you a stable set of files
    not affected by development on the branch above the tag.
 
-#. *Switch to the Poky Directory:* If you have a local poky Git
+1. *Switch to the Poky Directory:* If you have a local poky Git
    repository, switch to that directory. If you do not have the local
    copy of poky, see the
    ":ref:`dev-manual/start:cloning the \`\`poky\`\` repository`"
    section.
 
-#. *Fetch the Tag Names:* To checkout the branch based on a tag name,
+2. *Fetch the Tag Names:* To checkout the branch based on a tag name,
    you need to fetch the upstream tags into your local repository::
 
       $ git fetch --tags
       $
 
-#. *List the Tag Names:* You can list the tag names now::
+3. *List the Tag Names:* You can list the tag names now::
 
       $ git tag
       1.1_M1.final
@@ -837,7 +861,7 @@ similar to checking out by branch name except you use tag names.
       yocto_1.5_M5.rc8
 
 
-#. *Check out the Branch:*
+4. *Check out the Branch:*
    ::
 
       $ git checkout tags/yocto-&DISTRO; -b my_yocto_&DISTRO;

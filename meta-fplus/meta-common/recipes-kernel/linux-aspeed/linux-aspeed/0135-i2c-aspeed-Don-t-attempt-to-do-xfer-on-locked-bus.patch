@@ -1,0 +1,57 @@
+From 1c29cc3859b50f805f81e5051ab95a3c12a9f518 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 2 Apr 2021 13:58:12 +0000
+Subject: [PATCH 2/5] i2c-aspeed: Don't attempt to do xfer on locked bus
+
+---
+ drivers/i2c/busses/i2c-aspeed.c | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/i2c/busses/i2c-aspeed.c b/drivers/i2c/busses/i2c-aspeed.c
+index 482fe88..21b3415 100644
+--- a/drivers/i2c/busses/i2c-aspeed.c
++++ b/drivers/i2c/busses/i2c-aspeed.c
+@@ -678,14 +678,25 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
+ 	struct aspeed_i2c_bus *bus = i2c_get_adapdata(adap);
+ 	unsigned long time_left, flags;
+ 	int i;
++	u32 command;
+ 
+ 	spin_lock_irqsave(&bus->lock, flags);
+ 	bus->cmd_err = 0;
+ 
++	/* If state machine is in idle, bus is busy and SCL is low,
++	   then bus is locked, no need to recover it */
++	command = readl(bus->base + ASPEED_I2C_CMD_REG);
++	if (!bus->multi_master &&
++	   (command & ASPEED_I2CD_BUS_BUSY_STS) &&
++	   ((command & ASPEED_I2CD_SCL_LINE_STS) == 0) &&
++	   (((command >> 25 ) & 0x01) == 0x01)) {
++		spin_unlock_irqrestore(&bus->lock, flags);
++		return -EBUSY;
++	}
++
+ 	/* If bus is busy in a single master environment, attempt recovery. */
+ 	if (!bus->multi_master &&
+-	    (readl(bus->base + ASPEED_I2C_CMD_REG) &
+-	     ASPEED_I2CD_BUS_BUSY_STS)) {
++	    (command & ASPEED_I2CD_BUS_BUSY_STS)) {
+ 		int ret;
+ 
+ 		spin_unlock_irqrestore(&bus->lock, flags);
+@@ -693,6 +704,12 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
+ 		if (ret)
+ 			return ret;
+ 		spin_lock_irqsave(&bus->lock, flags);
++
++		if (readl(bus->base + ASPEED_I2C_CMD_REG) &
++			ASPEED_I2CD_BUS_BUSY_STS) {
++			spin_unlock_irqrestore(&bus->lock, flags);
++			return -EBUSY;
++		}
+ 	}
+ 
+ 	bus->cmd_err = 0;
+-- 
+2.7.4
+

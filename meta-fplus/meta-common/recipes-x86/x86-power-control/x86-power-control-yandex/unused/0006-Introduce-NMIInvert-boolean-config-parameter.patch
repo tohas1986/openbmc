@@ -1,0 +1,70 @@
+From 261bd42dd88408b8afbd7af6519bfe34f29f8054 Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Thu, 1 Apr 2021 08:42:54 +0000
+Subject: [PATCH 1/1] Introduce NMIInvert boolean config parameter
+
+---
+ power-control-x86/src/power_control.cpp | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/power-control-x86/src/power_control.cpp b/power-control-x86/src/power_control.cpp
+index 26dafd2..b0cd799 100644
+--- a/power-control-x86/src/power_control.cpp
++++ b/power-control-x86/src/power_control.cpp
+@@ -54,6 +54,7 @@ static std::string lockSwitchName;
+ static std::string nmiButtonName;
+ static bool powerOutSteady;
+ static bool lockSwitchInvert;
++static uint8_t nmiPassive=0;
+ 
+ static std::shared_ptr<sdbusplus::asio::dbus_interface> hostIface;
+ static std::shared_ptr<sdbusplus::asio::dbus_interface> chassisIface;
+@@ -2058,17 +2059,16 @@ static void nmiSetEnableProperty(bool value)
+ 
+ static void nmiReset(void)
+ {
+-    static constexpr const uint8_t value = 1;
+     const static constexpr int nmiOutPulseTimeMs = 200;
+ 
+     phosphor::logging::log<phosphor::logging::level::INFO>("NMI out action");
+-    nmiOutLine.set_value(value);
+-    std::string logMsg = nmiOutName + " set to " + std::to_string(value);
++    nmiOutLine.set_value(!power_control::nmiPassive);
++    std::cerr << nmiOutName << " set to " << std::to_string(!power_control::nmiPassive) << "\n";
+     phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
+     gpioAssertTimer.expires_after(std::chrono::milliseconds(nmiOutPulseTimeMs));
+     gpioAssertTimer.async_wait([](const boost::system::error_code ec) {
+         // restore the NMI_OUT GPIO line back to the opposite value
+-        nmiOutLine.set_value(!value);
++        nmiOutLine.set_value(power_control::nmiPassive);
+         std::string logMsg = nmiOutName + " released";
+         phosphor::logging::log<phosphor::logging::level::INFO>(logMsg.c_str());
+         if (ec)
+@@ -2410,6 +2410,15 @@ static int loadConfigValues()
+         powerOutSteady = false;
+     }
+ 
++    if (data.contains("NMIInvert") && data["NMIInvert"] == "true")
++    {
++        nmiPassive = 1;
++    }
++    else
++    {
++        nmiPassive = 0;
++    }
++
+     if (data.contains("LockSwitchInvert"))
+     {
+         lockSwitchInvert = true;
+@@ -2595,7 +2604,7 @@ int main(int argc, char* argv[])
+     }
+ 
+     // initialize NMI_OUT GPIO.
+-    setGPIOOutput(nmiOutName, 0, nmiOutLine);
++    setGPIOOutput(nmiOutName, nmiPassive, nmiOutLine);
+ 
+     // Initialize POWER_OUT and RESET_OUT GPIO.
+     gpiod::line line;
+-- 
+2.7.4
+

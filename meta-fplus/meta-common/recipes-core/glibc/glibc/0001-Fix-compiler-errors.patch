@@ -1,0 +1,53 @@
+From b358fdc8d2aa46e4ed43266e61cda572cb7fe09f Mon Sep 17 00:00:00 2001
+From: Konstantin Klubnichkin <kitsok@yandex-team.ru>
+Date: Fri, 11 Jun 2021 08:35:13 +0000
+Subject: [PATCH 3/5] Fix compiler errors
+
+%% original patch: 0001-Fix-compiler-errors.patch
+---
+ posix/regexec.c       | 2 +-
+ stdlib/canonicalize.c | 2 +-
+ sunrpc/netname.c      | 1 +
+ 3 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/posix/regexec.c b/posix/regexec.c
+index cffeaf2845..64807addd7 100644
+--- a/posix/regexec.c
++++ b/posix/regexec.c
+@@ -3759,7 +3759,7 @@ check_node_accept_bytes (const re_dfa_t *dfa, Idx node_idx,
+ 	{
+ 	  unsigned int in_collseq = 0;
+ 	  const int32_t *table, *indirect;
+-	  const unsigned char *weights, *extra;
++	  const unsigned char *weights, *extra = NULL;
+ 	  const char *collseqwc;
+ 
+ 	  /* match with collating_symbol?  */
+diff --git a/stdlib/canonicalize.c b/stdlib/canonicalize.c
+index 54dfac454c..de11fcad18 100644
+--- a/stdlib/canonicalize.c
++++ b/stdlib/canonicalize.c
+@@ -188,7 +188,7 @@ struct realpath_bufs
+ static char *
+ realpath_stk (const char *name, char *resolved, struct realpath_bufs *bufs)
+ {
+-  char *dest;
++  char *dest = NULL;
+   char const *start;
+   char const *end;
+   int num_links = 0;
+diff --git a/sunrpc/netname.c b/sunrpc/netname.c
+index bf7f0b81c4..087527dc12 100644
+--- a/sunrpc/netname.c
++++ b/sunrpc/netname.c
+@@ -27,6 +27,7 @@
+ #define	MAXIPRINT (11)		/* max length of printed integer */
+ static const char OPSYS[] = "unix";
+ 
++#pragma GCC diagnostic ignored "-Wformat-overflow="
+ int
+ user2netname (char netname[MAXNETNAMELEN + 1], const uid_t uid,
+ 	      const char *domain)
+-- 
+2.36.0
+

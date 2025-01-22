@@ -1,1 +1,1 @@
-ERR_INFO_CAP:gbs = "256"
+EXTRA_OEMESON:append:gbs = " -Derror_info_cap=256"

@@ -7,7 +7,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
 
-import os
 from django.urls import reverse
 from django.utils import timezone
 
@@ -21,8 +20,7 @@ class TestBuildDashboardPageArtifacts(SeleniumTestCase):
     """ Tests for artifacts on the build dashboard /build/X """
 
     def setUp(self):
-        builldir = os.environ.get('BUILDDIR', './')
-        bbv = BitbakeVersion.objects.create(name='bbv1', giturl=f'{builldir}/',
+        bbv = BitbakeVersion.objects.create(name='bbv1', giturl='/tmp/',
                                             branch='master', dirpath="")
         release = Release.objects.create(name='release1',
                                          bitbake_version=bbv)
@@ -199,12 +197,12 @@ class TestBuildDashboardPageArtifacts(SeleniumTestCase):
         # check package count and size, link on target name
         selector = '[data-value="target-package-count"]'
         element = self.find(selector)
-        self.assertEqual(element.text, '1',
+        self.assertEquals(element.text, '1',
             'package count should be shown for image builds')
 
         selector = '[data-value="target-package-size"]'
         element = self.find(selector)
-        self.assertEqual(element.text, '1.0 KB',
+        self.assertEquals(element.text, '1.0 KB',
             'package size should be shown for image builds')
 
         selector = '[data-link="target-packages"]'
